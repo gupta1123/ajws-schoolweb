@@ -1,0 +1,29 @@
+/* src/components/leave-requests/styles.css */
+
+.leave-request-pending-bg {
+  background-color: rgb(254 249 195);
+}
+
+.leave-request-approved-bg {
+  background-color: rgb(220 252 231);
+}
+
+.leave-request-rejected-bg {
+  background-color: rgb(254 226 226);
+}
+
+.leave-request-pending-text {
+  color: rgb(161 98 7);
+}
+
+.leave-request-approved-text {
+  color: rgb(22 163 74);
+}
+
+.leave-request-rejected-text {
+  color: rgb(220 38 38);
+}
+
+.leave-request-urgent-border {
+  border-left: 4px solid rgb(220 38 38);
+}

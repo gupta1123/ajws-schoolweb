@@ -1,0 +1,15 @@
+// src/app/reports/layout.tsx
+
+import { AppLayout } from '@/components/layout/app-layout';
+
+export default function ReportsLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <AppLayout>
+      {children}
+    </AppLayout>
+  );
+}

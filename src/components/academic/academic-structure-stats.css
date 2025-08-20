@@ -1,0 +1,33 @@
+/* src/components/academic/academic-structure-stats.css */
+
+.academic-stats-blue {
+  background-color: rgb(219 234 254);
+}
+
+.academic-stats-green {
+  background-color: rgb(220 252 231);
+}
+
+.academic-stats-purple {
+  background-color: rgb(233 213 255);
+}
+
+.academic-stats-orange {
+  background-color: rgb(255 237 213);
+}
+
+.academic-stats-blue-icon {
+  color: rgb(37 99 235);
+}
+
+.academic-stats-green-icon {
+  color: rgb(22 163 74);
+}
+
+.academic-stats-purple-icon {
+  color: rgb(147 51 234);
+}
+
+.academic-stats-orange-icon {
+  color: rgb(249 115 22);
+}

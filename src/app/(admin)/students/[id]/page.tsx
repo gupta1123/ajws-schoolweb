@@ -1,0 +1,401 @@
+// src/app/students/[id]/page.tsx
+
+'use client';
+
+import { useAuth } from '@/lib/auth/context';
+import { ProtectedRoute } from '@/lib/auth/protected-route';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import { Calendar, Phone, Mail, User, BookOpen, Users, Plus, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { ParentLinking } from '@/components/students/parent-linking';
+import { studentServices, Student } from '@/lib/api/students';
+
+export default function StudentDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { user, token } = useAuth();
+  const router = useRouter();
+  const [showParentLinking, setShowParentLinking] = useState(false);
+  const [studentData, setStudentData] = useState<Student | null>(null);
+  const [studentId, setStudentId] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Extract student ID from params
+  useEffect(() => {
+    const extractId = async () => {
+      const resolvedParams = await params;
+      setStudentId(resolvedParams.id);
+    };
+    extractId();
+  }, [params]);
+
+  // Fetch student data
+  useEffect(() => {
+    const fetchStudentData = async () => {
+      if (!token || !studentId) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await studentServices.getStudentById(studentId, token);
+        
+        if (response.status === 'success' && response.data) {
+          setStudentData(response.data.student);
+        }
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch student data';
+        setError(errorMessage);
+        console.error('Error fetching student data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (token && studentId) {
+      fetchStudentData();
+    }
+  }, [token, studentId]);
+
+  // Function to handle linking a new parent
+  const handleLinkParent = async (parentId: string, relationship: string, isPrimary: boolean, accessLevel: string) => {
+    if (!token || !studentData) return;
+    
+    try {
+      const response = await studentServices.linkStudentToParent(
+        studentData.id,
+        {
+          parent_id: parentId,
+          relationship: relationship as 'father' | 'mother' | 'guardian',
+          is_primary_guardian: isPrimary,
+          access_level: accessLevel as 'full' | 'restricted' | 'readonly'
+        },
+        token
+      );
+      
+      if (response.status === 'success') {
+        // Refresh student data to show the new parent
+        const updatedResponse = await studentServices.getStudentById(studentId, token);
+        if (updatedResponse.status === 'success' && updatedResponse.data) {
+          setStudentData(updatedResponse.data.student);
+        }
+      }
+    } catch (err: unknown) {
+      console.error('Error linking parent:', err);
+      // You might want to show an error message to the user here
+    }
+    
+    // Close the parent linking modal
+    setShowParentLinking(false);
+  };
+
+  // Function to handle canceling parent linking
+  const handleCancelParentLinking = () => {
+    setShowParentLinking(false);
+  };
+
+  // Only allow admins and principals to access this page
+  if (user?.role !== 'admin' && user?.role !== 'principal') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+          <p className="text-gray-600">Only admins and principals can access this page.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen p-4 md:p-8">
+          <main className="max-w-6xl mx-auto pt-16">
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <span className="ml-2">Loading student details...</span>
+            </div>
+          </main>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  if (error || !studentData) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen p-4 md:p-8">
+          <main className="max-w-6xl mx-auto pt-16">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold mb-2">Error</h2>
+              <p className="text-gray-600">{error || 'Student not found'}</p>
+              <Button onClick={() => router.back()} className="mt-4">
+                Go Back
+              </Button>
+            </div>
+          </main>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  return (
+    <ProtectedRoute>
+      <div className="min-h-screen p-4 md:p-8">
+        <main className="max-w-6xl mx-auto pt-16">
+          <div className="mb-6">
+            <Button 
+              variant="ghost" 
+              onClick={() => router.back()}
+              className="mb-4"
+            >
+              ← Back to Students
+            </Button>
+            <div className="flex justify-between items-start">
+              <div>
+                <h1 className="text-3xl font-bold mb-2">{studentData.full_name}</h1>
+                <div className="flex items-center gap-2">
+                  <Badge 
+                    variant={studentData.status === 'active' ? 'default' : 'secondary'}
+                    className={studentData.status === 'active' ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}
+                  >
+                    {studentData.status.charAt(0).toUpperCase() + studentData.status.slice(1)}
+                  </Badge>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" asChild>
+                  <Link href={`/messages?studentId=${studentData.id}`}>
+                    Message Parent
+                  </Link>
+                </Button>
+                <Button asChild>
+                  <Link href={`/students/${studentData.id}/edit`}>
+                    Edit Student
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Personal Information */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Personal Information</CardTitle>
+                <CardDescription>
+                  Student&apos;s personal and admission details
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                    <User className="mr-2 h-4 w-4" />
+                    Full Name
+                  </div>
+                  <p className="font-medium">{studentData.full_name}</p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                    <Mail className="mr-2 h-4 w-4" />
+                    Admission Number
+                  </div>
+                  <p className="font-medium">{studentData.admission_number}</p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Date of Birth
+                  </div>
+                  <p className="font-medium">{new Date(studentData.date_of_birth).toLocaleDateString()}</p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Admission Date
+                  </div>
+                  <p className="font-medium">{new Date(studentData.admission_date).toLocaleDateString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Actions */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+                <CardDescription>
+                  Common actions for this student
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button variant="outline" className="w-full justify-start" asChild>
+                  <Link href="/homework/create">
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    Assign Homework
+                  </Link>
+                </Button>
+                <Button variant="outline" className="w-full justify-start" asChild>
+                  <Link href="/classwork/create">
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    Record Classwork
+                  </Link>
+                </Button>
+                <Button variant="outline" className="w-full justify-start" asChild>
+                  <Link href={`/leave-requests?studentId=${studentData.id}`}>
+                    <Users className="mr-2 h-4 w-4" />
+                    View Leave Requests
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Academic History */}
+          <div className="grid gap-6 mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Academic History</CardTitle>
+                <CardDescription>
+                  Student&apos;s academic records across different years
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Academic Year</TableHead>
+                        <TableHead>Class</TableHead>
+                        <TableHead>Division</TableHead>
+                        <TableHead>Roll Number</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {studentData.student_academic_records.map((record) => (
+                        <TableRow key={record.id}>
+                          <TableCell className="font-medium">{record.class_division.academic_year.year_name}</TableCell>
+                          <TableCell>{record.class_division.level.name}</TableCell>
+                          <TableCell>{record.class_division.division}</TableCell>
+                          <TableCell>{record.roll_number}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">
+                              {record.status}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Guardians */}
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Guardians</CardTitle>
+                    <CardDescription>
+                      Student&apos;s parent/guardian information
+                    </CardDescription>
+                  </div>
+                  <Button onClick={() => setShowParentLinking(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Link Parent
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Relationship</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Access Level</TableHead>
+                        <TableHead>Primary</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {studentData.parent_student_mappings?.map((mapping) => (
+                        <TableRow key={mapping.id}>
+                          <TableCell className="font-medium">{mapping.parent.full_name}</TableCell>
+                          <TableCell>{mapping.relationship}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center">
+                              <Phone className="mr-2 h-4 w-4 text-muted-foreground" />
+                              {mapping.parent.phone_number}
+                            </div>
+                          </TableCell>
+                          <TableCell>{mapping.parent.email}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {mapping.access_level}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {mapping.is_primary_guardian ? (
+                              <Badge>Primary</Badge>
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="outline" size="sm" className="mr-2" asChild>
+                              <Link href={`/messages?parentId=${mapping.parent.id}`}>
+                                Message
+                              </Link>
+                            </Button>
+                            <Button variant="outline" size="sm" asChild>
+                              <Link href={`/parents/${mapping.parent.id}/edit`}>
+                                Edit
+                              </Link>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                {/* Parent Linking Modal */}
+                {showParentLinking && (
+                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <Card className="w-full max-w-md">
+                      <CardHeader>
+                        <CardTitle>Link Parent</CardTitle>
+                        <CardDescription>
+                          Link an existing parent to this student
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ParentLinking 
+                          onLinkParent={handleLinkParent}
+                          onCancel={handleCancelParentLinking}
+                        />
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      </div>
+    </ProtectedRoute>
+  );
+}
