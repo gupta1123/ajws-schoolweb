@@ -197,12 +197,17 @@ export const academicServices = {
       staff_id: string; 
     }; 
     assigned_classes: Array<{ 
+      assignment_id: string;
       class_division_id: string; 
       division: string; 
       class_name: string; 
       class_level: string; 
       sequence_number: number; 
       academic_year: string; 
+      assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
+      is_primary: boolean;
+      assigned_date: string;
+      subject?: string; // Subject for subject teacher assignments
     }>; 
     total_assigned_classes: number; 
     has_assignments: boolean; 
@@ -222,12 +227,17 @@ export const academicServices = {
         staff_id: string; 
       }; 
       assigned_classes: Array<{ 
+        assignment_id: string;
         class_division_id: string; 
         division: string; 
         class_name: string; 
         class_level: string; 
         sequence_number: number; 
         academic_year: string; 
+        assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
+        is_primary: boolean;
+        assigned_date: string; 
+        subject?: string; // Subject for subject teacher assignments
       }>; 
       total_assigned_classes: number; 
       has_assignments: boolean; 

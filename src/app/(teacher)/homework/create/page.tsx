@@ -40,6 +40,7 @@ interface AssignedClass {
   assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
   is_primary: boolean;
   assigned_date: string;
+  subject?: string; // Subject for subject teacher assignments
 }
 
 export default function CreateHomeworkPage() {
@@ -55,6 +56,7 @@ export default function CreateHomeworkPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [classDivisions, setClassDivisions] = useState<TransformedClass[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
+  const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
 
   // Fetch class divisions on component mount
   useEffect(() => {
@@ -73,6 +75,14 @@ export default function CreateHomeworkPage() {
           const subjectTeacherClasses = (response.data.assigned_classes as AssignedClass[]).filter(
             assignedClass => assignedClass.assignment_type === 'subject_teacher'
           );
+          
+          // Extract unique subjects from subject teacher assignments
+          const subjects = [...new Set(
+            subjectTeacherClasses
+              .map(assignedClass => assignedClass.subject)
+              .filter((subject): subject is string => !!subject)
+          )];
+          setAvailableSubjects(subjects);
           
           // Transform the filtered assigned classes to match the expected format
           const transformedClasses = subjectTeacherClasses.map(assignedClass => ({
@@ -262,14 +272,25 @@ export default function CreateHomeworkPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="subject">Subject</Label>
-                  <Input
+                  <select
                     id="subject"
                     name="subject"
                     value={formData.subject}
                     onChange={handleInputChange}
-                    placeholder="e.g., Mathematics, Science, English"
+                    className="border rounded-md px-3 py-2 w-full"
                     required
-                  />
+                  >
+                    <option value="">Select a subject</option>
+                    {availableSubjects.length === 0 ? (
+                      <option value="">No subjects assigned</option>
+                    ) : (
+                      availableSubjects.map((subject, index) => (
+                        <option key={`${subject}-${index}`} value={subject}>
+                          {subject}
+                        </option>
+                      ))
+                    )}
+                  </select>
                 </div>
 
                 <div className="space-y-2">

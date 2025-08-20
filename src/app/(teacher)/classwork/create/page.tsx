@@ -40,20 +40,10 @@ interface AssignedClass {
   assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
   is_primary: boolean;
   assigned_date: string;
+  subject?: string; // Subject for subject teacher assignments
 }
 
-// Common subjects
-const commonSubjects = [
-  'Mathematics',
-  'Science',
-  'English',
-  'History',
-  'Geography',
-  'Art',
-  'Music',
-  'Physical Education',
-  'Foreign Language'
-];
+
 
 export default function CreateClassworkPage() {
   const { user, token } = useAuth();
@@ -71,6 +61,7 @@ export default function CreateClassworkPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [assignedClasses, setAssignedClasses] = useState<TransformedClass[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
+  const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
 
   // Fetch teacher's assigned classes
   const fetchAssignedClasses = useCallback(async () => {
@@ -84,6 +75,14 @@ export default function CreateClassworkPage() {
         const subjectTeacherClasses = (response.data.assigned_classes as AssignedClass[]).filter(
           (assignedClass: AssignedClass) => assignedClass.assignment_type === 'subject_teacher'
         );
+        
+        // Extract unique subjects from subject teacher assignments
+        const subjects = [...new Set(
+          subjectTeacherClasses
+            .map(assignedClass => assignedClass.subject)
+            .filter((subject): subject is string => !!subject)
+        )];
+        setAvailableSubjects(subjects);
         
         // Transform the filtered assigned classes to match the expected format
         const transformedClasses = subjectTeacherClasses.map(assignedClass => ({
@@ -293,22 +292,25 @@ export default function CreateClassworkPage() {
 
                     <div className="space-y-2">
                       <Label htmlFor="subject">Subject *</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="subject"
-                          name="subject"
-                          value={formData.subject}
-                          onChange={handleInputChange}
-                          placeholder="e.g., Mathematics, Science, English"
-                          className={errors.subject ? 'border-red-500' : ''}
-                          list="common-subjects"
-                        />
-                        <datalist id="common-subjects">
-                          {commonSubjects.map(subject => (
-                            <option key={subject} value={subject} />
-                          ))}
-                        </datalist>
-                      </div>
+                      <select
+                        id="subject"
+                        name="subject"
+                        value={formData.subject}
+                        onChange={handleInputChange}
+                        className={`border rounded-md px-3 py-2 w-full ${errors.subject ? 'border-red-500' : ''}`}
+                        required
+                      >
+                        <option value="">Select a subject</option>
+                        {availableSubjects.length === 0 ? (
+                          <option value="">No subjects assigned</option>
+                        ) : (
+                          availableSubjects.map((subject, index) => (
+                            <option key={`${subject}-${index}`} value={subject}>
+                              {subject}
+                            </option>
+                          ))
+                        )}
+                      </select>
                       {errors.subject && (
                         <p className="text-sm text-red-500">{errors.subject}</p>
                       )}

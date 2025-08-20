@@ -34,11 +34,6 @@ const teacherNavItems = [
     category: 'Academics',
     items: [
       {
-        title: 'My Classes',
-        href: '/classes',
-        icon: BookOpen,
-      },
-      {
         title: 'Attendance',
         href: '/attendance',
         icon: CheckCircle,
