@@ -28,8 +28,6 @@ export function ThemeToggle() {
     { id: 'green', name: 'Green' },
     { id: 'purple', name: 'Purple' },
     { id: 'orange', name: 'Orange' },
-    { id: 'pink', name: 'Pink' },
-    { id: 'red', name: 'Red' },
   ];
 
   return (
@@ -75,9 +73,7 @@ export function ThemeToggle() {
                   scheme.id === 'blue' ? 'bg-blue-600' :
                   scheme.id === 'green' ? 'bg-green-600' :
                   scheme.id === 'purple' ? 'bg-purple-600' :
-                  scheme.id === 'orange' ? 'bg-orange-600' :
-                  scheme.id === 'pink' ? 'bg-pink-600' :
-                  scheme.id === 'red' ? 'bg-red-600' : 'bg-indigo-600'
+                  scheme.id === 'orange' ? 'bg-orange-600' : 'bg-indigo-600'
                 }`} />
                 {scheme.name}
               </div>

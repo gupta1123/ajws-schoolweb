@@ -6,7 +6,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 
 // Define theme types
 export type Theme = 'light' | 'dark';
-export type ColorScheme = 'default' | 'blue' | 'green' | 'purple' | 'orange' | 'pink' | 'red';
+export type ColorScheme = 'default' | 'blue' | 'green' | 'purple' | 'orange';
 
 // Define the theme context type
 interface ThemeContextType {

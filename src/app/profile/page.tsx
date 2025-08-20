@@ -332,7 +332,7 @@ export default function ProfilePage() {
                         key={scheme.id}
                         variant={colorScheme === scheme.id ? 'default' : 'outline'}
                         className="flex items-center justify-start h-auto py-3 px-4"
-                        onClick={() => setColorScheme(scheme.id as 'blue' | 'green' | 'purple' | 'orange' | 'pink' | 'red')}
+                        onClick={() => setColorScheme(scheme.id as 'blue' | 'green' | 'purple' | 'orange')}
                       >
                         <div className={`w-4 h-4 rounded-full mr-3 ${scheme.color}`} />
                         <span>{scheme.name}</span>
