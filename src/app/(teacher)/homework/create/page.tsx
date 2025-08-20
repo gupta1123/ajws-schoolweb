@@ -11,26 +11,109 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Calendar, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { homeworkServices } from '@/lib/api/homework';
+import { academicServices } from '@/lib/api/academic';
+import { toast } from '@/hooks/use-toast';
 
-// Mock data for class divisions
-const mockClassDivisions = [
-  { id: '1', name: 'Grade 5 - Section A' },
-  { id: '2', name: 'Grade 6 - Section B' },
-  { id: '3', name: 'Grade 7 - Section C' }
-];
+// Interface for the transformed class data we're using
+interface TransformedClass {
+  id: string;
+  division: string;
+  class_level: {
+    name: string;
+  };
+  academic_year: {
+    year_name: string;
+  };
+}
+
+// Interface for the API response structure
+interface AssignedClass {
+  assignment_id: string;
+  class_division_id: string;
+  division: string;
+  class_name: string;
+  class_level: string;
+  sequence_number: number;
+  academic_year: string;
+  assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
+  is_primary: boolean;
+  assigned_date: string;
+}
 
 export default function CreateHomeworkPage() {
-  const { user } = useAuth();
+  const { user, token, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
   const [formData, setFormData] = useState({
-    classDivisionId: '',
+    class_division_id: '',
     subject: '',
     title: '',
     description: '',
-    dueDate: ''
+    due_date: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [classDivisions, setClassDivisions] = useState<TransformedClass[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(true);
+
+  // Fetch class divisions on component mount
+  useEffect(() => {
+    const fetchClassDivisions = async () => {
+      try {
+        setLoadingClasses(true);
+        
+        if (!token) {
+          console.log('No token available, skipping API call');
+          return;
+        }
+        
+        const response = await academicServices.getMyTeacherClasses(token);
+        if (response.status === 'success' && response.data) {
+          // Filter for only subject teacher assignments (not class teacher assignments)
+          const subjectTeacherClasses = (response.data.assigned_classes as AssignedClass[]).filter(
+            assignedClass => assignedClass.assignment_type === 'subject_teacher'
+          );
+          
+          // Transform the filtered assigned classes to match the expected format
+          const transformedClasses = subjectTeacherClasses.map(assignedClass => ({
+            id: assignedClass.class_division_id,
+            division: assignedClass.division,
+            class_level: {
+              name: assignedClass.class_level
+            },
+            academic_year: {
+              year_name: assignedClass.academic_year
+            }
+          }));
+          
+          // Filter out duplicates based on ID to prevent React key conflicts
+          const uniqueClasses = transformedClasses.filter((classItem, index, self) => 
+            index === self.findIndex(c => c.id === classItem.id)
+          );
+          
+          setClassDivisions(uniqueClasses);
+        }
+      } catch (error) {
+        console.error('Error fetching teacher classes:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch your assigned classes",
+          variant: "error",
+        });
+      } finally {
+        setLoadingClasses(false);
+      }
+    };
+
+    if (token) {
+      fetchClassDivisions();
+    } else {
+      console.log('No token available, skipping API call');
+    }
+  }, [token]);
+
+  // Debug: Log authentication state
+  console.log('Auth state:', { user, token: !!token, isAuthenticated, authLoading });
 
   // Only allow teachers to access this page
   if (user?.role !== 'teacher') {
@@ -44,6 +127,38 @@ export default function CreateHomeworkPage() {
     );
   }
 
+  // Show loading state while auth is loading
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if user is authenticated
+  if (!isAuthenticated || !token) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Authentication Required</h2>
+          <p className="text-gray-600">Please log in to access this page.</p>
+          <Button 
+            onClick={() => router.push('/login')}
+            className="mt-4"
+          >
+            Go to Login
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -52,15 +167,45 @@ export default function CreateHomeworkPage() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Format the due date to ISO string with time
+      const dueDate = new Date(formData.due_date);
+      dueDate.setHours(23, 59, 59, 999); // Set to end of day
+      
+      const payload = {
+        ...formData,
+        due_date: dueDate.toISOString()
+      };
+
+      const response = await homeworkServices.createHomework(payload, token || '');
+      
+      if (response.status === 'success') {
+        toast({
+          title: "Success",
+          description: "Homework created successfully!",
+          variant: "success",
+        });
+        router.push('/homework');
+      }
+    } catch (error) {
+      console.error('Error creating homework:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create homework assignment",
+        variant: "error",
+      });
+    } finally {
       setIsLoading(false);
-      router.push('/homework');
-    }, 1000);
+    }
+  };
+
+  // Format class division name for display
+  const formatClassName = (division: TransformedClass) => {
+    return `${division.class_level?.name || 'Unknown'} - Section ${division.division}`;
   };
 
   return (
@@ -91,21 +236,27 @@ export default function CreateHomeworkPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="classDivisionId">Class Division</Label>
+                  <Label htmlFor="class_division_id">Class Division</Label>
                   <select
-                    id="classDivisionId"
-                    name="classDivisionId"
-                    value={formData.classDivisionId}
+                    id="class_division_id"
+                    name="class_division_id"
+                    value={formData.class_division_id}
                     onChange={handleInputChange}
                     className="border rounded-md px-3 py-2 w-full"
                     required
                   >
                     <option value="">Select a class</option>
-                    {mockClassDivisions.map(division => (
-                      <option key={division.id} value={division.id}>
-                        {division.name}
-                      </option>
-                    ))}
+                    {loadingClasses ? (
+                      <option value="">Loading classes...</option>
+                    ) : classDivisions.length === 0 ? (
+                      <option value="">No classes found</option>
+                    ) : (
+                      classDivisions.map((division, index) => (
+                        <option key={`${division.id}-${division.division}-${index}`} value={division.id}>
+                          {formatClassName(division)}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
 
@@ -146,14 +297,14 @@ export default function CreateHomeworkPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="dueDate">Due Date</Label>
+                  <Label htmlFor="due_date">Due Date</Label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      id="dueDate"
-                      name="dueDate"
+                      id="due_date"
+                      name="due_date"
                       type="date"
-                      value={formData.dueDate}
+                      value={formData.due_date}
                       onChange={handleInputChange}
                       className="pl-10"
                       required

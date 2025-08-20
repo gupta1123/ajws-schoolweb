@@ -10,22 +10,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { PlusCircle, Edit, Trash2, Search, Loader2, BookOpen, Users } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { PlusCircle, Edit, Trash2, Search, Loader2, BookOpen, Users, GraduationCap, User } from 'lucide-react';
 import { useAcademicStructure } from '@/hooks/use-academic-structure';
 import type { Subject, ClassDivision } from '@/types/academic';
+import { SubjectTeacherAssignment } from './subject-teacher-assignment';
 
 export function SubjectManager() {
   // Use real data from the hook
   const {
     subjects,
     classDivisions,
+    teachers,
     loading,
     createSubject,
     updateSubject,
     deleteSubject,
     assignSubjectsToClass,
     removeSubjectFromClass,
-    fetchSubjectsByClassDivision
+    fetchSubjectsByClassDivision,
+    assignTeacherToClass
   } = useAcademicStructure();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -36,6 +40,7 @@ export function SubjectManager() {
   const [selectedClassDivision, setSelectedClassDivision] = useState<ClassDivision | null>(null);
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
   const [assignmentMode, setAssignmentMode] = useState<'replace' | 'append'>('replace');
+  const [activeTab, setActiveTab] = useState<'subjects' | 'teachers'>('subjects');
 
   // Store subjects for each class division
   const [classSubjectsMap, setClassSubjectsMap] = useState<Record<string, Subject[]>>({});
@@ -124,6 +129,7 @@ export function SubjectManager() {
     setSelectedClassDivision(classDivision);
     setSelectedSubjectIds([]);
     setAssignmentMode('replace');
+    setActiveTab('subjects'); // Reset to subjects tab
     setIsAssignmentDialogOpen(true);
   };
 
@@ -145,6 +151,25 @@ export function SubjectManager() {
     if (success) {
       // Refresh the subjects for this class division
       await fetchClassSubjects(classDivisionId);
+    }
+  };
+
+  const handleAssignSubjectTeacher = async (divisionId: string, teacherId: string, subject: string, isPrimary: boolean) => {
+    try {
+      const success = await assignTeacherToClass(divisionId, {
+        class_division_id: divisionId,
+        teacher_id: teacherId,
+        assignment_type: 'subject_teacher',
+        subject: subject,
+        is_primary: isPrimary
+      });
+      
+      if (success) {
+        // You might want to refresh teacher assignments here
+        console.log('Subject teacher assigned successfully');
+      }
+    } catch (error) {
+      console.error('Error assigning subject teacher:', error);
     }
   };
 
@@ -191,7 +216,7 @@ export function SubjectManager() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="h-5 w-5 animate-spin" />
                         <span>Loading subjects...</span>
@@ -200,7 +225,7 @@ export function SubjectManager() {
                   </TableRow>
                 ) : filteredSubjects.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                       <span className="text-muted-foreground">No subjects found</span>
                     </TableCell>
                   </TableRow>
@@ -255,6 +280,7 @@ export function SubjectManager() {
                 <TableRow>
                   <TableHead>Class Division</TableHead>
                   <TableHead>Assigned Subjects</TableHead>
+                  <TableHead>Subject Teachers</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -288,6 +314,18 @@ export function SubjectManager() {
                             ) : (
                               <span className="text-muted-foreground text-sm">No subjects assigned</span>
                             )}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {classDivision.teacher ? (
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">{classDivision.teacher.full_name}</span>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground">
+                            <span className="italic">No teacher assigned</span>
                           </div>
                         )}
                       </TableCell>
@@ -352,89 +390,236 @@ export function SubjectManager() {
 
       {/* Subject Assignment Dialog */}
       <Dialog open={isAssignmentDialogOpen} onOpenChange={setIsAssignmentDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>
-              Assign Subjects to {selectedClassDivision?.class_level?.name} {selectedClassDivision?.division}
+              Manage {selectedClassDivision?.class_level?.name} {selectedClassDivision?.division}
             </DialogTitle>
           </DialogHeader>
-          <div className="py-4 space-y-4">
-            <div className="space-y-2">
-              <Label>Assignment Mode</Label>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="replace-mode"
-                  checked={assignmentMode === 'replace'}
-                  onCheckedChange={() => setAssignmentMode('replace')}
-                />
-                <Label htmlFor="replace-mode">Replace (deactivate unassigned subjects)</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="append-mode"
-                  checked={assignmentMode === 'append'}
-                  onCheckedChange={() => setAssignmentMode('append')}
-                />
-                <Label htmlFor="append-mode">Append (keep existing assignments)</Label>
-              </div>
-            </div>
+          
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'subjects' | 'teachers')} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="subjects" className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                Subject Assignment
+              </TabsTrigger>
+              <TabsTrigger value="teachers" className="flex items-center gap-2">
+                <GraduationCap className="h-4 w-4" />
+                Subject Teachers
+              </TabsTrigger>
+            </TabsList>
             
-            <div className="space-y-2">
-              <Label>Select Subjects</Label>
-              <div className="max-h-60 overflow-y-auto border rounded-md p-2">
-                {subjects.map((subject) => (
-                  <div key={subject.id} className="flex items-center space-x-2 py-1">
-                    <Checkbox
-                      id={`subject-${subject.id}`}
-                      checked={selectedSubjectIds.includes(subject.id)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedSubjectIds([...selectedSubjectIds, subject.id]);
-                        } else {
-                          setSelectedSubjectIds(selectedSubjectIds.filter(id => id !== subject.id));
-                        }
-                      }}
-                    />
-                    <Label htmlFor={`subject-${subject.id}`} className="text-sm">
-                      {subject.code} - {subject.name}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {selectedClassDivision && (
+            <TabsContent value="subjects" className="space-y-4">
               <div className="space-y-2">
-                <Label>Currently Assigned Subjects</Label>
-                <div className="flex flex-wrap gap-1">
-                  {(classSubjectsMap[selectedClassDivision.id] || []).map(subject => (
-                    <div key={subject.id} className="flex items-center gap-1 bg-blue-100 px-2 py-1 rounded">
-                      <span className="text-xs font-medium text-blue-800">{subject.name}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-4 w-4 p-0 text-blue-600 hover:text-blue-800"
-                        onClick={() => handleRemoveSubjectFromClass(selectedClassDivision.id, subject.id)}
-                      >
-                        ×
-                      </Button>
-                    </div>
-                  ))}
+                <Label>Assignment Mode</Label>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="replace-mode"
+                    checked={assignmentMode === 'replace'}
+                    onCheckedChange={() => setAssignmentMode('replace')}
+                  />
+                  <Label htmlFor="replace-mode">Replace (deactivate unassigned subjects)</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="append-mode"
+                    checked={assignmentMode === 'append'}
+                    onCheckedChange={() => setAssignmentMode('append')}
+                  />
+                  <Label htmlFor="append-mode">Append (keep existing assignments)</Label>
                 </div>
               </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAssignmentDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleAssignSubjects}
-              disabled={selectedSubjectIds.length === 0}
-            >
-              Assign Subjects
-            </Button>
-          </DialogFooter>
+              
+              <div className="space-y-2">
+                <Label>Select Subjects</Label>
+                {loadingClassSubjects[selectedClassDivision?.id || ''] ? (
+                  <div className="text-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">Loading subjects...</p>
+                  </div>
+                ) : selectedClassDivision ? (
+                  <div className="space-y-3">
+                                         {/* Show currently assigned subjects */}
+                     {classSubjectsMap[selectedClassDivision.id] && classSubjectsMap[selectedClassDivision.id].length > 0 && (
+                       <div>
+                         <Label className="text-sm font-medium text-blue-600">Currently Assigned Subjects</Label>
+                         <div className="max-h-40 overflow-y-auto border rounded-md p-2 mt-1">
+                           {classSubjectsMap[selectedClassDivision.id].map((subject) => (
+                             <div key={subject.id} className="flex items-center justify-between py-1">
+                               <div className="flex items-center space-x-2">
+                                 <Checkbox
+                                   id={`subject-${subject.id}`}
+                                   checked={selectedSubjectIds.includes(subject.id)}
+                                   onCheckedChange={(checked) => {
+                                     if (checked) {
+                                       setSelectedSubjectIds([...selectedSubjectIds, subject.id]);
+                                     } else {
+                                       setSelectedSubjectIds(selectedSubjectIds.filter(id => id !== subject.id));
+                                     }
+                                   }}
+                                 />
+                                 <Label htmlFor={`subject-${subject.id}`} className="text-sm">
+                                   {subject.code} - {subject.name}
+                                 </Label>
+                               </div>
+                               <Button
+                                 variant="ghost"
+                                 size="sm"
+                                 className="h-4 w-4 p-0 text-red-600 hover:text-red-800"
+                                 onClick={() => handleRemoveSubjectFromClass(selectedClassDivision.id, subject.id)}
+                               >
+                                 ×
+                               </Button>
+                             </div>
+                           ))}
+                         </div>
+                       </div>
+                     )}
+                    
+                    {/* Show all available subjects for append mode */}
+                    {assignmentMode === 'append' && (
+                      <div>
+                        <Label className="text-sm font-medium text-green-600">Available Subjects to Add</Label>
+                        <div className="max-h-40 overflow-y-auto border rounded-md p-2 mt-1">
+                          {subjects
+                            .filter(subject => !classSubjectsMap[selectedClassDivision.id]?.some(assigned => assigned.id === subject.id))
+                            .map((subject) => (
+                              <div key={subject.id} className="flex items-center space-x-2 py-1">
+                                <Checkbox
+                                  id={`subject-${subject.id}`}
+                                  checked={selectedSubjectIds.includes(subject.id)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setSelectedSubjectIds([...selectedSubjectIds, subject.id]);
+                                    } else {
+                                      setSelectedSubjectIds(selectedSubjectIds.filter(id => id !== subject.id));
+                                    }
+                                  }}
+                                />
+                                <Label htmlFor={`subject-${subject.id}`} className="text-sm">
+                                  {subject.code} - {subject.name}
+                                </Label>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {(!classSubjectsMap[selectedClassDivision.id] || classSubjectsMap[selectedClassDivision.id].length === 0) && assignmentMode === 'replace' && (
+                      <div className="text-center py-4 text-gray-500">
+                        <p>No subjects currently assigned to this class division.</p>
+                        <p className="text-sm mt-1">Select subjects from the global list below.</p>
+                      </div>
+                    )}
+                    
+                    {/* Show all subjects for replace mode when none are assigned */}
+                    {(!classSubjectsMap[selectedClassDivision.id] || classSubjectsMap[selectedClassDivision.id].length === 0) && assignmentMode === 'replace' && (
+                      <div>
+                        <Label className="text-sm font-medium text-orange-600">All Available Subjects</Label>
+                        <div className="max-h-40 overflow-y-auto border rounded-md p-2 mt-1">
+                          {subjects.map((subject) => (
+                            <div key={subject.id} className="flex items-center space-x-2 py-1">
+                              <Checkbox
+                                id={`subject-${subject.id}`}
+                                checked={selectedSubjectIds.includes(subject.id)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedSubjectIds([...selectedSubjectIds, subject.id]);
+                                  } else {
+                                    setSelectedSubjectIds(selectedSubjectIds.filter(id => id !== subject.id));
+                                  }
+                                }}
+                              />
+                              <Label htmlFor={`subject-${subject.id}`} className="text-sm">
+                                {subject.code} - {subject.name}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    <p>Please select a class division first.</p>
+                  </div>
+                )}
+              </div>
+
+
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAssignmentDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleAssignSubjects}
+                  disabled={selectedSubjectIds.length === 0}
+                >
+                  Assign Subjects
+                </Button>
+              </DialogFooter>
+            </TabsContent>
+            
+            <TabsContent value="teachers" className="space-y-4">
+              {selectedClassDivision && selectedClassDivision.id ? (
+                <div className="space-y-4">
+                  <div className="text-sm text-muted-foreground">
+                    Assign subject teachers to {selectedClassDivision.class_level?.name} {selectedClassDivision.division}
+                  </div>
+                  
+                  {loadingClassSubjects[selectedClassDivision.id] ? (
+                    <div className="text-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                      <p className="text-gray-500 dark:text-gray-400">
+                        Loading subjects...
+                      </p>
+                    </div>
+                  ) : !teachers || teachers.length === 0 ? (
+                    <div className="text-center py-8">
+                      <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                        No Teachers Available
+                      </h3>
+                      <p className="text-gray-500 dark:text-gray-400">
+                        Please add teachers to the system first.
+                      </p>
+                    </div>
+                  ) : classSubjectsMap[selectedClassDivision.id] && classSubjectsMap[selectedClassDivision.id].length > 0 ? (
+                    <SubjectTeacherAssignment
+                      division={selectedClassDivision}
+                      teachers={teachers}
+                      availableSubjects={classSubjectsMap[selectedClassDivision.id]}
+                      onSave={handleAssignSubjectTeacher}
+                      onCancel={() => setIsAssignmentDialogOpen(false)}
+                    />
+                  ) : (
+                    <div className="text-center py-8">
+                      <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                        No Subjects Available
+                      </h3>
+                      <p className="text-gray-500 dark:text-gray-400 mb-4">
+                        Please assign subjects to this class division first before assigning subject teachers.
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setActiveTab('subjects')}
+                      >
+                        Go to Subject Assignment
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 dark:text-gray-400">
+                    Please select a class division first.
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
     </div>

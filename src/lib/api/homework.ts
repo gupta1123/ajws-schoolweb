@@ -25,6 +25,7 @@ export const homeworkServices = {
   getHomework: async (token: string, filters?: { 
     class_division_id?: string; 
     subject?: string; 
+    status?: string;
     date_from?: string; 
     date_to?: string 
   }): Promise<ApiResponse<HomeworkResponse>> => {

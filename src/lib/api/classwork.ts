@@ -14,6 +14,16 @@ export interface CreateClassworkData {
 
 export interface ClassworkResponse {
   classwork: Classwork[];
+  count: number;
+  total_count: number;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+    has_next: boolean;
+    has_prev: boolean;
+  };
 }
 
 export interface DeleteClassworkResponse {
@@ -22,14 +32,17 @@ export interface DeleteClassworkResponse {
 }
 
 export const classworkServices = {
-  // Get classwork list
-  getClasswork: async (token: string, filters?: { 
+  // Get classwork list with pagination and filters
+  getClasswork: async (token: string, page: number = 1, limit: number = 20, filters?: { 
     class_division_id?: string; 
     subject?: string; 
     date_from?: string; 
     date_to?: string 
   }): Promise<ApiResponse<ClassworkResponse>> => {
     const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
         if (value) params.append(key, value);

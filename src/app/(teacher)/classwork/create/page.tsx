@@ -11,14 +11,36 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Calendar, X, BookOpen, Share2, Tag } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { academicServices } from '@/lib/api/academic';
+import { classworkServices } from '@/lib/api/classwork';
+import { toast } from '@/hooks/use-toast';
 
-// Mock data for class divisions
-const mockClassDivisions = [
-  { id: '1', name: 'Grade 5 - Section A' },
-  { id: '2', name: 'Grade 6 - Section B' },
-  { id: '3', name: 'Grade 7 - Section C' }
-];
+// Interface for the transformed class data we're using
+interface TransformedClass {
+  id: string;
+  division: string;
+  class_level: {
+    name: string;
+  };
+  academic_year: {
+    year_name: string;
+  };
+}
+
+// Interface for the API response structure
+interface AssignedClass {
+  assignment_id: string;
+  class_division_id: string;
+  division: string;
+  class_name: string;
+  class_level: string;
+  sequence_number: number;
+  academic_year: string;
+  assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
+  is_primary: boolean;
+  assigned_date: string;
+}
 
 // Common subjects
 const commonSubjects = [
@@ -34,7 +56,7 @@ const commonSubjects = [
 ];
 
 export default function CreateClassworkPage() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const router = useRouter();
   const [formData, setFormData] = useState({
     classDivisionId: '',
@@ -47,6 +69,58 @@ export default function CreateClassworkPage() {
   const [topicInput, setTopicInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [assignedClasses, setAssignedClasses] = useState<TransformedClass[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(true);
+
+  // Fetch teacher's assigned classes
+  const fetchAssignedClasses = useCallback(async () => {
+    if (!token) return;
+    
+    try {
+      setLoadingClasses(true);
+      const response = await academicServices.getMyTeacherClasses(token);
+      if (response.status === 'success' && response.data) {
+        // Filter for only subject teacher assignments
+        const subjectTeacherClasses = (response.data.assigned_classes as AssignedClass[]).filter(
+          (assignedClass: AssignedClass) => assignedClass.assignment_type === 'subject_teacher'
+        );
+        
+        // Transform the filtered assigned classes to match the expected format
+        const transformedClasses = subjectTeacherClasses.map(assignedClass => ({
+          id: assignedClass.class_division_id,
+          division: assignedClass.division,
+          class_level: {
+            name: assignedClass.class_level
+          },
+          academic_year: {
+            year_name: assignedClass.academic_year
+          }
+        }));
+        
+        // Filter out duplicates based on ID to prevent React key conflicts
+        const uniqueClasses = transformedClasses.filter((classItem, index, self) => 
+          index === self.findIndex(c => c.id === classItem.id)
+        );
+        
+        setAssignedClasses(uniqueClasses);
+      }
+    } catch (error: unknown) {
+      console.error('Error fetching assigned classes:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch your assigned classes',
+        variant: 'error',
+      });
+    } finally {
+      setLoadingClasses(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (token) {
+      fetchAssignedClasses();
+    }
+  }, [fetchAssignedClasses, token]);
 
   // Only allow teachers to access this page
   if (user?.role !== 'teacher') {
@@ -110,43 +184,55 @@ export default function CreateClassworkPage() {
     }
   };
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-    
-    if (!formData.classDivisionId) {
-      newErrors.classDivisionId = 'Please select a class';
-    }
-    
-    if (!formData.subject) {
-      newErrors.subject = 'Please enter a subject';
-    }
-    
-    if (!formData.summary) {
-      newErrors.summary = 'Please enter a summary';
-    }
-    
-    if (!formData.date) {
-      newErrors.date = 'Please select a date';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) {
+    // Validate form
+    const newErrors: Record<string, string> = {};
+    if (!formData.classDivisionId) newErrors.classDivisionId = 'Please select a class';
+    if (!formData.subject) newErrors.subject = 'Please enter a subject';
+    if (!formData.summary) newErrors.summary = 'Please enter a summary';
+    if (formData.topics.length === 0) newErrors.topics = 'Please add at least one topic';
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
     
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const payload = {
+        class_division_id: formData.classDivisionId,
+        subject: formData.subject,
+        summary: formData.summary,
+        topics_covered: formData.topics,
+        date: formData.date,
+        is_shared_with_parents: formData.shareWithParents
+      };
+      
+      const response = await classworkServices.createClasswork(payload, token!);
+      
+      if (response.status === 'success') {
+        toast({
+          title: 'Success',
+          description: 'Classwork created successfully!',
+          variant: 'success',
+        });
+        router.push('/classwork');
+      }
+    } catch (error: unknown) {
+      console.error('Error creating classwork:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to create classwork',
+        variant: 'error',
+      });
+    } finally {
       setIsLoading(false);
-      router.push('/classwork');
-    }, 1000);
+    }
   };
 
   return (
@@ -188,11 +274,17 @@ export default function CreateClassworkPage() {
                         className={`border rounded-md px-3 py-2 w-full ${errors.classDivisionId ? 'border-red-500' : ''}`}
                       >
                         <option value="">Select a class</option>
-                        {mockClassDivisions.map(division => (
-                          <option key={division.id} value={division.id}>
-                            {division.name}
-                          </option>
-                        ))}
+                        {loadingClasses ? (
+                          <option value="">Loading classes...</option>
+                        ) : assignedClasses.length === 0 ? (
+                          <option value="">No classes assigned</option>
+                        ) : (
+                          assignedClasses.map(division => (
+                            <option key={division.id} value={division.id}>
+                              {`${division.class_level?.name || 'Unknown'} - Section ${division.division}`}
+                            </option>
+                          ))
+                        )}
                       </select>
                       {errors.classDivisionId && (
                         <p className="text-sm text-red-500">{errors.classDivisionId}</p>

@@ -4,7 +4,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { BookOpen, Home, Users, Clipboard, FileText, MessageSquare, User, School, Calendar, Cake, Settings, LogOut, Book, UserCheck, CheckCircle } from 'lucide-react';
+import { BookOpen, Home, Users, Clipboard, FileText, MessageSquare, User, School, Calendar, Cake, Settings, LogOut, UserCheck, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
 import { useRouter } from 'next/navigation';
@@ -44,11 +44,6 @@ const teacherNavItems = [
         icon: CheckCircle,
       },
       {
-        title: 'Assessments',
-        href: '/assessments',
-        icon: FileText,
-      },
-      {
         title: 'Homework',
         href: '/homework',
         icon: Clipboard,
@@ -57,16 +52,6 @@ const teacherNavItems = [
         title: 'Classwork',
         href: '/classwork',
         icon: FileText,
-      },
-      {
-        title: 'Study Material',
-        href: '/study-material',
-        icon: Book,
-      },
-      {
-        title: 'Timetable',
-        href: '/timetable',
-        icon: Calendar,
       }
     ]
   },

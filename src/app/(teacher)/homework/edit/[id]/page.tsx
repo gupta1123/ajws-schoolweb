@@ -62,7 +62,20 @@ export default function EditHomeworkPage({ params }: { params: Promise<{ id: str
             title: 'Chapter 3 Exercises',
             description: 'Complete exercises 1-10 from Chapter 3',
             due_date: '2025-08-20',
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            teacher: {
+              id: user.id || '',
+              full_name: user.full_name || 'Unknown Teacher'
+            },
+            class_division: {
+              id: '1',
+              level: {
+                name: 'Grade 10',
+                sequence_number: 10
+              },
+              division: 'A'
+            },
+            attachments: []
           };
           
           setHomework(mockHomeworkData);

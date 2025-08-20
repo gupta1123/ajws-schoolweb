@@ -120,6 +120,7 @@ export interface CreateTeacherAssignmentRequest {
   class_division_id: string;
   teacher_id: string;
   assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
+  subject?: string; // Required for subject_teacher assignments
   is_primary?: boolean;
 }
 

@@ -19,6 +19,57 @@ import type {
   BulkTeacherAssignmentRequest
 } from '@/types/academic';
 
+// Type definitions for complex return types
+type ClassDivisionTeacherResponse = {
+  status: string;
+  data: {
+    class_division: {
+      id: string;
+      division: string;
+      class_name: string;
+      academic_year: string;
+      sequence_number: number;
+    };
+    teacher: {
+      teacher_id: string;
+      user_id: string;
+      staff_id: string;
+      full_name: string;
+      phone_number: string;
+      email: string | null;
+      department: string;
+      designation: string;
+    };
+    is_assigned: boolean;
+  } | null;
+};
+
+type EnhancedClassDivisionResponse = {
+  status: string;
+  data: {
+    class_divisions: Array<{
+      id: string;
+      academic_year_id: string;
+      class_level_id: string;
+      division: string;
+      teacher_id: string;
+      created_at: string;
+      migrated_to_junction: boolean;
+      academic_year: {
+        year_name: string;
+      };
+      class_level: {
+        name: string;
+        sequence_number: number;
+      };
+      teacher: {
+        id: string;
+        full_name: string;
+      };
+    }>;
+  };
+};
+
 export const academicServices = {
   // Academic Year Management
   getAcademicYears: async (token: string): Promise<{ status: string; data: { academic_years: AcademicYear[] } }> => {
@@ -68,9 +119,9 @@ export const academicServices = {
   },
 
   // Class Division Management
-  getClassDivisions: async (token: string): Promise<{ status: string; data: { class_divisions: ClassDivision[] } }> => {
+  getClassDivisions: async (token: string): Promise<EnhancedClassDivisionResponse> => {
     const response = await apiClient.get('/api/academic/class-divisions', token);
-    return response as { status: string; data: { class_divisions: ClassDivision[] } };
+    return response as EnhancedClassDivisionResponse;
   },
 
   createClassDivision: async (data: CreateClassDivisionRequest, token: string): Promise<{ status: string; data: { class_division: ClassDivision } }> => {
@@ -123,6 +174,64 @@ export const academicServices = {
   getTeacherClasses: async (teacherId: string, token: string): Promise<{ status: string; data: { classes: TeacherAssignment[] } }> => {
     const response = await apiClient.get(`/api/academic/teachers/${teacherId}/classes`, token);
     return response as { status: string; data: { classes: TeacherAssignment[] } };
+  },
+
+  // Get assigned teachers for a class division
+  getClassDivisionTeachers: async (classDivisionId: string, token: string): Promise<ClassDivisionTeacherResponse> => {
+    const response = await apiClient.get(`/api/academic/class-divisions/${classDivisionId}/teacher`, token);
+    return response as ClassDivisionTeacherResponse;
+  },
+
+  // Get current teacher's assigned classes
+  getMyTeacherClasses: async (token: string): Promise<{ status: string; data: { 
+    user_id: string; 
+    staff_id: string; 
+    full_name: string; 
+    staff_info: { 
+      id: string; 
+      department: string; 
+      designation: string; 
+    }; 
+    assignment_ids: { 
+      teacher_id: string; 
+      staff_id: string; 
+    }; 
+    assigned_classes: Array<{ 
+      class_division_id: string; 
+      division: string; 
+      class_name: string; 
+      class_level: string; 
+      sequence_number: number; 
+      academic_year: string; 
+    }>; 
+    total_assigned_classes: number; 
+    has_assignments: boolean; 
+  } }> => {
+    const response = await apiClient.get('/api/academic/my-teacher-id', token);
+    return response as { status: string; data: { 
+      user_id: string; 
+      staff_id: string; 
+      full_name: string; 
+      staff_info: { 
+        id: string; 
+        department: string; 
+        designation: string; 
+      }; 
+      assignment_ids: { 
+        teacher_id: string; 
+        staff_id: string; 
+      }; 
+      assigned_classes: Array<{ 
+        class_division_id: string; 
+        division: string; 
+        class_name: string; 
+        class_level: string; 
+        sequence_number: number; 
+        academic_year: string; 
+      }>; 
+      total_assigned_classes: number; 
+      has_assignments: boolean; 
+    } };
   },
 
   // Subject Management

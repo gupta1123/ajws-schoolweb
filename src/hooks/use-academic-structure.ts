@@ -59,6 +59,7 @@ interface UseAcademicStructureReturn {
   fetchTeachers: () => Promise<void>;
   fetchSubjects: (classDivisionId?: string) => Promise<void>;
   fetchSubjectsByClassDivision: (classDivisionId: string) => Promise<Subject[]>;
+  getClassDivisionTeachers: (classDivisionId: string) => Promise<{ class_division: { id: string; division: string; class_name: string; academic_year: string; sequence_number: number }; teacher: { teacher_id: string; user_id: string; staff_id: string; full_name: string; phone_number: string; email: string | null; department: string; designation: string }; is_assigned: boolean } | null>;
   
   // CRUD operations
   createAcademicYear: (data: CreateAcademicYearRequest) => Promise<boolean>;
@@ -214,18 +215,30 @@ export const useAcademicStructure = (): UseAcademicStructureReturn => {
   }, [token]);
   
   const fetchSubjects = useCallback(async (classDivisionId?: string) => {
-    if (!token || !classDivisionId) return;
+    if (!token) return;
     
     try {
       setLoadingSubjects(true);
       setErrorSubjects(null);
       
-      const response = await academicServices.getSubjectsByClassDivision(classDivisionId, token);
-      
-      if (response.status === 'success') {
-        setSubjects(response.data.subjects);
+      if (classDivisionId) {
+        // Get subjects for a specific class division
+        const response = await academicServices.getSubjectsByClassDivision(classDivisionId, token);
+        
+        if (response.status === 'success') {
+          setSubjects(response.data.subjects);
+        } else {
+          setErrorSubjects('Failed to fetch subjects for class division');
+        }
       } else {
-        setErrorSubjects('Failed to fetch subjects');
+        // Get all global subjects
+        const response = await academicServices.getSubjects(token);
+        
+        if (response.status === 'success') {
+          setSubjects(response.data.subjects);
+        } else {
+          setErrorSubjects('Failed to fetch global subjects');
+        }
       }
     } catch (err) {
       console.error('Fetch subjects error:', err);
@@ -256,6 +269,30 @@ export const useAcademicStructure = (): UseAcademicStructureReturn => {
       return [];
     } finally {
       setLoadingSubjects(false);
+    }
+  }, [token]);
+
+  const getClassDivisionTeachers = useCallback(async (classDivisionId: string) => {
+    if (!token) return null;
+
+    try {
+      setLoadingTeachers(true);
+      setErrorTeachers(null);
+
+      const response = await academicServices.getClassDivisionTeachers(classDivisionId, token);
+
+      if (response.status === 'success') {
+        return response.data;
+      } else {
+        setErrorTeachers('Failed to fetch class division teachers');
+        return null;
+      }
+    } catch (err) {
+      console.error('Fetch class division teachers error:', err);
+      setErrorTeachers(err instanceof Error ? err.message : 'Failed to fetch class division teachers');
+      return null;
+    } finally {
+      setLoadingTeachers(false);
     }
   }, [token]);
   
@@ -700,6 +737,7 @@ export const useAcademicStructure = (): UseAcademicStructureReturn => {
     fetchTeachers,
     fetchSubjects,
     fetchSubjectsByClassDivision,
+    getClassDivisionTeachers,
     
     // CRUD operations
     createAcademicYear,

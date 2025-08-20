@@ -2,9 +2,11 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+
+import { Label } from '@/components/ui/label';
 import { 
   Table, 
   TableBody, 
@@ -16,16 +18,18 @@ import {
 import { 
   Plus, 
   Trash2, 
+  User, 
+  AlertTriangle, 
   BookOpen,
+  GraduationCap,
   Loader2,
-  AlertTriangle,
-  Users,
-  User
+  Users
 } from 'lucide-react';
-import { detectAcademicStructureConflicts, Conflict } from '@/components/academic/conflict-detection';
-import { TeacherAssignment } from '@/components/academic/teacher-assignment';
-import { AddSectionForm } from '@/components/academic/add-section-form';
 import { useAcademicStructure } from '@/hooks/use-academic-structure';
+import { TeacherAssignment } from './teacher-assignment';
+import { SubjectTeacherAssignment } from './subject-teacher-assignment';
+import { detectAcademicStructureConflicts, Conflict } from './conflict-detection';
+import type { Subject } from '@/types/academic';
 
 export function AcademicStructureManager() {
   // Use real data from the hook
@@ -38,13 +42,16 @@ export function AcademicStructureManager() {
     clearError,
     createClassDivision,
     deleteClassDivision,
-    assignTeacherToClass
+    assignTeacherToClass,
+    fetchSubjectsByClassDivision
   } = useAcademicStructure();
   
   // UI states
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [assigningTeacher, setAssigningTeacher] = useState<string | null>(null); // division id
+  const [assigningSubjectTeacher, setAssigningSubjectTeacher] = useState<string | null>(null); // division id
   const [addingSection, setAddingSection] = useState(false);
+  const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
   
   // Conflict detection - wrapped in useCallback to fix useEffect dependency
   const detectConflicts = useCallback(() => {
@@ -75,13 +82,47 @@ export function AcademicStructureManager() {
       setAssigningTeacher(null);
     }
   };
+
+  const handleAssignSubjectTeacher = async (divisionId: string, teacherId: string, subject: string, isPrimary: boolean) => {
+    try {
+      const success = await assignTeacherToClass(divisionId, {
+        class_division_id: divisionId,
+        teacher_id: teacherId,
+        assignment_type: 'subject_teacher',
+        subject: subject,
+        is_primary: isPrimary
+      });
+      
+      if (success) {
+        setAssigningSubjectTeacher(null);
+      }
+    } catch (error) {
+      console.error('Error assigning subject teacher:', error);
+      // You might want to show a toast notification here
+    }
+  };
   
   const handleStartTeacherAssignment = (divisionId: string) => {
     setAssigningTeacher(divisionId);
   };
+
+  const handleStartSubjectTeacherAssignment = async (divisionId: string) => {
+    setAssigningSubjectTeacher(divisionId);
+    try {
+      const subjects = await fetchSubjectsByClassDivision(divisionId);
+      setAvailableSubjects(subjects);
+    } catch (error) {
+      console.error('Error fetching subjects:', error);
+      setAvailableSubjects([]);
+    }
+  };
   
   const handleCancelTeacherAssignment = () => {
     setAssigningTeacher(null);
+  };
+
+  const handleCancelSubjectTeacherAssignment = () => {
+    setAssigningSubjectTeacher(null);
   };
   
   const handleAddSection = async (levelId: string, name: string) => {
@@ -236,11 +277,46 @@ export function AcademicStructureManager() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <AddSectionForm
-              classLevels={classLevels}
-              onAddSection={handleAddSection}
-              onCancel={handleCancelAddSection}
-            />
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="level-select">Grade Level</Label>
+                <select
+                  id="level-select"
+                  className="border rounded-md px-3 py-2 w-full"
+                  onChange={(e) => {
+                    const levelId = e.target.value;
+                    if (levelId) {
+                      const level = classLevels.find(l => l.id === levelId);
+                      if (level) {
+                        // Find next available section name
+                        const existingSections = classDivisions
+                          .filter(d => d.class_level_id === levelId)
+                          .map(d => d.division);
+                        
+                        let nextSection = 'A';
+                        while (existingSections.includes(nextSection)) {
+                          nextSection = String.fromCharCode(nextSection.charCodeAt(0) + 1);
+                        }
+                        
+                        handleAddSection(levelId, nextSection);
+                      }
+                    }
+                  }}
+                >
+                  <option value="">Select a grade level</option>
+                  {classLevels.map(level => (
+                    <option key={level.id} value={level.id}>
+                      {level.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={handleCancelAddSection}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -268,14 +344,15 @@ export function AcademicStructureManager() {
                 <TableRow>
                   <TableHead>Grade</TableHead>
                   <TableHead>Section</TableHead>
-                  <TableHead>Assigned Teacher</TableHead>
+                  <TableHead>Class Teacher</TableHead>
+                  <TableHead>Subject Teachers</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="h-5 w-5 animate-spin" />
                         <span>Loading academic structure...</span>
@@ -284,7 +361,7 @@ export function AcademicStructureManager() {
                   </TableRow>
                 ) : classLevels.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                       <span className="text-muted-foreground">No class levels found</span>
                     </TableCell>
                   </TableRow>
@@ -322,23 +399,37 @@ export function AcademicStructureManager() {
                               <span className="text-muted-foreground italic">No teacher assigned</span>
                             )}
                           </TableCell>
+                          <TableCell>
+                            <div className="text-sm text-muted-foreground">
+                              <span className="italic">No subject teachers</span>
+                            </div>
+                          </TableCell>
                           <TableCell className="text-right">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="mr-2"
-                              onClick={() => handleStartTeacherAssignment(division.id)}
-                            >
-                              <User className="h-4 w-4 mr-1" />
-                              {assignedTeacher ? 'Change' : 'Assign'}
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleDeleteClassDivision(division.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <div className="flex gap-2 justify-end">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleStartTeacherAssignment(division.id)}
+                              >
+                                <User className="h-4 w-4 mr-1" />
+                                {assignedTeacher ? 'Change' : 'Assign'}
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleStartSubjectTeacherAssignment(division.id)}
+                              >
+                                <GraduationCap className="h-4 w-4 mr-1" />
+                                Subject
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleDeleteClassDivision(division.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -367,6 +458,29 @@ export function AcademicStructureManager() {
                 teachers={teachers}
                 onSave={handleAssignTeacher}
                 onCancel={handleCancelTeacherAssignment}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Subject Teacher Assignment Modal */}
+      {assigningSubjectTeacher && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-lg">
+            <CardHeader>
+              <CardTitle>Assign Subject Teacher</CardTitle>
+              <CardDescription>
+                Assign a subject teacher to this class section
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SubjectTeacherAssignment
+                division={classDivisions.find(d => d.id === assigningSubjectTeacher)!}
+                teachers={teachers}
+                availableSubjects={availableSubjects}
+                onSave={handleAssignSubjectTeacher}
+                onCancel={handleCancelSubjectTeacherAssignment}
               />
             </CardContent>
           </Card>

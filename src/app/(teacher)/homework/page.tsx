@@ -27,87 +27,73 @@ import {
   TrendingUp
 } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { StatCard } from '@/components/ui/stat-card';
-import { DataChart } from '@/components/ui/data-chart';
-import { ProgressIndicator } from '@/components/ui/progress-indicator';
 
-// Mock data for homework assignments with extended information
-const mockHomework = [
-  {
-    id: '1',
-    class: 'Grade 5 - Section A',
-    subject: 'Mathematics',
-    title: 'Chapter 3 Exercises',
-    description: 'Complete exercises 1-10 from Chapter 3',
-    dueDate: '2025-08-20',
-    createdDate: '2025-08-15',
-    submissionRate: 85,
-    avgScore: 78,
-    status: 'active'
-  },
-  {
-    id: '2',
-    class: 'Grade 6 - Section B',
-    subject: 'Science',
-    title: 'Project Work',
-    description: 'Complete the photosynthesis project',
-    dueDate: '2025-08-25',
-    createdDate: '2025-08-14',
-    submissionRate: 72,
-    avgScore: 85,
-    status: 'pending'
-  },
-  {
-    id: '3',
-    class: 'Grade 7 - Section C',
-    subject: 'English',
-    title: 'Essay Writing',
-    description: 'Write an essay on "My Summer Vacation"',
-    dueDate: '2025-08-22',
-    createdDate: '2025-08-12',
-    submissionRate: 92,
-    avgScore: 88,
-    status: 'completed'
-  },
-  {
-    id: '4',
-    class: 'Grade 5 - Section A',
-    subject: 'Mathematics',
-    title: 'Geometry Problems',
-    description: 'Solve problems 15-25 from Chapter 4',
-    dueDate: '2025-08-18',
-    createdDate: '2025-08-10',
-    submissionRate: 68,
-    avgScore: 72,
-    status: 'active'
-  }
-];
-
-// Mock data for charts
-const mockSubmissionData = [
-  { day: 'Mon', submissions: 12 },
-  { day: 'Tue', submissions: 18 },
-  { day: 'Wed', submissions: 22 },
-  { day: 'Thu', submissions: 28 },
-  { day: 'Fri', submissions: 35 },
-  { day: 'Sat', submissions: 42 },
-  { day: 'Sun', submissions: 48 }
-];
-
-const mockSubjectPerformance = [
-  { subject: 'Mathematics', avgScore: 78 },
-  { subject: 'Science', avgScore: 85 },
-  { subject: 'English', avgScore: 88 },
-  { subject: 'History', avgScore: 82 },
-  { subject: 'Art', avgScore: 92 }
-];
+import { homeworkServices } from '@/lib/api/homework';
+import { Homework } from '@/types/homework';
+import { toast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 export default function HomeworkPage() {
-  const { user } = useAuth();
+  const { user, token, isAuthenticated, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [selectedClass, setSelectedClass] = useState('all');
+  const [homework, setHomework] = useState<Homework[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filteredHomework, setFilteredHomework] = useState<Homework[]>([]);
+
+  // Fetch homework data from API
+  useEffect(() => {
+    const fetchHomework = async () => {
+      try {
+        setLoading(true);
+        
+        if (!token) {
+          console.log('No token available, skipping API call');
+          return;
+        }
+        
+        const response = await homeworkServices.getHomework(token);
+        if (response.status === 'success' && response.data) {
+          setHomework(response.data.homework);
+          setFilteredHomework(response.data.homework);
+        }
+      } catch (error) {
+        console.error('Error fetching homework:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch homework data",
+          variant: "error",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (token) {
+      fetchHomework();
+    } else {
+      console.log('No token available, skipping API call');
+    }
+  }, [token]);
+
+  // Filter homework based on search term and filters
+  useEffect(() => {
+    const filtered = homework.filter(assignment => 
+      (assignment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      assignment.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      `${assignment.class_division.level.name} - Section ${assignment.class_division.division}`.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      (selectedSubject === 'all' || assignment.subject === selectedSubject) &&
+      (selectedClass === 'all' || `${assignment.class_division.level.name} - Section ${assignment.class_division.division}` === selectedClass)
+    );
+    setFilteredHomework(filtered);
+  }, [homework, searchTerm, selectedSubject, selectedClass]);
+
+  // Debug: Log authentication state
+  console.log('Auth state:', { user, token: !!token, isAuthenticated, authLoading });
 
   // Only allow teachers to access this page
   if (user?.role !== 'teacher') {
@@ -121,27 +107,93 @@ export default function HomeworkPage() {
     );
   }
 
-  // Filter homework based on search term and filters
-  const filteredHomework = mockHomework.filter(assignment => 
-    (assignment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    assignment.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    assignment.class.toLowerCase().includes(searchTerm.toLowerCase())) &&
-    (selectedSubject === 'all' || assignment.subject === selectedSubject) &&
-    (selectedClass === 'all' || assignment.class === selectedClass)
-  );
+  // Show loading state while auth is loading
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const handleDelete = (id: string) => {
-    // Here you would typically send the delete request to your API
-    console.log(`Deleting homework with id: ${id}`);
-    // Update the UI to reflect the deletion
-    alert(`Homework assignment deleted successfully!`);
+  // Check if user is authenticated
+  if (!isAuthenticated || !token) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Authentication Required</h2>
+          <p className="text-gray-600">Please log in to access this page.</p>
+          <Button 
+            onClick={() => router.push('/login')}
+            className="mt-4"
+          >
+            Go to Login
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+
+
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await homeworkServices.deleteHomework(id, token || '');
+      if (response.status === 'success') {
+        setHomework(prev => prev.filter(hw => hw.id !== id));
+        toast({
+          title: "Success",
+          description: "Homework assignment deleted successfully!",
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting homework:', error);
+        toast({
+          title: "Error",
+          description: "Failed to delete homework assignment",
+          variant: "error",
+        });
+    }
   };
 
   // Calculate summary statistics
-  const totalAssignments = mockHomework.length;
-  const completedAssignments = mockHomework.filter(hw => hw.status === 'completed').length;
-  const avgSubmissionRate = Math.round(mockHomework.reduce((sum, hw) => sum + hw.submissionRate, 0) / mockHomework.length) || 0;
-  const avgScore = Math.round(mockHomework.reduce((sum, hw) => sum + hw.avgScore, 0) / mockHomework.length) || 0;
+  const totalAssignments = homework.length;
+  const completedAssignments = homework.filter(hw => {
+    const dueDate = new Date(hw.due_date);
+    const now = new Date();
+    return dueDate < now;
+  }).length;
+  
+  // For now, we'll use placeholder values since the API doesn't provide submission rates and scores
+  const avgSubmissionRate = 75; // Placeholder
+  const avgScore = 82; // Placeholder
+
+  // Get unique subjects and classes for filters
+  const subjects = Array.from(new Set(homework.map(hw => hw.subject)));
+  const classes = Array.from(new Set(homework.map(hw => 
+    `${hw.class_division.level.name} - Section ${hw.class_division.division}`
+  )));
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading homework...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ProtectedRoute>
@@ -201,50 +253,7 @@ export default function HomeworkPage() {
           />
         </div>
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Submission Trends
-              </CardTitle>
-              <CardDescription>
-                Weekly submission rate across all assignments
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <DataChart
-                data={mockSubmissionData}
-                type="line"
-                dataKey="submissions"
-                xAxisKey="day"
-                height={250}
-              />
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Subject Performance
-              </CardTitle>
-              <CardDescription>
-                Average scores by subject area
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <DataChart
-                data={mockSubjectPerformance}
-                type="bar"
-                dataKey="avgScore"
-                xAxisKey="subject"
-                height={250}
-              />
-            </CardContent>
-          </Card>
-        </div>
+
 
         <div className="grid gap-6">
           {/* Filters and Search */}
@@ -267,11 +276,9 @@ export default function HomeworkPage() {
                     onChange={(e) => setSelectedSubject(e.target.value)}
                   >
                     <option value="all">All Subjects</option>
-                    <option>Mathematics</option>
-                    <option>Science</option>
-                    <option>English</option>
-                    <option>History</option>
-                    <option>Art</option>
+                    {subjects.map(subject => (
+                      <option key={subject} value={subject}>{subject}</option>
+                    ))}
                   </select>
                   <select 
                     className="border rounded-md px-3 py-2 text-sm"
@@ -279,9 +286,9 @@ export default function HomeworkPage() {
                     onChange={(e) => setSelectedClass(e.target.value)}
                   >
                     <option value="all">All Classes</option>
-                    <option>Grade 5 - Section A</option>
-                    <option>Grade 6 - Section B</option>
-                    <option>Grade 7 - Section C</option>
+                    {classes.map(cls => (
+                      <option key={cls} value={cls}>{cls}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -305,9 +312,6 @@ export default function HomeworkPage() {
                       <TableHead>Title</TableHead>
                       <TableHead>Class</TableHead>
                       <TableHead>Due Date</TableHead>
-                      <TableHead>Submissions</TableHead>
-                      <TableHead>Avg. Score</TableHead>
-                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -326,43 +330,12 @@ export default function HomeworkPage() {
                             <div className="text-sm text-muted-foreground">{assignment.description}</div>
                           </div>
                         </TableCell>
-                        <TableCell>{assignment.class}</TableCell>
+                        <TableCell>{`${assignment.class_division.level.name} - Section ${assignment.class_division.division}`}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
-                            {assignment.dueDate}
+                            {formatDate(assignment.due_date)}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="w-16">
-                              <div className="text-sm font-medium">{assignment.submissionRate}%</div>
-                              <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                <div 
-                                  className="bg-blue-500 h-1.5 rounded-full" 
-                                  style={{ width: `${assignment.submissionRate}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className={`font-medium ${
-                            assignment.avgScore >= 90 ? 'text-green-500' : 
-                            assignment.avgScore >= 75 ? 'text-blue-500' : 
-                            'text-yellow-500'
-                          }`}>
-                            {assignment.avgScore}%
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <ProgressIndicator 
-                            status={
-                              assignment.status === 'completed' ? 'completed' : 
-                              assignment.status === 'active' ? 'in-progress' : 
-                              'pending'
-                            } 
-                          />
                         </TableCell>
                         <TableCell className="text-right">
                           <Button variant="outline" size="sm" className="mr-2" asChild>
