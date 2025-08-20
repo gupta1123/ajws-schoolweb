@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { formatDate } from '@/lib/utils';
 
 export default function ParentDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { user, token } = useAuth();

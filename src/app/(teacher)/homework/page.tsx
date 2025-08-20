@@ -34,6 +34,7 @@ import { homeworkServices } from '@/lib/api/homework';
 import { Homework } from '@/types/homework';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { formatDate } from '@/lib/utils';
 
 export default function HomeworkPage() {
   const { user, token, isAuthenticated, loading: authLoading } = useAuth();
@@ -177,10 +178,7 @@ export default function HomeworkPage() {
     `${hw.class_division.level.name} - Section ${hw.class_division.division}`
   )));
 
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
+  // Date formatting is now handled by the formatDate utility function from @/lib/utils
 
 
 
@@ -215,7 +213,7 @@ export default function HomeworkPage() {
           </div>
         </div>
 
-        {/* Summary Stats */}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatCard
             title="Total Assignments"

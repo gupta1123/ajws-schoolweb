@@ -12,6 +12,7 @@ import { useTheme } from '@/lib/theme/context';
 import { useLeaveRequests } from '@/hooks/use-leave-requests';
 import { useEffect, useState } from 'react';
 import type { LeaveRequest } from '@/types/leave-requests';
+import { formatDate } from '@/lib/utils';
 
 // Simple status badge component with theme support
 const StatusBadge = ({ status }: { status: string }) => {
@@ -247,11 +248,11 @@ export default function LeaveRequestDetailsPage({ params }: { params: Promise<{ 
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Start Date</p>
-                      <p className="font-medium">{new Date(leaveRequest.start_date).toLocaleDateString()}</p>
+                      <p className="font-medium">{formatDate(leaveRequest.start_date)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">End Date</p>
-                      <p className="font-medium">{new Date(leaveRequest.end_date).toLocaleDateString()}</p>
+                      <p className="font-medium">{formatDate(leaveRequest.end_date)}</p>
                     </div>
                     <div className="md:col-span-2">
                       <p className="text-sm text-gray-500">Reason</p>
@@ -263,7 +264,7 @@ export default function LeaveRequestDetailsPage({ params }: { params: Promise<{ 
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Requested Date</p>
-                      <p className="font-medium">{new Date(leaveRequest.created_at).toLocaleDateString()}</p>
+                      <p className="font-medium">{formatDate(leaveRequest.created_at)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Status</p>

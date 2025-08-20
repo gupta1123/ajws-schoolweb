@@ -16,6 +16,7 @@ import {
   User,
   BookOpen
 } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
 
 // Event type configuration
 const eventTypeConfig = {
@@ -193,7 +194,7 @@ export function CalendarView({ events, birthdays, onEventClick }: CalendarViewPr
   
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const calendarDays = generateCalendarDays();
-  const monthYear = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const monthYear = currentDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
   const today = new Date();
 
   return (

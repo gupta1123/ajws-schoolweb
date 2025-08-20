@@ -28,6 +28,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
+import { formatDate } from '@/lib/utils';
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();
@@ -123,7 +124,7 @@ export default function ProfilePage() {
                 <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
                   <div className="flex items-center justify-center gap-1">
                     <Calendar className="h-4 w-4" />
-                    <span>Joined {user?.last_login ? new Date(user.last_login).toLocaleDateString() : 'Recently'}</span>
+                    <span>Joined {user?.last_login ? formatDate(user.last_login) : 'Recently'}</span>
                   </div>
                 </div>
               </CardContent>

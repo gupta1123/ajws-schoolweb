@@ -11,6 +11,7 @@ import { Edit, Trash2, Loader2, Calendar as CalendarIcon, Clock, MapPin, User, B
 import { useState, useEffect, useCallback } from 'react';
 import { calendarServices, CalendarEvent } from '@/lib/api/calendar';
 import { toast } from '@/hooks/use-toast';
+import { formatDate, formatDateTime } from '@/lib/utils';
 
 export default function EventDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { user, token, loading: authLoading } = useAuth();
@@ -331,7 +332,7 @@ export default function EventDetailsPage({ params }: { params: Promise<{ id: str
               )}
               
               <div className="mt-6 pt-6 border-t text-sm text-gray-500">
-                <p>Created: {new Date(event.created_at).toLocaleString()}</p>
+                <p>Created: {formatDateTime(event.created_at)}</p>
                 <p>Event ID: {event.id}</p>
               </div>
             </CardContent>

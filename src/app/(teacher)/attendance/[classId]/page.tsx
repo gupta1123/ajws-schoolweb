@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { formatDate } from '@/lib/utils';
 
 // Mock data for students in a class
 const mockStudents = [
@@ -150,12 +151,12 @@ export default function ClassAttendancePage({ params, searchParams }: { params: 
             <div>
               <h1 className="text-3xl font-bold mb-2">Grade 5 - Section A</h1>
               <p className="text-gray-600 dark:text-gray-300">
-                Taking attendance for {new Date(date).toLocaleDateString()}
+                Taking attendance for {formatDate(date)}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-muted-foreground" />
-              <span className="font-medium">{new Date(date).toLocaleDateString()}</span>
+              <span className="font-medium">{formatDate(date)}</span>
             </div>
           </div>
         </div>

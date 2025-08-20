@@ -18,13 +18,14 @@ import {
   Calendar,
   ArrowLeft
 } from 'lucide-react';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select';
+import { formatDate } from '@/lib/utils';
 
 interface AcademicYear {
   id: string;
@@ -161,8 +162,8 @@ export function HistoricalStructureView({ onBack }: HistoricalStructureViewProps
                 <div>
                   <h3 className="font-medium">{selectedYear.name}</h3>
                   <p className="text-sm text-muted-foreground">
-                    {new Date(selectedYear.startDate).toLocaleDateString()} - 
-                    {new Date(selectedYear.endDate).toLocaleDateString()}
+                    {formatDate(selectedYear.startDate)} -
+                    {formatDate(selectedYear.endDate)}
                   </p>
                 </div>
               </div>

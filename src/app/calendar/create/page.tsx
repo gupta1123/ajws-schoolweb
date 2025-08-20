@@ -9,6 +9,7 @@ import { useState, Suspense } from 'react';
 import { EventCreationWizard } from '@/components/calendar/event-creation-wizard';
 import { calendarServices, CreateEventRequest } from '@/lib/api/calendar';
 import { toast } from '@/hooks/use-toast';
+import { formatDate } from '@/lib/utils';
 
 // Component that uses useSearchParams - must be wrapped in Suspense
 function CreateEventContent() {
@@ -130,7 +131,7 @@ function CreateEventContent() {
         parsedStartMinute: startMinute,
         eventDateObject: eventDate,
         eventDateISO: eventDate.toISOString(),
-        eventDateLocal: eventDate.toLocaleDateString(),
+        eventDateLocal: formatDate(eventDate),
         eventDateLocalTime: eventDate.toLocaleTimeString(),
         utcDateObject: utcDate,
         utcDateString: utcDateString,

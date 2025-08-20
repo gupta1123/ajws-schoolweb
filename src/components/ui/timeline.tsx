@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
+import { formatDateTime } from '@/lib/utils';
 import { useState } from 'react';
 
 interface TimelineEvent {
@@ -66,7 +67,7 @@ export function Timeline({
   };
 
   const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
+    return formatDateTime(timestamp);
   };
 
   return (

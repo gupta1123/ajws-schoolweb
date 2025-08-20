@@ -14,6 +14,7 @@ import { classworkServices } from '@/lib/api/classwork';
 import { Classwork } from '@/types/classwork';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { formatDate } from '@/lib/utils';
 
 // Subject icon mapping
 const subjectIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -89,7 +90,7 @@ const ClassworkCard = ({
           <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              {new Date(entry.date).toLocaleDateString()}
+              {formatDate(entry.date)}
             </div>
             <div className="flex items-center gap-1">
               {entry.is_shared_with_parents ? (

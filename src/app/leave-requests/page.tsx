@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { useTheme } from '@/lib/theme/context';
 import { useLeaveRequests } from '@/hooks/use-leave-requests';
 import { useSearchParams } from 'next/navigation';
+import { formatDate } from '@/lib/utils';
 
 // Simple status badge component with theme support
 const StatusBadge = ({ status }: { status: string }) => {
@@ -94,12 +95,8 @@ function LeaveRequestsContent() {
   const studentId = searchParams.get('studentId');
   
   // Helper function to format dates in "22 Aug '25" format
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const day = date.getDate();
-    const month = date.toLocaleDateString('en-US', { month: 'short' });
-    const year = date.getFullYear().toString().slice(-2);
-    return `${day} ${month} '${year}`;
+  const formatDateDisplay = (dateString: string) => {
+    return formatDate(dateString);
   };
   
   // Use the leave requests hook

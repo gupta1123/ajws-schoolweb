@@ -7,13 +7,13 @@ import { ProtectedRoute } from '@/lib/auth/protected-route';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
 import { Calendar, Phone, Mail, User, BookOpen, Users, Plus, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { ParentLinking } from '@/components/students/parent-linking';
 import { studentServices, Student } from '@/lib/api/students';
+import { formatDate } from '@/lib/utils';
 
 export default function StudentDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { user, token } = useAuth();
@@ -218,14 +219,14 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                     <Calendar className="mr-2 h-4 w-4" />
                     Date of Birth
                   </div>
-                  <p className="font-medium">{new Date(studentData.date_of_birth).toLocaleDateString()}</p>
+                  <p className="font-medium">{formatDate(studentData.date_of_birth)}</p>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                     <Calendar className="mr-2 h-4 w-4" />
                     Admission Date
                   </div>
-                  <p className="font-medium">{new Date(studentData.admission_date).toLocaleDateString()}</p>
+                  <p className="font-medium">{formatDate(studentData.admission_date)}</p>
                 </div>
               </CardContent>
             </Card>
@@ -285,9 +286,9 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                     <TableBody>
                       {studentData.student_academic_records.map((record) => (
                         <TableRow key={record.id}>
-                          <TableCell className="font-medium">{record.class_division.academic_year.year_name}</TableCell>
-                          <TableCell>{record.class_division.level.name}</TableCell>
-                          <TableCell>{record.class_division.division}</TableCell>
+                          <TableCell className="font-medium">{record.class_division.academic_year?.year_name || 'N/A'}</TableCell>
+                          <TableCell>{record.class_division.level?.name || 'N/A'}</TableCell>
+                          <TableCell>{record.class_division.division || 'N/A'}</TableCell>
                           <TableCell>{record.roll_number}</TableCell>
                           <TableCell>
                             <Badge variant="secondary">

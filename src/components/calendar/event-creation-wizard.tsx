@@ -31,6 +31,7 @@ import {
 import { academicServices } from '@/lib/api/academic';
 import { useAuth } from '@/lib/auth/context';
 import type { ClassDivision } from '@/types/academic';
+import { formatDate } from '@/lib/utils';
 
 // Mock data for other fields (keeping these for now)
 const mockRooms = [
@@ -458,7 +459,7 @@ export function EventCreationWizard({
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span>{new Date(formData.date).toLocaleDateString()}</span>
+                      <span>{formatDate(formData.date)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-muted-foreground" />

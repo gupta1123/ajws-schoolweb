@@ -12,6 +12,7 @@ import {
   Cake
 } from 'lucide-react';
 import Link from 'next/link';
+import { formatDate } from '@/lib/utils';
 
 // Mock data - in a real app this would come from an API
 const mockEvents = [
@@ -97,7 +98,7 @@ export function UpcomingEvents() {
                 <h3 className="font-medium text-sm">{event.title}</h3>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                   <Calendar className="h-3 w-3" />
-                  <span>{new Date(event.date).toLocaleDateString()}</span>
+                  <span>{formatDate(event.date)}</span>
                   <Clock className="h-3 w-3" />
                   <span>{event.time}</span>
                 </div>

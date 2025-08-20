@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { staffServices } from '@/lib/api';
 import type { Staff } from '@/types/staff';
+import { formatDate } from '@/lib/utils';
 
 export default function StaffDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { user, token } = useAuth();
@@ -213,7 +214,7 @@ export default function StaffDetailsPage({ params }: { params: Promise<{ id: str
                     Created At
                   </div>
                   <p className="font-medium">
-                    {staff.created_at ? new Date(staff.created_at).toLocaleDateString() : 'Not specified'}
+                    {staff.created_at ? formatDate(staff.created_at) : 'Not specified'}
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -222,7 +223,7 @@ export default function StaffDetailsPage({ params }: { params: Promise<{ id: str
                     Last Updated
                   </div>
                   <p className="font-medium">
-                    {staff.updated_at ? new Date(staff.updated_at).toLocaleDateString() : 'Not specified'}
+                    {staff.updated_at ? formatDate(staff.updated_at) : 'Not specified'}
                   </p>
                 </div>
               </CardContent>

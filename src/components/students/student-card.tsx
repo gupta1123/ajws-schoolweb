@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
+import { formatDate } from '@/lib/utils';
 
 interface StudentCardProps {
   id: string;
@@ -81,7 +82,7 @@ export function StudentCard({
           
           <div className="flex items-center gap-2 text-xs">
             <Cake className="h-3 w-3 text-muted-foreground" />
-            <span>{new Date(dateOfBirth).toLocaleDateString()}</span>
+            <span>{formatDate(dateOfBirth)}</span>
             {upcomingBirthdays && (
               <Badge variant="secondary" className="ml-1">
                 Today!

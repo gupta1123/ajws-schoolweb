@@ -19,6 +19,7 @@ import {
   Check,
   X
 } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
 
 
 // Event type configuration
@@ -130,12 +131,7 @@ export function EventDetailModal({
   const Icon = config.icon;
   
   // Format date for display
-  const formattedDate = new Date(event.date).toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+  const formattedDate = formatDate(event.date);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">

@@ -23,6 +23,7 @@ import { useState, useEffect } from 'react';
 import { StudentCard } from '@/components/students/student-card';
 import { classesServices } from '@/lib/api/classes';
 import { ClassDivision, Student } from '@/types/classes';
+import { formatDate } from '@/lib/utils';
 
 export default function ClassDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { user, token } = useAuth();
@@ -297,7 +298,7 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ id: str
                             </td>
                             <td className="p-4">
                               <div className="font-medium">
-                                {new Date(student.date_of_birth).toLocaleDateString()}
+                                {formatDate(student.date_of_birth)}
                               </div>
                             </td>
                             <td className="p-4">

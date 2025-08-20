@@ -3,6 +3,7 @@
 'use client';
 
 import { useState } from 'react';
+import { formatDate } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -233,7 +234,7 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
   const themeClasses = getThemeClasses();
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const calendarDays = generateCalendarDays();
-  const monthYear = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const monthYear = currentDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
   const today = new Date();
 
   return (
@@ -258,11 +259,11 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <h2 className="text-xl font-bold min-w-[200px] text-center text-gray-800 dark:text-white">
-                  {viewMode === 'monthly' 
-                    ? monthYear 
+                  {viewMode === 'monthly'
+                    ? monthYear
                     : viewMode === 'weekly'
-                    ? `Week of ${currentDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}`
-                    : currentDate.toLocaleDateString('default', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+                    ? `Week of ${formatDate(currentDate)}`
+                    : formatDate(currentDate)
                   }
                 </h2>
                 <Button 

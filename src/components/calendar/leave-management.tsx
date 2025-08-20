@@ -14,6 +14,7 @@ import {
 
 import { useLeaveRequests } from '@/hooks/use-leave-requests';
 import type { LeaveRequest } from '@/types/leave-requests';
+import { formatDate } from '@/lib/utils';
 
 interface LeaveManagementProps {
   userRole: 'admin' | 'principal' | 'teacher';
@@ -23,12 +24,8 @@ export function LeaveManagement({ userRole }: LeaveManagementProps) {
   const { leaveRequests, loading, approveLeaveRequest, rejectLeaveRequest } = useLeaveRequests();
   
   // Helper function to format dates in "22 Aug '25" format
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const day = date.getDate();
-    const month = date.toLocaleDateString('en-US', { month: 'short' });
-    const year = date.getFullYear().toString().slice(-2);
-    return `${day} ${month} '${year}`;
+  const formatDateDisplay = (dateString: string) => {
+    return formatDate(dateString);
   };
   
   // Filter requests based on user role

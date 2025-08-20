@@ -24,6 +24,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { useAcademicStructure } from '@/hooks/use-academic-structure';
+import { formatDate } from '@/lib/utils';
 
 export function AcademicYearManager() {
   // Use real data from the hook
@@ -237,8 +238,8 @@ export function AcademicYearManager() {
                   academicYears.map((year) => (
                     <TableRow key={year.id}>
                       <TableCell className="font-medium">{year.year_name}</TableCell>
-                      <TableCell>{new Date(year.start_date).toLocaleDateString()}</TableCell>
-                      <TableCell>{new Date(year.end_date).toLocaleDateString()}</TableCell>
+                      <TableCell>{formatDate(year.start_date)}</TableCell>
+                      <TableCell>{formatDate(year.end_date)}</TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           {year.is_active && (

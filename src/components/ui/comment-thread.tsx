@@ -15,6 +15,7 @@ import {
   X
 } from 'lucide-react';
 import { useState } from 'react';
+import { formatDateTime } from '@/lib/utils';
 
 interface Comment {
   id: string;
@@ -61,7 +62,7 @@ export function CommentThread({
   };
 
   const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
+    return formatDateTime(timestamp);
   };
 
   const renderComment = (comment: Comment, isReply = false) => (
