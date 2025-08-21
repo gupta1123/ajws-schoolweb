@@ -1,6 +1,6 @@
 // src/lib/api/calendar.ts
 
-import { apiClient, ApiResponse } from './client';
+import { apiClient, ApiResponse, ApiErrorResponse } from './client';
 
 export interface CalendarEvent {
   id: string;
@@ -73,7 +73,7 @@ export const calendarServices = {
   createEvent: async (
     token: string,
     eventData: CreateEventRequest
-  ): Promise<ApiResponse<EventResponse>> => {
+  ): Promise<ApiResponse<EventResponse> | ApiErrorResponse> => {
     return apiClient.post('/api/calendar/events', eventData, token);
   },
 
@@ -90,7 +90,7 @@ export const calendarServices = {
       page?: number;
       limit?: number;
     }
-  ): Promise<ApiResponse<EventsResponse>> => {
+  ): Promise<ApiResponse<EventsResponse> | ApiErrorResponse> => {
     const searchParams = new URLSearchParams();
     
     if (params?.start_date) {
@@ -126,7 +126,7 @@ export const calendarServices = {
   getEventById: async (
     token: string,
     eventId: string
-  ): Promise<ApiResponse<EventResponse>> => {
+  ): Promise<ApiResponse<EventResponse> | ApiErrorResponse> => {
     return apiClient.get(`/api/calendar/events/${eventId}`, token);
   },
 
@@ -135,7 +135,7 @@ export const calendarServices = {
     token: string,
     eventId: string,
     eventData: UpdateEventRequest
-  ): Promise<ApiResponse<EventResponse>> => {
+  ): Promise<ApiResponse<EventResponse> | ApiErrorResponse> => {
     return apiClient.put(`/api/calendar/events/${eventId}`, eventData, token);
   },
 
@@ -143,7 +143,7 @@ export const calendarServices = {
   deleteEvent: async (
     token: string,
     eventId: string
-  ): Promise<ApiResponse<{ message: string }>> => {
+  ): Promise<ApiResponse<{ message: string }> | ApiErrorResponse> => {
     return apiClient.delete(`/api/calendar/events/${eventId}`, token);
   },
 
@@ -158,7 +158,7 @@ export const calendarServices = {
       page?: number;
       limit?: number;
     }
-  ): Promise<ApiResponse<ClassEventsResponse>> => {
+  ): Promise<ApiResponse<ClassEventsResponse> | ApiErrorResponse> => {
     const searchParams = new URLSearchParams();
     
     if (params?.start_date) {
@@ -192,7 +192,7 @@ export const calendarServices = {
       page?: number;
       limit?: number;
     }
-  ): Promise<ApiResponse<ParentEventsResponse>> => {
+  ): Promise<ApiResponse<ParentEventsResponse> | ApiErrorResponse> => {
     const searchParams = new URLSearchParams();
     
     if (params?.start_date) {
@@ -231,7 +231,7 @@ export const calendarServices = {
       page?: number;
       limit?: number;
     }
-  ): Promise<ApiResponse<EventsResponse>> => {
+  ): Promise<ApiResponse<EventsResponse> | ApiErrorResponse> => {
     return calendarServices.getEvents(token, {
       start_date: startDate,
       end_date: endDate,
@@ -248,7 +248,7 @@ export const calendarServices = {
       event_category?: string;
       use_ist?: boolean;
     }
-  ): Promise<ApiResponse<EventsResponse>> => {
+  ): Promise<ApiResponse<EventsResponse> | ApiErrorResponse> => {
     const today = new Date().toISOString().split('T')[0];
     return calendarServices.getEvents(token, {
       start_date: today,
@@ -268,7 +268,7 @@ export const calendarServices = {
       page?: number;
       limit?: number;
     }
-  ): Promise<ApiResponse<EventsResponse>> => {
+  ): Promise<ApiResponse<EventsResponse> | ApiErrorResponse> => {
     const today = new Date();
     const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
     
@@ -288,7 +288,7 @@ export const calendarServices = {
     startDate: string,
     endDate: string,
     eventCategory: string
-  ): Promise<ApiResponse<EventsResponse>> => {
+  ): Promise<ApiResponse<EventsResponse> | ApiErrorResponse> => {
     const searchParams = new URLSearchParams();
     searchParams.append('start_date', startDate);
     searchParams.append('end_date', endDate);

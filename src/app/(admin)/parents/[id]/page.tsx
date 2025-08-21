@@ -16,8 +16,6 @@ import {
   Mail,
   Calendar,
   Users,
-  MessageSquare,
-  Edit,
   CheckCircle
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -65,14 +63,14 @@ export default function ParentDetailsPage({ params }: { params: Promise<{ id: st
           setParentData(response.data.parent);
         } else if (response.status === 'error') {
           // Handle API error response
-          const errorResponse = response as any;
+          const errorResponse = response as { statusCode?: number; message?: string };
           if (errorResponse.statusCode === 404) {
             setError('Parent not found. The parent may have been deleted or you may not have access.');
           } else if (errorResponse.statusCode === 403) {
             setError('Access denied. You do not have permission to view this parent.');
           } else if (errorResponse.statusCode === 401) {
             setError('Authentication required. Please log in again.');
-          } else if (errorResponse.statusCode >= 500) {
+          } else if (errorResponse.statusCode && errorResponse.statusCode >= 500) {
             setError('Server error. Please try again later.');
           } else {
             setError(errorResponse.message || 'Failed to fetch parent data');
@@ -224,7 +222,7 @@ export default function ParentDetailsPage({ params }: { params: Promise<{ id: st
                         <Calendar className="mr-2 h-4 w-4" />
                         Created Date
                       </div>
-                      <p className="font-medium">{getParent()?.created_at ? formatDate(getParent()?.created_at) : 'N/A'}</p>
+                      <p className="font-medium">{getParent()?.created_at ? formatDate(getParent()!.created_at) : 'N/A'}</p>
                     </div>
                   )}
                 </div>
@@ -270,48 +268,55 @@ export default function ParentDetailsPage({ params }: { params: Promise<{ id: st
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {getParent()?.children && getParent()?.children.length > 0 ? (
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Student Name</TableHead>
-                          <TableHead>Admission Number</TableHead>
-                          <TableHead>Primary Guardian</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {getParent()?.children?.map((child) => (
-                          <TableRow key={child.id}>
-                            <TableCell className="font-medium">
-                              {child.full_name}
-                            </TableCell>
-                            <TableCell>{child.admission_number}</TableCell>
-                            <TableCell>
-                              <Badge variant={child.is_primary_guardian ? "default" : "secondary"}>
-                                {child.is_primary_guardian ? "Primary" : "Secondary"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="outline" size="sm" asChild>
-                                <Link href={`/students/${child.id}`}>
-                                  View Student
-                                </Link>
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <p>No children associated with this parent.</p>
-                    <p className="text-sm">You can link students to this parent from the student management page.</p>
-                  </div>
-                )}
+                {(() => {
+                  const children = getParent()?.children;
+                  if (children && children.length > 0) {
+                    return (
+                      <div className="rounded-md border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Student Name</TableHead>
+                              <TableHead>Admission Number</TableHead>
+                              <TableHead>Primary Guardian</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {children.map((child) => (
+                              <TableRow key={child.id}>
+                                <TableCell className="font-medium">
+                                  {child.full_name}
+                                </TableCell>
+                                <TableCell>{child.admission_number}</TableCell>
+                                <TableCell>
+                                  <Badge variant={child.is_primary_guardian ? "default" : "secondary"}>
+                                    {child.is_primary_guardian ? "Primary" : "Secondary"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button variant="outline" size="sm" asChild>
+                                    <Link href={`/students/${child.id}`}>
+                                      View Student
+                                    </Link>
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div className="text-center py-8 text-gray-500">
+                        <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                        <p>No children associated with this parent.</p>
+                        <p className="text-sm">You can link students to this parent from the student management page.</p>
+                      </div>
+                    );
+                  }
+                })()}
               </CardContent>
             </Card>
           </div>

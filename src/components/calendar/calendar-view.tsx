@@ -16,7 +16,7 @@ import {
   User,
   BookOpen
 } from 'lucide-react';
-import { formatDate } from '@/lib/utils';
+
 
 // Event type configuration
 const eventTypeConfig = {

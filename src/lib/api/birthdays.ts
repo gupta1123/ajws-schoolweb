@@ -1,6 +1,6 @@
 // src/lib/api/birthdays.ts
 
-import { apiClient, ApiResponse } from './client';
+import { apiClient, ApiResponse, ApiErrorResponse } from './client';
 
 export interface BirthdayStudent {
   id: string;
@@ -104,7 +104,7 @@ export const birthdayServices = {
       page?: number;
       limit?: number;
     }
-  ): Promise<ApiResponse<TodayBirthdaysResponse>> => {
+  ): Promise<ApiResponse<TodayBirthdaysResponse> | ApiErrorResponse> => {
     const searchParams = new URLSearchParams();
     if (params?.class_division_id) {
       searchParams.append('class_division_id', params.class_division_id);
@@ -130,7 +130,7 @@ export const birthdayServices = {
       start_date?: string;
       end_date?: string;
     }
-  ): Promise<ApiResponse<UpcomingBirthdaysResponse>> => {
+  ): Promise<ApiResponse<UpcomingBirthdaysResponse> | ApiErrorResponse> => {
     const searchParams = new URLSearchParams();
     if (params?.class_division_id) {
       searchParams.append('class_division_id', params.class_division_id);
@@ -153,7 +153,7 @@ export const birthdayServices = {
   },
 
   // Get birthday statistics (Admin/Principal only)
-  getBirthdayStatistics: async (token: string): Promise<ApiResponse<BirthdayStatistics>> => {
+  getBirthdayStatistics: async (token: string): Promise<ApiResponse<BirthdayStatistics> | ApiErrorResponse> => {
     return apiClient.get('/api/birthdays/statistics', token);
   },
 
@@ -161,7 +161,7 @@ export const birthdayServices = {
   getClassBirthdays: async (
     token: string,
     classDivisionId: string
-  ): Promise<ApiResponse<ClassBirthdaysResponse>> => {
+  ): Promise<ApiResponse<ClassBirthdaysResponse> | ApiErrorResponse> => {
     return apiClient.get(`/api/birthdays/class/${classDivisionId}`, token);
   },
 
@@ -174,7 +174,7 @@ export const birthdayServices = {
       page?: number;
       limit?: number;
     }
-  ): Promise<ApiResponse<DivisionBirthdaysResponse>> => {
+  ): Promise<ApiResponse<DivisionBirthdaysResponse> | ApiErrorResponse> => {
     const searchParams = new URLSearchParams();
     if (params?.date) {
       searchParams.append('date', params.date);
@@ -200,7 +200,7 @@ export const birthdayServices = {
       page?: number;
       limit?: number;
     }
-  ): Promise<ApiResponse<UpcomingBirthdaysResponse>> => {
+  ): Promise<ApiResponse<UpcomingBirthdaysResponse> | ApiErrorResponse> => {
     const searchParams = new URLSearchParams();
     if (params?.date) {
       searchParams.append('date', params.date);
@@ -227,7 +227,7 @@ export const birthdayServices = {
     startDate: string,
     endDate: string,
     token: string
-  ): Promise<ApiResponse<UpcomingBirthdaysResponse>> => {
+  ): Promise<ApiResponse<UpcomingBirthdaysResponse> | ApiErrorResponse> => {
     return birthdayServices.getTeacherClassesBirthdays(token, {
       start_date: startDate,
       end_date: endDate

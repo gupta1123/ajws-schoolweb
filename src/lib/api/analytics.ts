@@ -1,6 +1,6 @@
 // src/lib/api/analytics.ts
 
-import { apiClient, ApiResponse } from './client';
+import { apiClient, ApiResponse, ApiErrorResponse } from './client';
 
 export interface AnalyticsSummary {
   summary: {
@@ -49,7 +49,7 @@ export const analyticsServices = {
       date_from?: string;
       date_to?: string;
     }
-  ): Promise<ApiResponse<AnalyticsSummary>> => {
+  ): Promise<ApiResponse<AnalyticsSummary> | ApiErrorResponse> => {
     const searchParams = new URLSearchParams();
     if (params?.date_from) {
       searchParams.append('date_from', params.date_from);
@@ -71,7 +71,7 @@ export const analyticsServices = {
       page?: number;
       limit?: number;
     }
-  ): Promise<ApiResponse<DailyReports>> => {
+  ): Promise<ApiResponse<DailyReports> | ApiErrorResponse> => {
     const searchParams = new URLSearchParams();
     if (params?.date_from) {
       searchParams.append('date_from', params.date_from);

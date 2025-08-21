@@ -54,8 +54,7 @@ export default function EditHomeworkPage({ params }: { params: Promise<{ id: str
   const [error, setError] = useState<string | null>(null);
   const [homework, setHomework] = useState<Homework | null>(null);
   const [classDivisions, setClassDivisions] = useState<TransformedClass[]>([]);
-  const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
-  const [loadingClasses, setLoadingClasses] = useState(true);
+
 
   // Format class division name for display
   const formatClassName = (division: TransformedClass) => {
@@ -81,7 +80,6 @@ export default function EditHomeworkPage({ params }: { params: Promise<{ id: str
 
         try {
           setLoading(true);
-          setLoadingClasses(true);
           setError(null);
 
           // Fetch class divisions and subjects first
@@ -92,13 +90,7 @@ export default function EditHomeworkPage({ params }: { params: Promise<{ id: str
               (assignment: AssignedClass) => assignment.assignment_type === 'subject_teacher'
             );
 
-            // Extract unique subjects
-            const subjects = [...new Set(
-              subjectTeacherClasses
-                .map((assignment: AssignedClass) => assignment.subject)
-                .filter((subject: string | undefined): subject is string => !!subject)
-            )];
-            setAvailableSubjects(subjects);
+
 
             // Transform classes for the dropdown
             const transformedClasses = subjectTeacherClasses.map((assignment: AssignedClass) => ({
@@ -160,7 +152,6 @@ export default function EditHomeworkPage({ params }: { params: Promise<{ id: str
           });
         } finally {
           setLoading(false);
-          setLoadingClasses(false);
         }
       };
 

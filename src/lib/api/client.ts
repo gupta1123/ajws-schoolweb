@@ -58,7 +58,7 @@ export const apiClient = {
         } else if (errorData.detail) {
           errorMessage = errorData.detail;
         }
-      } catch (jsonError) {
+      } catch {
         // If JSON parsing fails, try to get text content
         try {
           const textContent = await response.text();

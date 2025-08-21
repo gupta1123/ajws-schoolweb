@@ -23,10 +23,7 @@ interface LeaveManagementProps {
 export function LeaveManagement({ userRole }: LeaveManagementProps) {
   const { leaveRequests, loading, approveLeaveRequest, rejectLeaveRequest } = useLeaveRequests();
   
-  // Helper function to format dates in "22 Aug '25" format
-  const formatDateDisplay = (dateString: string) => {
-    return formatDate(dateString);
-  };
+
   
   // Filter requests based on user role
   const visibleRequests = leaveRequests

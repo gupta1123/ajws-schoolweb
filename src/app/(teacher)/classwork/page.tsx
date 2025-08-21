@@ -62,9 +62,7 @@ export default function ClassworkPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [subjectFilter, setSubjectFilter] = useState('all');
   const [classFilter, setClassFilter] = useState('all');
-  const [teacherAssignments, setTeacherAssignments] = useState<{
-    assigned_classes: AssignedClass[];
-  } | null>(null);
+
   const [teacherSubjects, setTeacherSubjects] = useState<string[]>([]);
   const [teacherClasses, setTeacherClasses] = useState<string[]>([]);
   const [classwork, setClasswork] = useState<Classwork[]>([]);
@@ -82,7 +80,6 @@ export default function ClassworkPage() {
       // First fetch teacher assignments
       const teacherResponse = await academicServices.getMyTeacherClasses(token);
       if (teacherResponse.status === 'success' && teacherResponse.data) {
-        setTeacherAssignments(teacherResponse.data);
 
         // Filter for only subject teacher assignments
         const subjectTeacherClasses = teacherResponse.data.assigned_classes.filter(

@@ -1,6 +1,6 @@
 // src/lib/api/classwork.ts
 
-import { apiClient, ApiResponse } from './client';
+import { apiClient, ApiResponse, ApiErrorResponse } from './client';
 import { Classwork } from '@/types/classwork';
 
 export interface CreateClassworkData {
@@ -38,7 +38,7 @@ export const classworkServices = {
     subject?: string; 
     date_from?: string; 
     date_to?: string 
-  }): Promise<ApiResponse<ClassworkResponse>> => {
+  }): Promise<ApiResponse<ClassworkResponse> | ApiErrorResponse> => {
     const params = new URLSearchParams();
     params.append('page', page.toString());
     params.append('limit', limit.toString());
@@ -54,22 +54,22 @@ export const classworkServices = {
   },
 
   // Get classwork by ID
-  getClassworkById: async (token: string, id: string): Promise<ApiResponse<{ classwork: Classwork }>> => {
+  getClassworkById: async (token: string, id: string): Promise<ApiResponse<{ classwork: Classwork }> | ApiErrorResponse> => {
     return apiClient.get(`/api/classwork/${id}`, token);
   },
 
   // Create classwork
-  createClasswork: async (data: CreateClassworkData, token: string): Promise<ApiResponse<{ classwork: Classwork }>> => {
+  createClasswork: async (data: CreateClassworkData, token: string): Promise<ApiResponse<{ classwork: Classwork }> | ApiErrorResponse> => {
     return apiClient.post('/api/classwork', data, token);
   },
 
   // Update classwork
-  updateClasswork: async (id: string, data: Partial<CreateClassworkData>, token: string): Promise<ApiResponse<{ classwork: Classwork }>> => {
+  updateClasswork: async (id: string, data: Partial<CreateClassworkData>, token: string): Promise<ApiResponse<{ classwork: Classwork }> | ApiErrorResponse> => {
     return apiClient.put(`/api/classwork/${id}`, data, token);
   },
 
   // Delete classwork
-  deleteClasswork: async (id: string, token: string): Promise<ApiResponse<DeleteClassworkResponse>> => {
+  deleteClasswork: async (id: string, token: string): Promise<ApiResponse<DeleteClassworkResponse> | ApiErrorResponse> => {
     return apiClient.delete(`/api/classwork/${id}`, token);
   }
 };

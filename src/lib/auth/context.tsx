@@ -51,16 +51,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       const response = await authServices.login({ phone_number, password });
       
-      const { user, token } = response.data;
+            if (response.status === 'error') {
+        throw new Error(response.message || 'Login failed');
+      }
       
-      // Store in state
-      setUser(user);
-      setToken(token);
-      setIsAuthenticated(true);
-      
-      // Store in localStorage
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
+      if (response.status === 'success' && response.data) {
+        const { user, token } = response.data;
+        
+        // Store in state
+        setUser(user);
+        setToken(token);
+        setIsAuthenticated(true);
+        
+        // Store in localStorage
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+      }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed';
       setError(errorMessage);
@@ -103,17 +109,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = async () => {
     if (!token) return;
-    
+
     try {
       setLoading(true);
       const response = await authServices.getCurrentUser(token);
-      const userData = response.data.user;
-      
-      // Update state
-      setUser(userData);
-      
-      // Update localStorage
-      localStorage.setItem('user', JSON.stringify(userData));
+
+      if (response.status === 'error') {
+        throw new Error(response.message || 'Failed to refresh user data');
+      }
+
+      // Type guard to ensure response is success type
+      if ('data' in response && response.data) {
+        const userData = response.data.user;
+
+        // Update state
+        setUser(userData);
+
+        // Update localStorage
+        localStorage.setItem('user', JSON.stringify(userData));
+      } else {
+        throw new Error('Invalid response format');
+      }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to refresh user data';
       setError(errorMessage);

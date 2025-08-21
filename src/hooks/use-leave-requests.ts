@@ -46,14 +46,8 @@ export const useLeaveRequests = (): UseLeaveRequestsReturn => {
       const response = await leaveRequestServices.list(params, token);
       
       if (response.status === 'success') {
-        // If it's a 304 response (cached), keep existing data
-        if (response.cached && response.statusCode === 304) {
-          console.log('Data unchanged (304), keeping existing leave requests');
-          // Don't update the state, keep existing data
-        } else {
-          // New data received, update the state
-          setLeaveRequests(response.data.leave_requests);
-        }
+        // New data received, update the state
+        setLeaveRequests(response.data.leave_requests);
       } else {
         setError('Failed to fetch leave requests');
       }

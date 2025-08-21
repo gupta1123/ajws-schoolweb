@@ -41,7 +41,6 @@ export function AcademicStructureManager() {
     classLevels,
     classDivisions,
     teachers,
-    loading,
     error,
     clearError,
     createClassDivision,
@@ -167,7 +166,7 @@ export function AcademicStructureManager() {
     }
   };
 
-  const handleRemoveSubjectTeacher = async (divisionId: string, teacherId: string, subject?: string | null) => {
+  const handleRemoveSubjectTeacher = async (divisionId: string, teacherId: string) => {
     try {
       const success = await removeTeacherFromClass(divisionId, teacherId, 'subject_teacher');
 
@@ -261,12 +260,7 @@ export function AcademicStructureManager() {
     }
   };
   
-  // Get divisions grouped by level for display
-  const getDivisionsByLevel = (levelId: string) => {
-    return classDivisions
-      .filter(division => division.class_level_id === levelId)
-      .sort((a, b) => a.division.localeCompare(b.division));
-  };
+
 
   return (
     <div className="space-y-6">

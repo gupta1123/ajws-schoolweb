@@ -1,6 +1,6 @@
 // src/lib/api/homework.ts
 
-import { apiClient, ApiResponse } from './client';
+import { apiClient, ApiResponse, ApiErrorResponse } from './client';
 import { Homework } from '@/types/homework';
 
 export interface CreateHomeworkData {
@@ -28,7 +28,7 @@ export const homeworkServices = {
     status?: string;
     date_from?: string;
     date_to?: string
-  }): Promise<ApiResponse<HomeworkResponse>> => {
+  }): Promise<ApiResponse<HomeworkResponse> | ApiErrorResponse> => {
     const params = new URLSearchParams();
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
@@ -41,22 +41,22 @@ export const homeworkServices = {
   },
 
   // Get homework by ID
-  getHomeworkById: async (token: string, id: string): Promise<ApiResponse<{ homework: Homework }>> => {
+  getHomeworkById: async (token: string, id: string): Promise<ApiResponse<{ homework: Homework }> | ApiErrorResponse> => {
     return apiClient.get(`/api/homework/${id}`, token);
   },
 
   // Create homework
-  createHomework: async (data: CreateHomeworkData, token: string): Promise<ApiResponse<{ homework: Homework }>> => {
+  createHomework: async (data: CreateHomeworkData, token: string): Promise<ApiResponse<{ homework: Homework }> | ApiErrorResponse> => {
     return apiClient.post('/api/homework', data, token);
   },
 
   // Update homework
-  updateHomework: async (id: string, data: Partial<CreateHomeworkData>, token: string): Promise<ApiResponse<{ homework: Homework }>> => {
+  updateHomework: async (id: string, data: Partial<CreateHomeworkData>, token: string): Promise<ApiResponse<{ homework: Homework }> | ApiErrorResponse> => {
     return apiClient.put(`/api/homework/${id}`, data, token);
   },
 
   // Delete homework
-  deleteHomework: async (id: string, token: string): Promise<ApiResponse<DeleteHomeworkResponse>> => {
+  deleteHomework: async (id: string, token: string): Promise<ApiResponse<DeleteHomeworkResponse> | ApiErrorResponse> => {
     return apiClient.delete(`/api/homework/${id}`, token);
   }
 };

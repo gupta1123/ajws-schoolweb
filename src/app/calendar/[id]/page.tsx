@@ -11,7 +11,7 @@ import { Edit, Trash2, Loader2, Calendar as CalendarIcon, Clock, MapPin, User, B
 import { useState, useEffect, useCallback } from 'react';
 import { calendarServices, CalendarEvent } from '@/lib/api/calendar';
 import { toast } from '@/hooks/use-toast';
-import { formatDate, formatDateTime } from '@/lib/utils';
+import { formatDateTime } from '@/lib/utils';
 
 export default function EventDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { user, token, loading: authLoading } = useAuth();

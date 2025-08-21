@@ -94,10 +94,7 @@ function LeaveRequestsContent() {
   // Get student ID from URL params if filtering by student
   const studentId = searchParams.get('studentId');
   
-  // Helper function to format dates in "22 Aug '25" format
-  const formatDateDisplay = (dateString: string) => {
-    return formatDate(dateString);
-  };
+
   
   // Use the leave requests hook
   const {

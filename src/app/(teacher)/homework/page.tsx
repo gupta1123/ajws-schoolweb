@@ -47,16 +47,7 @@ interface TeacherAssignment {
   subject?: string;
 }
 
-interface TeacherAssignmentsResponse {
-  user_id: string;
-  staff_id: string;
-  full_name: string;
-  staff_info: { id: string; department: string; designation: string };
-  assignment_ids: { teacher_id: string; staff_id: string };
-  assigned_classes: TeacherAssignment[];
-  total_assigned_classes: number;
-  has_assignments: boolean;
-}
+
 
 export default function HomeworkPage() {
   const { user, token, isAuthenticated, loading: authLoading } = useAuth();

@@ -88,8 +88,8 @@ export default function CreateParentPage() {
         if (response.data && Array.isArray(response.data.students)) {
           // Filter out students that already have parents
           const availableStudents = response.data.students.filter((student: Student) => {
-            const hasNoParents = !student.parent_student_mappings || student.parent_student_mappings.length === 0;
-            console.log(`Student ${student.full_name} (${student.admission_number}): has parents = ${student.parent_student_mappings?.length || 0}`);
+            const hasNoParents = !student.parent_mappings || student.parent_mappings.length === 0;
+            console.log(`Student ${student.full_name} (${student.admission_number}): has parents = ${student.parent_mappings?.length || 0}`);
             return hasNoParents;
           });
           
@@ -629,7 +629,7 @@ export default function CreateParentPage() {
                               admission_date: '', 
                               status: '', 
                               student_academic_records: [], 
-                              parent_student_mappings: undefined 
+                              parent_mappings: [] 
                             })}
                           >
                             Change

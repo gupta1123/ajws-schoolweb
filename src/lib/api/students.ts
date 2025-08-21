@@ -1,4 +1,4 @@
-import { apiClient, ApiResponse } from './client';
+import { apiClient, ApiResponse, ApiErrorResponse } from './client';
 
 // Student Types based on API documentation
 export interface Student {
@@ -217,7 +217,7 @@ export const studentServices = {
       status?: string;
       unlinked_only?: boolean;
     }
-  ): Promise<ApiResponse<StudentsListResponse>> => {
+  ): Promise<ApiResponse<StudentsListResponse> | ApiErrorResponse> => {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
@@ -233,12 +233,12 @@ export const studentServices = {
   },
 
   // Create a new student
-  createStudent: async (data: CreateStudentRequest, token: string): Promise<ApiResponse<Student>> => {
+  createStudent: async (data: CreateStudentRequest, token: string): Promise<ApiResponse<Student> | ApiErrorResponse> => {
     return apiClient.post('/api/students', data, token);
   },
 
   // Get student details by ID
-  getStudentById: async (studentId: string, token: string): Promise<ApiResponse<StudentDetailsResponse>> => {
+  getStudentById: async (studentId: string, token: string): Promise<ApiResponse<StudentDetailsResponse> | ApiErrorResponse> => {
     return apiClient.get(`/api/students/${studentId}`, token);
   },
 
@@ -247,7 +247,7 @@ export const studentServices = {
     studentId: string,
     data: LinkParentRequest,
     token: string
-  ): Promise<ApiResponse<LinkParentResponse>> => {
+  ): Promise<ApiResponse<LinkParentResponse> | ApiErrorResponse> => {
     // Use the correct endpoint from API documentation: /api/academic/link-students
     const payload = {
       parent_id: data.parent_id,
@@ -271,7 +271,7 @@ export const studentServices = {
       page?: number;
       limit?: number;
     }
-  ): Promise<ApiResponse<StudentsByClassResponse>> => {
+  ): Promise<ApiResponse<StudentsByClassResponse> | ApiErrorResponse> => {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
@@ -284,12 +284,12 @@ export const studentServices = {
   getStudentsByLevel: async (
     classLevelId: string,
     token: string
-  ): Promise<ApiResponse<StudentsByLevelResponse>> => {
+  ): Promise<ApiResponse<StudentsByLevelResponse> | ApiErrorResponse> => {
     return apiClient.get(`/api/students/level/${classLevelId}`, token);
   },
 
   // Get class divisions summary
-  getClassDivisionsSummary: async (token: string, params?: { academic_year_id?: string }): Promise<ApiResponse<ClassDivisionsSummaryResponse>> => {
+  getClassDivisionsSummary: async (token: string, params?: { academic_year_id?: string }): Promise<ApiResponse<ClassDivisionsSummaryResponse> | ApiErrorResponse> => {
     const queryParams = new URLSearchParams();
     if (params?.academic_year_id) queryParams.append('academic_year_id', params.academic_year_id);
 
@@ -302,7 +302,7 @@ export const studentServices = {
     token: string,
     teacherId: string,
     params?: { academic_year_id?: string }
-  ): Promise<ApiResponse<ClassDivisionsSummaryResponse>> => {
+  ): Promise<ApiResponse<ClassDivisionsSummaryResponse> | ApiErrorResponse> => {
     const queryParams = new URLSearchParams();
     if (params?.academic_year_id) queryParams.append('academic_year_id', params.academic_year_id);
 

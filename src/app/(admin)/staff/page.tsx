@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,7 +20,7 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Search, Plus, Edit, Trash2, Loader2, AlertTriangle, User, Phone, Shield, Key, Save, X, UserPlus, UserCog, Eye } from 'lucide-react';
+import { Search, Plus, Loader2, AlertTriangle, User, Phone, Shield, Key, Save, X, UserPlus, UserCog } from 'lucide-react';
 import { useStaff } from '@/hooks/use-staff';
 import type { Staff, UpdateStaffRequest } from '@/types/staff';
 import Link from 'next/link';
@@ -36,7 +36,6 @@ const availableStatuses = ['All', 'Active', 'Inactive'];
 
 export default function StaffPage() {
   const { user } = useAuth();
-  const router = useRouter();
   const {
     staff,
     loading,
@@ -85,18 +84,7 @@ export default function StaffPage() {
     setIsDialogOpen(true);
   };
 
-  const handleEdit = (staffMember: Staff) => {
-    setIsEditing(true);
-    setCurrentStaff({ 
-      id: staffMember.id,
-      full_name: staffMember.full_name,
-      role: staffMember.role,
-      phone_number: staffMember.phone_number,
-      is_active: staffMember.is_active
-    });
-    setLocalError(null);
-    setIsDialogOpen(true);
-  };
+
 
   const handleDelete = async (staffId: string) => {
     const success = await deleteStaff(staffId);

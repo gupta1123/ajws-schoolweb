@@ -18,7 +18,8 @@ import {
 import { Calendar, Phone, Mail, User, BookOpen, Users, Plus, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import { useState, useEffect, useCallback } from 'react';
 import { ParentLinking } from '@/components/students/parent-linking';
 import { studentServices, Student } from '@/lib/api/students';
 import { leaveRequestServices } from '@/lib/api/leave-requests';
@@ -46,7 +47,7 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
   }, [params]);
 
   // Fetch leave history for the student
-  const fetchLeaveHistory = async () => {
+  const fetchLeaveHistory = useCallback(async () => {
     if (!token || !studentId) return;
 
     try {
@@ -62,7 +63,7 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
     } finally {
       setLeaveHistoryLoading(false);
     }
-  };
+  }, [token, studentId]);
 
   // Fetch student data
   useEffect(() => {
@@ -92,7 +93,7 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
     if (token && studentId) {
       fetchStudentData();
     }
-  }, [token, studentId]);
+  }, [token, studentId, fetchLeaveHistory]);
 
 
 
@@ -203,9 +204,11 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                 {/* Profile Picture */}
                 <div className="flex-shrink-0">
                   {studentData.profile_photo_url ? (
-                    <img
+                    <Image
                       src={studentData.profile_photo_url}
                       alt={`${studentData.full_name}'s profile picture`}
+                      width={80}
+                      height={80}
                       className="w-20 h-20 rounded-full object-cover border-2 border-gray-200 shadow-sm"
                     />
                   ) : (

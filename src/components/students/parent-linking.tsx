@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import { AlertCircle, CheckCircle, User, Search, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, Search, Loader2 } from 'lucide-react';
 import { parentServices } from '@/lib/api/parents';
 import { useAuth } from '@/lib/auth/context';
 
@@ -66,8 +66,8 @@ export function ParentLinking({ onLinkParent, onCancel, existingParentMappings =
   const [searchType, setSearchType] = useState<'name' | 'phone' | 'email'>('name');
   const [selectedParentId, setSelectedParentId] = useState('');
   const [relationship, setRelationship] = useState('father');
-  const [isPrimary, setIsPrimary] = useState(true); // Default to primary guardian
-  const [accessLevel, setAccessLevel] = useState('full'); // Default to full access
+  const [isPrimary] = useState(true); // Default to primary guardian
+  const [accessLevel] = useState('full'); // Default to full access
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,52 +75,7 @@ export function ParentLinking({ onLinkParent, onCancel, existingParentMappings =
   const [parents, setParents] = useState<ParentData[]>([]);
   const [filteredParents, setFilteredParents] = useState<ParentData[]>([]);
 
-  // Fetch parents when component mounts
-  useEffect(() => {
-    if (token) {
-      fetchParents();
-    }
-  }, [token]);
-
-  // Filter parents when search term changes
-  useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredParents(parents);
-    } else {
-      const filtered = parents.filter(parent => 
-        parent.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        parent.phone_number.includes(searchTerm) ||
-        (parent.email && parent.email.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-      setFilteredParents(filtered);
-    }
-  }, [searchTerm, parents]);
-
-  // Get available relationships (filter out existing ones)
-  const getAvailableRelationships = () => {
-    const allRelationships = [
-      { value: 'father', label: 'Father' },
-      { value: 'mother', label: 'Mother' },
-      { value: 'guardian', label: 'Guardian' },
-      { value: 'grandparent', label: 'Grandparent' },
-      { value: 'other', label: 'Other' }
-    ];
-    
-    // Filter out relationships that already exist
-    return allRelationships.filter(rel => 
-      !existingParentMappings.some(mapping => mapping.relationship === rel.value)
-    );
-  };
-
-  // Update relationship when existing mappings change
-  useEffect(() => {
-    const availableRelationships = getAvailableRelationships();
-    if (availableRelationships.length > 0 && !availableRelationships.some(rel => rel.value === relationship)) {
-      setRelationship(availableRelationships[0].value);
-    }
-  }, [existingParentMappings]);
-
-  const fetchParents = async () => {
+  const fetchParents = useCallback(async () => {
     if (!token) return;
 
     try {
@@ -139,7 +94,52 @@ export function ParentLinking({ onLinkParent, onCancel, existingParentMappings =
     } finally {
       setIsSearching(false);
     }
-  };
+  }, [token]);
+
+  // Fetch parents when component mounts
+  useEffect(() => {
+    if (token) {
+      fetchParents();
+    }
+  }, [token, fetchParents]);
+
+  // Filter parents when search term changes
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setFilteredParents(parents);
+    } else {
+      const filtered = parents.filter(parent =>
+        parent.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        parent.phone_number.includes(searchTerm) ||
+        (parent.email && parent.email.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+      setFilteredParents(filtered);
+    }
+  }, [searchTerm, parents]);
+
+  // Get available relationships (filter out existing ones)
+  const getAvailableRelationships = useCallback(() => {
+    const allRelationships = [
+      { value: 'father', label: 'Father' },
+      { value: 'mother', label: 'Mother' },
+      { value: 'guardian', label: 'Guardian' },
+      { value: 'grandparent', label: 'Grandparent' },
+      { value: 'other', label: 'Other' }
+    ];
+
+    // Filter out relationships that already exist
+    return allRelationships.filter(rel =>
+      !existingParentMappings.some(mapping => mapping.relationship === rel.value)
+    );
+  }, [existingParentMappings]);
+
+  // Update relationship when existing mappings change
+  useEffect(() => {
+    const availableRelationships = getAvailableRelationships();
+    if (availableRelationships.length > 0 && !availableRelationships.some(rel => rel.value === relationship)) {
+      setRelationship(availableRelationships[0].value);
+    }
+  }, [existingParentMappings, relationship, getAvailableRelationships]);
 
   const handleSearch = async () => {
     if (!token || !searchTerm.trim()) return;
@@ -180,7 +180,7 @@ export function ParentLinking({ onLinkParent, onCancel, existingParentMappings =
       setTimeout(() => {
         setSuccess(false);
       }, 2000);
-    } catch (err) {
+    } catch {
       setError('Failed to link parent. Please try again.');
     } finally {
       setIsLoading(false);
@@ -275,7 +275,7 @@ export function ParentLinking({ onLinkParent, onCancel, existingParentMappings =
             </span>
           ) : (
             <span className="text-sm text-muted-foreground">
-              Search results for {searchType}: "{searchTerm}" ({filteredParents.length} found)
+              Search results for {searchType}: &quot;{searchTerm}&quot; ({filteredParents.length} found)
             </span>
           )}
         </div>

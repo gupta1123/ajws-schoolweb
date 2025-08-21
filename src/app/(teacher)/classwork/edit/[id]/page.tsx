@@ -55,7 +55,6 @@ export default function EditClassworkPage({ params }: { params: Promise<{ id: st
   const [classwork, setClasswork] = useState<Classwork | null>(null);
   const [classDivisions, setClassDivisions] = useState<TransformedClass[]>([]);
   const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
-  const [loadingClasses, setLoadingClasses] = useState(true);
 
   // Format class division name for display
   const formatClassName = (division: TransformedClass) => {
@@ -83,7 +82,6 @@ export default function EditClassworkPage({ params }: { params: Promise<{ id: st
 
         try {
           setLoading(true);
-          setLoadingClasses(true);
           setError(null);
 
           // First fetch teacher assignments
@@ -148,7 +146,6 @@ export default function EditClassworkPage({ params }: { params: Promise<{ id: st
           });
         } finally {
           setLoading(false);
-          setLoadingClasses(false);
         }
       };
 
@@ -217,10 +214,7 @@ export default function EditClassworkPage({ params }: { params: Promise<{ id: st
     }
   };
 
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = e.target;
-    setFormData(prev => ({ ...prev, [name]: checked }));
-  };
+
 
   const handleTopicAdd = () => {
     if (topicInput.trim() && !formData.topics_covered.includes(topicInput.trim())) {

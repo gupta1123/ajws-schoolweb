@@ -58,7 +58,7 @@ export default function EditStudentPage({ params }: { params: Promise<{ id: stri
             
             // Get current academic record
             const currentRecord = student.student_academic_records.find(record => record.status === 'ongoing');
-            const primaryParent = student.parent_student_mappings?.find(mapping => mapping.is_primary_guardian);
+            const primaryParent = student.parent_mappings?.find(mapping => mapping.is_primary_guardian);
             
             // Populate form with current data
             setFormData({

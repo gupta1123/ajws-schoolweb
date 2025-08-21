@@ -13,7 +13,7 @@ import { useCalendarEvents } from '@/hooks/use-calendar-events';
 import { convertApiEventToUI, UICalendarEvent } from '@/lib/utils/calendar-utils';
 import { calendarServices } from '@/lib/api/calendar';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarEvent } from '@/lib/api/calendar';
+
 
 export default function CalendarPage() {
   const { user, token, loading: authLoading } = useAuth();

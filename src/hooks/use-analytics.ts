@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth/context';
-import { analyticsServices } from '@/lib/api';
+import { analyticsServices } from '@/lib/api/analytics';
 
 interface AnalyticsData {
   totalStudents: number;
@@ -61,7 +61,7 @@ export function useAnalytics() {
         setLoading(true);
         const response = await analyticsServices.getSummary(token);
 
-        if (response.data) {
+        if (response.status === 'success' && response.data) {
           const { summary, daily_stats } = response.data;
           const newData = {
             totalStudents: summary.total_students,
@@ -79,6 +79,8 @@ export function useAnalytics() {
           // Cache the data
           cache.set(cacheKey.current, { data: newData, timestamp: Date.now() });
           setData(newData);
+        } else if (response.status === 'error') {
+          setError(response.message || 'Failed to load analytics data');
         }
       } catch (err) {
         console.error('Failed to fetch analytics:', err);
