@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import {
   Table,
   TableBody,
@@ -39,6 +39,13 @@ import { TeacherAssignment } from './teacher-assignment';
 import { SubjectTeacherAssignment } from './subject-teacher-assignment';
 import { detectAcademicStructureConflicts, Conflict } from './conflict-detection';
 import type { Subject } from '@/types/academic';
+
+// Extend window interface for caching
+declare global {
+  interface Window {
+    lastDivisionsRefresh?: number;
+  }
+}
 
 export function AcademicStructureManager() {
   const { token } = useAuth();
@@ -107,9 +114,9 @@ export function AcademicStructureManager() {
   // Loading states for actions
   const [loadingActions, setLoadingActions] = useState<Set<string>>(new Set()); // track loading by action key
 
-  // Search and filter states
-  const [searchQuery, setSearchQuery] = useState('');
-  const [levelFilter, setLevelFilter] = useState<string | null>(null);
+  // Search and filter states - commented out for future use
+  // const [searchQuery, setSearchQuery] = useState('');
+  // const [levelFilter, setLevelFilter] = useState<string | null>(null);
 
   // Helper functions for loading states
   const setActionLoading = (actionKey: string, loading: boolean) => {
@@ -254,19 +261,23 @@ export function AcademicStructureManager() {
     setAssigningTeacher(divisionId);
   };
 
-  const handleStartSubjectTeacherAssignment = async (divisionId: string, prefillData?: { teacherId: string; subject: string }) => {
+  const handleStartSubjectTeacherAssignment = (divisionId: string, prefillData?: { teacherId: string; subject: string }) => {
+    // Open dialog immediately - no async operations that could cause re-renders
     setAssigningSubjectTeacher(divisionId);
     setEditingSubjectAssignment(prefillData || null);
-    try {
-      // First refresh the divisions summary to get the latest data
-      await refreshDivisionsSummary();
-      
-      // Then fetch available subjects for this division
-      const subjects = await fetchSubjectsByClassDivision(divisionId);
-      setAvailableSubjects(subjects);
-    } catch (error) {
-      console.error('Error fetching subjects:', error);
-      setAvailableSubjects([]);
+
+    // Fetch subjects in the background only if we don't already have them
+    if (!availableSubjects || availableSubjects.length === 0) {
+      setTimeout(() => {
+        fetchSubjectsByClassDivision(divisionId)
+          .then(subjects => {
+            setAvailableSubjects(subjects);
+          })
+          .catch(error => {
+            console.error('Error fetching subjects:', error);
+            setAvailableSubjects([]);
+          });
+      }, 100);
     }
   };
   
@@ -399,43 +410,30 @@ export function AcademicStructureManager() {
     return set.size;
   };
 
-  const getAvailableLevels = () => {
-    if (!divisionsSummary?.divisions) return [];
-    const names = Array.from(new Set(divisionsSummary.divisions.map((d: DivisionData) => d.level.name)));
-    return names.sort();
-  };
+  // const getAvailableLevels = () => {
+  //   if (!divisionsSummary?.divisions) return [];
+  //   const names = Array.from(new Set(divisionsSummary.divisions.map((d: DivisionData) => d.level.name)));
+  //   return names.sort();
+  // };
 
   const filteredDivisions = useMemo(() => {
     if (!divisionsSummary?.divisions) return [];
 
-    const query = searchQuery.toLowerCase().trim();
-    return divisionsSummary.divisions.filter((division: DivisionData) => {
-      if (levelFilter && division.level.name !== levelFilter) return false;
-      if (!query) return true;
-
-      const searchText = [
-        division.level.name,
-        division.division,
-        division.class_teacher?.name || "",
-        ...(division.subject_teachers?.map((st) => st.name) || []),
-        ...(division.subject_teachers?.map((st) => st.subject || "") || []),
-      ].join(" ").toLowerCase();
-
-      return searchText.includes(query);
-    });
-  }, [divisionsSummary, searchQuery, levelFilter]);
-
-  const summaryMetrics = useMemo(() => {
-    if (!divisionsSummary?.divisions) return { totalDivisions: 0, totalStudents: 0, avgStudents: 0, totalSubjectsAssigned: 0, totalSubjectsAvailable: 0 };
-
-    const totalDivisions = divisionsSummary.divisions.length;
-    const totalStudents = divisionsSummary.divisions.reduce((acc: number, d: DivisionData) => acc + (d.student_count || 0), 0);
-    const totalSubjectsAssigned = divisionsSummary.divisions.reduce((acc: number, d: DivisionData) => acc + countAssignedSubjects(d), 0);
-    const totalSubjectsAvailable = divisionsSummary.divisions.reduce((acc: number, d: DivisionData) => acc + (d.subjects?.length || 0), 0);
-    const avgStudents = totalDivisions ? Math.round(totalStudents / totalDivisions) : 0;
-
-    return { totalDivisions, totalStudents, avgStudents, totalSubjectsAssigned, totalSubjectsAvailable };
+    // For now, return all divisions since search/filter is disabled
+    return divisionsSummary.divisions;
   }, [divisionsSummary]);
+
+  // const summaryMetrics = useMemo(() => {
+  //   if (!divisionsSummary?.divisions) return { totalDivisions: 0, totalStudents: 0, avgStudents: 0, totalSubjectsAssigned: 0, totalSubjectsAvailable: 0 };
+
+  //   const totalDivisions = divisionsSummary.divisions.length;
+  //   const totalStudents = divisionsSummary.divisions.reduce((acc: number, d: DivisionData) => acc + (d.student_count || 0), 0);
+  //   const totalSubjectsAssigned = divisionsSummary.divisions.reduce((acc: number, d: DivisionData) => d.subjects?.length || 0, 0);
+  //   const totalSubjectsAvailable = divisionsSummary.divisions.reduce((acc: number, d: DivisionData) => acc + (d.subjects?.length || 0), 0);
+  //   const avgStudents = totalDivisions ? Math.round(totalStudents / totalDivisions) : 0;
+
+  //   return { totalDivisions, totalStudents, avgStudents, totalSubjectsAssigned, totalSubjectsAvailable };
+  // }, [divisionsSummary]);
 
   return (
     <TooltipProvider>
@@ -453,43 +451,7 @@ export function AcademicStructureManager() {
         </div>
       )}
 
-        {/* Summary Header */}
-        <Card className="border-0 bg-gradient-to-br from-indigo-600/10 via-purple-600/10 to-blue-600/10 dark:from-indigo-500/10 dark:via-purple-500/10 dark:to-blue-500/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-2xl">Current Academic Structure</CardTitle>
-            <CardDescription>Manage sections and teacher assignments for the active year</CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="flex items-center gap-3 rounded-2xl border p-3">
-              <GraduationCap className="h-5 w-5" />
-              <div>
-                <div className="text-sm text-muted-foreground">Divisions</div>
-                <div className="text-lg font-semibold">{summaryMetrics.totalDivisions}</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 rounded-2xl border p-3">
-              <Users className="h-5 w-5" />
-              <div>
-                <div className="text-sm text-muted-foreground">Students</div>
-                <div className="text-lg font-semibold">{summaryMetrics.totalStudents}</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 rounded-2xl border p-3">
-              <User className="h-5 w-5" />
-              <div>
-                <div className="text-sm text-muted-foreground">Avg per Division</div>
-                <div className="text-lg font-semibold">{summaryMetrics.avgStudents}</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 rounded-2xl border p-3">
-              <BookOpen className="h-5 w-5" />
-              <div>
-                <div className="text-sm text-muted-foreground">Subject Coverage</div>
-                <div className="text-lg font-semibold">{summaryMetrics.totalSubjectsAssigned}/{summaryMetrics.totalSubjectsAvailable}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+
       
       {/* Conflict Alerts */}
       {conflicts.length > 0 && (
@@ -630,7 +592,7 @@ export function AcademicStructureManager() {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <Table className="min-w-full">
+            <Table>
               <TableHeader>
                 <TableRow className="border-b-2 border-gray-200 dark:border-gray-700">
                   <TableHead className="text-base font-semibold py-4 px-6">
@@ -642,7 +604,7 @@ export function AcademicStructureManager() {
                   <TableHead className="text-base font-semibold py-4 px-6">
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4" />
-                      Class Section
+                      Section
                     </div>
                   </TableHead>
                   <TableHead className="text-base font-semibold py-4 px-6">
@@ -654,13 +616,13 @@ export function AcademicStructureManager() {
                   <TableHead className="text-base font-semibold py-4 px-6">
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-blue-600" />
-                      Teacher Assignment
+                      Class Teacher
                     </div>
                   </TableHead>
                   <TableHead className="text-base font-semibold py-4 px-6">
                     <div className="flex items-center gap-2">
                       <BookOpen className="h-4 w-4 text-purple-600" />
-                      Subject Details
+                      Subject Teachers
                     </div>
                   </TableHead>
                   <TableHead className="text-right text-base font-semibold py-4 px-6">Actions</TableHead>
@@ -683,46 +645,39 @@ export function AcademicStructureManager() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  divisionsSummary.divisions.flatMap((division) => {
+                  divisionsSummary.divisions.map((division) => {
                     // Clean up subject teachers data - remove duplicates and null subjects
-                    const cleanSubjectTeachers = division.subject_teachers 
+                    const cleanSubjectTeachers = division.subject_teachers
                       ? division.subject_teachers
                           .filter((st) => st.name && st.name.trim() !== '')
-                          .filter((st, idx, arr) => 
+                          .filter((st, idx, arr) =>
                             arr.findIndex((t) => t.name === st.name && t.subject === st.subject) === idx
                           )
                       : [];
 
-                    // Create rows for this division
-                    const rows = [];
-
-                    // First row: Class teacher and basic info
-                    rows.push(
+                    return (
                       <TableRow
-                        key={`${division.id}-main`}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors border-l-4 border-l-blue-500"
+                        key={division.id}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                       >
                         <TableCell className="py-4 px-6">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-lg">{division.level.name}</span>
-                            <span className="text-sm text-muted-foreground">Grade</span>
+                            <span className="text-sm text-muted-foreground">Grade {division.level.sequence_number}</span>
                           </div>
                         </TableCell>
                         <TableCell className="py-4 px-6">
                           <div className="flex items-center gap-2">
-                          <span className="font-semibold text-lg">Section {division.division}</span>
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              Main Row
-                            </span>
+                            <span className="font-semibold text-lg">Section {division.division}</span>
+                            {division.student_count === 0 && (
+                              <span className="text-sm text-orange-500 font-medium">(Empty)</span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="py-4 px-6">
                           <div className="flex items-center gap-3">
                             <Users className="h-5 w-5 text-muted-foreground" />
                             <span className="font-semibold text-lg">{division.student_count}</span>
-                            {division.student_count === 0 && (
-                              <span className="text-sm text-orange-500 font-medium">(Empty)</span>
-                            )}
                           </div>
                         </TableCell>
                         <TableCell className="py-4 px-6">
@@ -730,28 +685,51 @@ export function AcademicStructureManager() {
                             <div className="flex items-center gap-3">
                               <User className="h-5 w-5 text-green-600 dark:text-green-400" />
                               <div>
-                                <div className="font-semibold text-lg flex items-center gap-2">
-                                  {division.class_teacher.name}
-                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                  Class Teacher
-                                  </span>
-                                </div>
+                                <div className="font-semibold text-base">{division.class_teacher.name}</div>
                               </div>
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 text-muted-foreground italic">
                               <AlertCircle className="h-4 w-4" />
-                              <span>No class teacher assigned</span>
+                              <span>No teacher assigned</span>
                             </div>
                           )}
                         </TableCell>
                         <TableCell className="py-4 px-6">
-                          <div className="text-base">
-                            <span className="text-muted-foreground italic">See rows below for subject teachers</span>
+                          <div className="flex items-center gap-3">
+                            <BookOpen className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                            <div>
+                              <div className="text-sm text-muted-foreground mb-2">
+                                {cleanSubjectTeachers.length} teacher{cleanSubjectTeachers.length !== 1 ? 's' : ''} assigned
+                              </div>
+                              {cleanSubjectTeachers.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {cleanSubjectTeachers.slice(0, 2).map((st, idx) => (
+                                    <Badge key={idx} variant="secondary" className="text-xs">
+                                      {st.subject || 'No subject'}
+                                    </Badge>
+                                  ))}
+                                  {cleanSubjectTeachers.length > 2 && (
+                                    <Badge variant="outline" className="text-xs">
+                                      +{cleanSubjectTeachers.length - 2} more
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
                             </div>
+                          </div>
                         </TableCell>
                         <TableCell className="text-right py-4 px-6">
                           <div className="flex gap-2 justify-end">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleStartSubjectTeacherAssignment(division.id)}
+                              className="px-3 py-2 text-sm font-medium"
+                            >
+                              <BookOpen className="h-4 w-4 mr-1" />
+                              View Details
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
@@ -760,26 +738,17 @@ export function AcademicStructureManager() {
                               className="px-3 py-2 text-sm font-medium"
                             >
                               <User className="h-4 w-4 mr-2" />
-                              {isActionLoading(`assign-teacher-${division.id}`) ? 'Assigning...' : 'Manage Class Teacher'}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleStartSubjectTeacherAssignment(division.id)}
-                              className="px-3 py-2 text-sm font-medium"
-                            >
-                              <GraduationCap className="h-4 w-4 mr-2" />
-                              Manage Subject Teachers
+                              {isActionLoading(`assign-teacher-${division.id}`) ? 'Assigning...' : 'Manage Teachers'}
                             </Button>
                             <AlertDialog open={confirmingDelete === division.id} onOpenChange={(open) => !open && setConfirmingDelete(null)}>
                               <AlertDialogTrigger asChild>
-                            <Button
-                              variant="outline"
+                                <Button
+                                  variant="outline"
                                   size="sm"
                                   className="px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
@@ -800,151 +769,13 @@ export function AcademicStructureManager() {
                         </TableCell>
                       </TableRow>
                     );
-
-                    // Subject teacher rows
-                    if (cleanSubjectTeachers.length > 0) {
-                      cleanSubjectTeachers.forEach((subjectTeacher, subjectIndex) => {
-                        rows.push(
-                          <TableRow
-                            key={`${division.id}-subject-${subjectIndex}`}
-                            className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors border-l-4 border-l-purple-400"
-                          >
-                            <TableCell className="py-3 px-6">
-                              {/* Empty cell for grade column */}
-                            </TableCell>
-                            <TableCell className="py-3 px-6">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-muted-foreground">Section {division.division}</span>
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                  Subject Row
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="py-3 px-6">
-                              {/* Empty cell for student count */}
-                            </TableCell>
-                            <TableCell className="py-3 px-6">
-                              <div className="text-sm text-muted-foreground">
-                                Subject assignment
-                              </div>
-                            </TableCell>
-                            <TableCell className="py-3 px-6">
-                              <div className="flex items-center gap-3">
-                                <BookOpen className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                                <div>
-                                  <div className="font-semibold text-base">{subjectTeacher.name}</div>
-                                  {subjectTeacher.subject && (
-                                    <div className="text-sm text-muted-foreground">
-                                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                        {subjectTeacher.subject}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right py-3 px-6">
-                              <div className="flex gap-2 justify-end">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    // Pre-populate the form with current assignment
-                                    handleStartSubjectTeacherAssignment(division.id, {
-                                      teacherId: subjectTeacher.id,
-                                      subject: subjectTeacher.subject || ''
-                                    });
-                                  }}
-                                  className="px-2 py-1 text-xs"
-                                  title="Edit this subject assignment"
-                                >
-                                  ✏️ Edit
-                                </Button>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="px-2 py-1 text-xs text-red-500 hover:text-red-700"
-                                      title="Remove this subject teacher"
-                                    >
-                                      🗑️ Remove
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Remove Subject Teacher</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Are you sure you want to remove {subjectTeacher.name} as the {subjectTeacher.subject} teacher for Section {division.division}?
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => handleRemoveSubjectTeacher(division.id, subjectTeacher.id)} className="bg-red-600 hover:bg-red-700">
-                                        Remove Teacher
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      });
-                    } else {
-                      // Empty subject teachers row
-                      rows.push(
-                        <TableRow
-                          key={`${division.id}-empty-subjects`}
-                          className="hover:bg-gray-50 dark:hover:bg-gray-800/20 transition-colors border-l-4 border-l-gray-300"
-                        >
-                          <TableCell className="py-3 px-6">
-                            {/* Empty cell for grade column */}
-                          </TableCell>
-                          <TableCell className="py-3 px-6">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm text-muted-foreground">Section {division.division}</span>
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                No Subjects
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-3 px-6">
-                            {/* Empty cell for student count */}
-                          </TableCell>
-                          <TableCell className="py-3 px-6">
-                            <div className="text-sm text-muted-foreground">
-                              No subject assignments
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-3 px-6">
-                            <div className="text-base text-muted-foreground italic">
-                              No subject teachers assigned yet
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right py-3 px-6">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleStartSubjectTeacherAssignment(division.id)}
-                              className="px-3 py-2 text-sm font-medium"
-                            >
-                              <GraduationCap className="h-4 w-4 mr-2" />
-                              Manage Subject Teachers
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    }
-
-                    return rows;
                   })
                 )}
               </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
       
       {/* Teacher Assignment Dialog */}
       <Dialog open={!!assigningTeacher} onOpenChange={(open) => !open && handleCancelTeacherAssignment()}>
