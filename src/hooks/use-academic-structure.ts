@@ -89,6 +89,8 @@ interface UseAcademicStructureReturn {
   
   // Utility functions
   refreshAll: () => Promise<void>;
+  refreshIndividual: () => Promise<void>;
+  fetchDivisionsWithSummary: () => Promise<void>;
 }
 
 export const useAcademicStructure = (): UseAcademicStructureReturn => {
@@ -128,13 +130,13 @@ export const useAcademicStructure = (): UseAcademicStructureReturn => {
   // Fetch functions
   const fetchAcademicYears = useCallback(async () => {
     if (!token) return;
-    
+
     try {
       setLoadingAcademicYears(true);
       setErrorAcademicYears(null);
-      
+
       const response = await academicServices.getAcademicYears(token);
-      
+
       if (response.status === 'success') {
         setAcademicYears(response.data.academic_years);
       } else {
@@ -170,15 +172,120 @@ export const useAcademicStructure = (): UseAcademicStructureReturn => {
     }
   }, [token]);
   
-  const fetchClassDivisions = useCallback(async () => {
+  // Enhanced function to fetch divisions with summary data
+  const fetchDivisionsWithSummary = useCallback(async () => {
     if (!token) return;
-    
+
     try {
       setLoadingClassDivisions(true);
       setErrorClassDivisions(null);
-      
+
+      // Use the rich summary API instead of basic divisions API
+      const response = await academicServices.getClassDivisionsSummary(token);
+
+      if (response.status === 'success') {
+        // Transform summary data to match expected ClassDivision format
+        const transformedDivisions: ClassDivision[] = response.data.divisions.map(division => ({
+          id: division.id,
+          academic_year_id: 'current', // We'll get this from context
+          class_level_id: `level-${division.level.sequence_number}`, // Generate a unique ID based on sequence
+          division: division.division,
+          teacher_id: division.class_teacher?.id || undefined,
+          created_at: new Date().toISOString(),
+          academic_year: {
+            year_name: division.academic_year?.year_name || 'Current Year'
+          },
+          class_level: {
+            name: division.level.name,
+            sequence_number: division.level.sequence_number
+          },
+          teacher: division.class_teacher ? {
+            id: division.class_teacher.id,
+            full_name: division.class_teacher.name
+          } : undefined
+        }));
+
+        setClassDivisions(transformedDivisions);
+
+        // Extract unique teachers from summary data
+        const allTeachers = new Map<string, Teacher>();
+        response.data.divisions.forEach(division => {
+          // Add class teacher
+          if (division.class_teacher) {
+            allTeachers.set(division.class_teacher.id, {
+              teacher_id: division.class_teacher.id, // Fix: Use teacher_id instead of id
+              user_id: division.class_teacher.id,
+              staff_id: division.class_teacher.id,
+              full_name: division.class_teacher.name,
+              phone_number: '',
+              email: undefined,
+              department: '',
+              designation: division.class_teacher.is_class_teacher ? 'Class Teacher' : 'Subject Teacher',
+              is_active: true
+            });
+          }
+
+          // Add subject teachers
+          if (division.subject_teachers) {
+            division.subject_teachers.forEach(st => {
+              if (st.id && st.name) {
+                allTeachers.set(st.id, {
+                  teacher_id: st.id, // Fix: Use teacher_id instead of id
+                  user_id: st.id,
+                  staff_id: st.id,
+                  full_name: st.name,
+                  phone_number: '',
+                  email: undefined,
+                  department: '',
+                  designation: 'Subject Teacher',
+                  is_active: true
+                });
+              }
+            });
+          }
+        });
+
+        setTeachers(Array.from(allTeachers.values()));
+
+        // Extract unique subjects from summary data
+        const allSubjects = new Map<string, Subject>();
+        response.data.divisions.forEach(division => {
+          if (division.subjects) {
+            division.subjects.forEach(subject => {
+              allSubjects.set(subject.id, {
+                id: subject.id,
+                name: subject.name,
+                code: subject.code,
+                is_active: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              });
+            });
+          }
+        });
+
+        setSubjects(Array.from(allSubjects.values()));
+      } else {
+        setErrorClassDivisions('Failed to fetch divisions summary');
+      }
+    } catch (err) {
+      console.error('Fetch divisions with summary error:', err);
+      setErrorClassDivisions(err instanceof Error ? err.message : 'Failed to fetch divisions summary');
+    } finally {
+      setLoadingClassDivisions(false);
+    }
+  }, [token]);
+
+  // Keep the original function for backward compatibility
+  const fetchClassDivisions = useCallback(async () => {
+    if (!token) return;
+
+    try {
+      setLoadingClassDivisions(true);
+      setErrorClassDivisions(null);
+
       const response = await academicServices.getClassDivisions(token);
-      
+
       if (response.status === 'success') {
         setClassDivisions(response.data.class_divisions);
       } else {
@@ -660,12 +767,24 @@ export const useAcademicStructure = (): UseAcademicStructureReturn => {
   // Utility functions
   const refreshAll = useCallback(async () => {
     setLoading(true);
+    // Optimized: Use summary API to get divisions, teachers, and subjects in one call
     await Promise.all([
       fetchAcademicYears(),
       fetchClassLevels(),
-      fetchClassDivisions(),
-      fetchTeachers(),
-      fetchSubjects()
+      fetchDivisionsWithSummary()  // This replaces fetchClassDivisions, fetchTeachers, and fetchSubjects
+    ]);
+    setLoading(false);
+  }, [fetchAcademicYears, fetchClassLevels, fetchDivisionsWithSummary]);
+
+  // Keep individual fetch functions for specific use cases
+  const refreshIndividual = useCallback(async () => {
+    setLoading(true);
+    await Promise.all([
+      fetchAcademicYears(),
+      fetchClassLevels(),
+      fetchClassDivisions(),  // Original basic divisions
+      fetchTeachers(),        // Original teachers
+      fetchSubjects()         // Original subjects
     ]);
     setLoading(false);
   }, [fetchAcademicYears, fetchClassLevels, fetchClassDivisions, fetchTeachers, fetchSubjects]);
@@ -762,5 +881,7 @@ export const useAcademicStructure = (): UseAcademicStructureReturn => {
     
     // Utility functions
     refreshAll,
+    refreshIndividual,
+    fetchDivisionsWithSummary,
   };
 };

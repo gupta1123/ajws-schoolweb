@@ -53,6 +53,11 @@ export const classworkServices = {
     return apiClient.get(`/api/classwork${queryString}`, token);
   },
 
+  // Get classwork by ID
+  getClassworkById: async (token: string, id: string): Promise<ApiResponse<{ classwork: Classwork }>> => {
+    return apiClient.get(`/api/classwork/${id}`, token);
+  },
+
   // Create classwork
   createClasswork: async (data: CreateClassworkData, token: string): Promise<ApiResponse<{ classwork: Classwork }>> => {
     return apiClient.post('/api/classwork', data, token);

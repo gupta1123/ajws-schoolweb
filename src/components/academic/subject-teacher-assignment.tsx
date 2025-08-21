@@ -12,7 +12,6 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle, User, BookOpen, X, GraduationCap } from 'lucide-react';
 import type { Subject } from '@/types/academic';
@@ -49,20 +48,31 @@ interface ClassDivision {
   };
 }
 
+interface SubjectTeacher {
+  id: string;
+  name: string;
+  subject: string | null;
+  is_class_teacher: boolean;
+}
+
 interface SubjectTeacherAssignmentProps {
   division: ClassDivision;
   teachers: Teacher[];
-  availableSubjects: Subject[]; // Add available subjects prop
+  availableSubjects: Subject[];
+  currentSubjectTeachers?: SubjectTeacher[];
   onSave: (divisionId: string, teacherId: string, subject: string, isPrimary: boolean) => void;
   onCancel: () => void;
+  onRemove?: (divisionId: string, teacherId: string, subject?: string | null) => void;
 }
 
-export function SubjectTeacherAssignment({ 
-  division, 
-  teachers, 
+export function SubjectTeacherAssignment({
+  division,
+  teachers,
   availableSubjects,
-  onSave, 
-  onCancel 
+  currentSubjectTeachers = [],
+  onSave,
+  onCancel,
+  onRemove
 }: SubjectTeacherAssignmentProps) {
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
   const [selectedSubject, setSelectedSubject] = useState<string>('');
@@ -86,7 +96,7 @@ export function SubjectTeacherAssignment({
     );
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedTeacherId) {
       setError('Please select a teacher');
       return;
@@ -99,9 +109,9 @@ export function SubjectTeacherAssignment({
 
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      onSave(division.id, selectedTeacherId, selectedSubject, isPrimary);
+      await onSave(division.id, selectedTeacherId, selectedSubject, isPrimary);
       setSuccess(true);
       // Reset success after 2 seconds
       setTimeout(() => {
@@ -149,102 +159,150 @@ export function SubjectTeacherAssignment({
         </Alert>
       )}
       
-      <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-        <div className="flex items-center gap-2">
-          <GraduationCap className="h-5 w-5 text-purple-500" />
-          <div>
-            <div className="font-medium">{division.division} Section</div>
-            <div className="text-sm text-muted-foreground">
-              Assign a subject teacher
-            </div>
-          </div>
+      {/* Simple Header */}
+      <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
+        <div className="flex items-center gap-3">
+          <GraduationCap className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            {division.division} Section - Subject Teachers
+          </h3>
         </div>
-        <Button variant="ghost" size="sm" onClick={onCancel}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onCancel}
+          className="h-8 w-8 p-0"
+        >
           <X className="h-4 w-4" />
         </Button>
       </div>
-      
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="teacher-select">Select Teacher</Label>
-          <Select 
-            value={selectedTeacherId} 
-            onValueChange={setSelectedTeacherId}
-          >
-            <SelectTrigger id="teacher-select">
-              <SelectValue placeholder="Choose a teacher" />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(teachersByDepartment).map(([department, deptTeachers]) => (
-                <div key={department}>
-                  <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    {department}
-                  </div>
-                  {deptTeachers.map((teacher) => (
-                    <SelectItem key={teacher.teacher_id} value={teacher.teacher_id}>
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        <div>
-                          <div>{teacher.full_name}</div>
-                          {teacher.designation && (
-                            <div className="text-xs text-muted-foreground">
-                              {teacher.designation}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </SelectItem>
-                  ))}
+
+      {/* Current Subject Teachers - Compact View */}
+      {currentSubjectTeachers && currentSubjectTeachers.length > 0 ? (
+        <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center justify-between">
+            <h4 className="text-base font-bold text-blue-900 dark:text-blue-100 flex items-center gap-2">
+              <GraduationCap className="h-5 w-5" />
+              Current Subject Teachers
+            </h4>
+            <span className="text-sm text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 px-3 py-1 rounded-full font-medium">
+              {currentSubjectTeachers.length} assigned
+            </span>
+          </div>
+          <div className="space-y-2">
+            {currentSubjectTeachers.map((st, idx) => (
+              <div key={idx} className="flex items-center justify-between py-3 px-4 bg-white dark:bg-gray-800 rounded-lg border hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                <div className="flex items-center gap-3 flex-1">
+                  <User className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <span className="font-semibold text-gray-900 dark:text-gray-100 text-base">{st.name}</span>
+                  {st.subject && (
+                    <span className="text-sm bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full font-medium">
+                      {st.subject}
+                    </span>
+                  )}
                 </div>
-              ))}
-            </SelectContent>
-          </Select>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedTeacherId(st.id);
+                      setSelectedSubject(st.subject || '');
+                    }}
+                    className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-700 h-8 w-8 p-0"
+                    title="Edit assignment"
+                  >
+                    ✏️
+                  </Button>
+                  {onRemove && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onRemove(division.id, st.id, st.subject)}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30 h-8 w-8 p-0"
+                      title="Remove assignment"
+                    >
+                      🗑️
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
+      ) : (
+        <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-center">
+            <GraduationCap className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+            <p className="text-gray-600 dark:text-gray-400 font-medium">No subject teachers assigned yet</p>
+            <p className="text-sm text-gray-500 dark:text-gray-500">Use the form below to assign teachers to subjects</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Simple Assignment Form */}
+      <div className="p-5 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div>
+            <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2 block">
+              Teacher
+            </Label>
+            <Select
+              value={selectedTeacherId}
+              onValueChange={setSelectedTeacherId}
+            >
+              <SelectTrigger className="h-10 text-base">
+                <SelectValue placeholder="Select teacher" />
+              </SelectTrigger>
+              <SelectContent>
+                {teachers.map((teacher) => (
+                  <SelectItem key={teacher.teacher_id} value={teacher.teacher_id} className="text-base">
+                    {teacher.full_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="subject">Subject</Label>
-          <Select
-            value={selectedSubject}
-            onValueChange={setSelectedSubject}
+          <div>
+            <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2 block">
+              Subject
+            </Label>
+            <Select
+              value={selectedSubject}
+              onValueChange={setSelectedSubject}
+            >
+              <SelectTrigger className="h-10 text-base">
+                <SelectValue placeholder="Select subject" />
+              </SelectTrigger>
+              <SelectContent>
+                {(availableSubjects || []).map(subject => (
+                  <SelectItem key={subject.id} value={subject.name} className="text-base">
+                    {subject.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button
+            onClick={handleSave}
+            disabled={isLoading || !selectedTeacherId || !selectedSubject}
+            className="h-10 bg-purple-600 hover:bg-purple-700 text-white text-base font-medium"
           >
-            <SelectTrigger id="subject">
-              <SelectValue placeholder="Choose a subject" />
-            </SelectTrigger>
-                         <SelectContent>
-               {(availableSubjects || []).map(subject => (
-                 <SelectItem key={subject.id} value={subject.name}>
-                   {subject.name}
-                 </SelectItem>
-               ))}
-             </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="is-primary"
-            checked={isPrimary}
-            onCheckedChange={(checked) => setIsPrimary(checked as boolean)}
-          />
-          <Label htmlFor="is-primary" className="text-sm">
-            Set as primary subject teacher
-          </Label>
+            {isLoading ? 'Adding...' : 'Add Assignment'}
+          </Button>
         </div>
       </div>
       
-      <div className="flex justify-end gap-2 pt-4">
-        <Button 
-          variant="outline" 
+      <div className="flex justify-end pt-5 border-t border-gray-200 dark:border-gray-700">
+        <Button
+          variant="outline"
           onClick={handleCancel}
           disabled={isLoading}
+          className="px-6 py-2 text-base font-medium"
         >
           Cancel
-        </Button>
-        <Button 
-          onClick={handleSave}
-          disabled={isLoading}
-        >
-          {isLoading ? 'Assigning...' : 'Assign Subject Teacher'}
         </Button>
       </div>
     </div>

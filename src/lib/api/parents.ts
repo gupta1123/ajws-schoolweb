@@ -10,6 +10,18 @@ export interface Parent {
   is_registered: boolean;
   created_at?: string;
   updated_at?: string;
+  children?: Array<{
+    id: string;
+    full_name: string;
+    admission_number: string;
+    class_division?: {
+      division: string;
+      level: {
+        name: string;
+        sequence_number: number;
+      };
+    };
+  }>;
 }
 
 export interface CreateParentRequest {
@@ -92,17 +104,14 @@ export const parentServices = {
       page?: number;
       limit?: number;
       search?: string;
-      status?: string;
     }
   ): Promise<ApiResponse<ParentListResponse>> => {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.search) queryParams.append('search', params.search);
-    if (params?.status) queryParams.append('status', params.status);
 
-    // Since there's no dedicated parents endpoint, we'll get all students and extract parent info
-    const url = `/api/students${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const url = `/api/parent-student/parents${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return apiClient.get(url, token);
   },
 

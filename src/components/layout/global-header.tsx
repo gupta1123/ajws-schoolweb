@@ -4,14 +4,13 @@
 
 import { useAuth } from '@/lib/auth/context';
 import { Button } from '@/components/ui/button';
-import { 
-  BookOpen, 
+import {
+  BookOpen,
   LogOut,
   Menu,
   X,
   User,
-  Settings,
-  Bell
+  Settings
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -26,7 +25,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { NotificationBadge } from '@/components/ui/notification-badge';
 
 export function GlobalHeader() {
   const { user, logout } = useAuth();
@@ -59,12 +57,6 @@ export function GlobalHeader() {
         {/* Navigation for authenticated users */}
         {user ? (
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="relative hidden sm:flex">
-              <Bell className="h-5 w-5" />
-              <NotificationBadge count={3} className="absolute -top-1 -right-1" />
-              <span className="sr-only">Notifications</span>
-            </Button>
-            
             <ThemeToggle />
             
             <DropdownMenu>
@@ -93,12 +85,6 @@ export function GlobalHeader() {
                     <Link href="/profile" className="flex items-center">
                       <User className="mr-2 h-4 w-4" />
                       <span>Profile</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings" className="flex items-center">
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Settings</span>
                     </Link>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>

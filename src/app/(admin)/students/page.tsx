@@ -129,160 +129,149 @@ export default function StudentsPage() {
 
   return (
     <ProtectedRoute>
-      <div className="container max-w-6xl mx-auto py-8">
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Student Management</h1>
-              <p className="text-gray-600 dark:text-gray-300">
-                Manage student records and information
-              </p>
+      <div className="space-y-6">
+        {/* Action Bar */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="relative w-64">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search students..." 
+                className="pl-8"
+                value={filters.search}
+                onChange={handleSearchChange}
+              />
             </div>
-            <Button asChild>
-              <Link href="/students/create">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Student
-              </Link>
-            </Button>
+            <select 
+              className="border rounded-md px-3 py-2 text-sm"
+              value={filters.class_division_id}
+              onChange={(e) => handleFilterChange('class_division_id', e.target.value)}
+            >
+              <option value="">All Classes</option>
+              {availableFilters.class_divisions?.map(division => (
+                <option key={division.id} value={division.id}>
+                  {division.level.name} - Section {division.division}
+                </option>
+              ))}
+            </select>
+            <select 
+              className="border rounded-md px-3 py-2 text-sm"
+              value={filters.status}
+              onChange={(e) => handleFilterChange('status', e.target.value)}
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
           </div>
+          <Button asChild>
+            <Link href="/students/create">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Student
+            </Link>
+          </Button>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+          <div className="p-4 bg-red-50 border border-red-200 rounded-md">
             <p className="text-red-800">{error}</p>
           </div>
         )}
 
-        <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Student List</CardTitle>
-              <CardDescription>
-                List of all students in the school
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between mb-4">
-                <div className="relative w-64">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search students..." 
-                    className="pl-8"
-                    value={filters.search}
-                    onChange={handleSearchChange}
-                  />
+        {/* Students Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Student List</CardTitle>
+            <CardDescription>
+              List of all students in the school
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Roll No.</TableHead>
+                    <TableHead>Student Name</TableHead>
+                    <TableHead>Class</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {students.map((student) => {
+                    const currentRecord = student.student_academic_records.find(record => record.status === 'ongoing');
+                    
+                    return (
+                      <TableRow key={student.id}>
+                        <TableCell className="font-medium">
+                          {currentRecord?.roll_number || 'N/A'}
+                        </TableCell>
+                        <TableCell>{student.full_name}</TableCell>
+                        <TableCell>
+                          {currentRecord ? 
+                            `${currentRecord.class_division.level.name} - Section ${currentRecord.class_division.division}` : 
+                            'N/A'
+                          }
+                        </TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            student.status === 'active' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {student.status.charAt(0).toUpperCase() + student.status.slice(1)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="outline" size="sm" className="mr-2" asChild>
+                            <Link href={`/students/${student.id}`}>
+                              View
+                            </Link>
+                          </Button>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/students/${student.id}/edit`}>
+                              Edit
+                            </Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Pagination */}
+            {pagination.total_pages > 1 && (
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-gray-700">
+                  Showing {((filters.page - 1) * filters.limit) + 1} to {Math.min(filters.page * filters.limit, pagination.total)} of {pagination.total} results
                 </div>
                 <div className="flex gap-2">
-                  <select 
-                    className="border rounded-md px-3 py-2 text-sm"
-                    value={filters.class_division_id}
-                    onChange={(e) => handleFilterChange('class_division_id', e.target.value)}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(filters.page - 1)}
+                    disabled={!pagination.has_prev}
                   >
-                    <option value="">All Classes</option>
-                    {availableFilters.class_divisions?.map(division => (
-                      <option key={division.id} value={division.id}>
-                        {division.level.name} - Section {division.division}
-                      </option>
-                    ))}
-                  </select>
-                  <select 
-                    className="border rounded-md px-3 py-2 text-sm"
-                    value={filters.status}
-                    onChange={(e) => handleFilterChange('status', e.target.value)}
+                    Previous
+                  </Button>
+                  <span className="flex items-center px-3 py-2 text-sm">
+                    Page {filters.page} of {pagination.total_pages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(filters.page + 1)}
+                    disabled={!pagination.has_next}
                   >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
+                    Next
+                  </Button>
                 </div>
               </div>
-              
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Roll No.</TableHead>
-                      <TableHead>Student Name</TableHead>
-                      <TableHead>Class</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {students.map((student) => {
-                      const currentRecord = student.student_academic_records.find(record => record.status === 'ongoing');
-                      
-                      return (
-                        <TableRow key={student.id}>
-                          <TableCell className="font-medium">
-                            {currentRecord?.roll_number || 'N/A'}
-                          </TableCell>
-                          <TableCell>{student.full_name}</TableCell>
-                          <TableCell>
-                            {currentRecord ? 
-                              `${currentRecord.class_division.level.name} - Section ${currentRecord.class_division.division}` : 
-                              'N/A'
-                            }
-                          </TableCell>
-                          <TableCell>
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              student.status === 'active' 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-red-100 text-red-800'
-                            }`}>
-                              {student.status.charAt(0).toUpperCase() + student.status.slice(1)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="outline" size="sm" className="mr-2" asChild>
-                              <Link href={`/students/${student.id}`}>
-                                View
-                              </Link>
-                            </Button>
-                            <Button variant="outline" size="sm" asChild>
-                              <Link href={`/students/${student.id}/edit`}>
-                                Edit
-                              </Link>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Pagination */}
-              {pagination.total_pages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <div className="text-sm text-gray-700">
-                    Showing {((filters.page - 1) * filters.limit) + 1} to {Math.min(filters.page * filters.limit, pagination.total)} of {pagination.total} results
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(filters.page - 1)}
-                      disabled={!pagination.has_prev}
-                    >
-                      Previous
-                    </Button>
-                    <span className="flex items-center px-3 py-2 text-sm">
-                      Page {filters.page} of {pagination.total_pages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(filters.page + 1)}
-                      disabled={!pagination.has_next}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </ProtectedRoute>
   );

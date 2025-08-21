@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PageHeader } from '@/components/page-header';
 import { X, Lock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -62,18 +61,15 @@ export default function ChangePasswordPage() {
     <ProtectedRoute>
       <div className="min-h-screen p-4 md:p-8">
         <main className="max-w-md mx-auto pt-16">
-          <PageHeader
-            title="Change Password"
-            description="Update your account password"
-            action={
-              <Button 
-                variant="ghost" 
-                onClick={() => router.back()}
-              >
-                ← Back to Profile
-              </Button>
-            }
-          />
+          {/* Action Bar */}
+          <div className="flex justify-end mb-6">
+            <Button 
+              variant="ghost" 
+              onClick={() => router.back()}
+            >
+              ← Back to Profile
+            </Button>
+          </div>
 
           <form onSubmit={handleSubmit}>
             <Card>

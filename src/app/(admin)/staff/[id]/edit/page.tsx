@@ -13,7 +13,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { staffServices } from '@/lib/api';
 import type { Staff, UpdateStaffRequest } from '@/types/staff';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, User, Phone, Shield, ArrowLeft, Save, X } from 'lucide-react';
 
 export default function EditStaffPage({ params }: { params: Promise<{ id: string }> }) {
   const { user, token } = useAuth();
@@ -40,7 +40,7 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
   }, [params]);
 
   // Available roles and departments
-  const availableRoles = ['teacher', 'principal', 'admin', 'librarian', 'accountant'];
+  const availableRoles = ['teacher', 'principal', 'admin'];
 
   // Fetch staff details
   useEffect(() => {
@@ -176,12 +176,13 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
       <div className="min-h-screen p-4 md:p-8">
         <main className="max-w-4xl mx-auto pt-16">
           <div className="mb-6">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               onClick={() => router.back()}
-              className="mb-4"
+              className="mb-4 flex items-center gap-2"
             >
-              ← Back to Staff Details
+              <ArrowLeft className="h-4 w-4" />
+              Back to Staff Details
             </Button>
             <h1 className="text-3xl font-bold mb-2">Edit Staff Member</h1>
             <p className="text-gray-600 dark:text-gray-300">
@@ -211,81 +212,138 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name *</Label>
-                    <Input
-                      id="fullName"
-                      name="fullName"
-                      value={formData.fullName}
-                      onChange={handleChange}
-                      placeholder="Enter full name"
-                      required
-                    />
+                {/* Personal Information Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b">
+                    <User className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-semibold text-foreground">Personal Information</h3>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="role">Role *</Label>
-                    <Select 
-                      name="role" 
-                      value={formData.role} 
-                      onValueChange={(value) => handleSelectChange('role', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableRoles.map(role => (
-                          <SelectItem key={role} value={role}>
-                            {role.charAt(0).toUpperCase() + role.slice(1)}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="fullName" className="text-sm font-medium">Full Name *</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Input
+                          id="fullName"
+                          name="fullName"
+                          value={formData.fullName}
+                          onChange={handleChange}
+                          placeholder="Enter full name"
+                          className="pl-10"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Input
+                          id="phone"
+                          name="phone"
+                          value={formData.phone}
+                          onChange={handleChange}
+                          placeholder="Enter phone number"
+                          className="pl-10 bg-muted cursor-not-allowed opacity-60"
+                          readOnly
+                          disabled
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Phone number cannot be changed. Contact admin for updates.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Professional Information Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b">
+                    <Shield className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-semibold text-foreground">Professional Information</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="role" className="text-sm font-medium">Role *</Label>
+                      <div className="relative">
+                        <Shield className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
+                        <Select
+                          name="role"
+                          value={formData.role}
+                          onValueChange={(value) => handleSelectChange('role', value)}
+                        >
+                          <SelectTrigger className="pl-10">
+                            <SelectValue placeholder="Select a role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableRoles.map(role => (
+                              <SelectItem key={role} value={role}>
+                                <div className="flex items-center gap-2">
+                                  <Shield className="h-4 w-4" />
+                                  {role.charAt(0).toUpperCase() + role.slice(1)}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="isActive" className="text-sm font-medium">Account Status</Label>
+                      <Select
+                        name="isActive"
+                        value={formData.isActive ? 'active' : 'inactive'}
+                        onValueChange={(value) => handleSelectChange('isActive', value === 'active' ? 'true' : 'false')}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-green-500 rounded-full" />
+                              Active
+                            </div>
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone *</Label>
-                    <Input
-                      id="phone"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      placeholder="Enter phone number"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="isActive">Status</Label>
-                    <Select 
-                      name="isActive" 
-                      value={formData.isActive ? 'active' : 'inactive'} 
-                      onValueChange={(value) => handleSelectChange('isActive', value === 'active' ? 'true' : 'false')}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
-                      </SelectContent>
-                    </Select>
+                          <SelectItem value="inactive">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-gray-400 rounded-full" />
+                              Inactive
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="flex justify-between">
-                <Button variant="outline" type="button" onClick={() => router.back()}>
+              <CardFooter className="flex justify-between pt-6">
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => router.back()}
+                  className="flex items-center gap-2"
+                >
+                  <X className="h-4 w-4" />
                   Cancel
                 </Button>
-                <Button type="submit" disabled={saving}>
+                <Button
+                  type="submit"
+                  disabled={saving}
+                  className="flex items-center gap-2"
+                >
                   {saving ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Updating...
                     </>
                   ) : (
-                    'Update Staff Member'
+                    <>
+                      <Save className="h-4 w-4" />
+                      Update Staff Member
+                    </>
                   )}
                 </Button>
               </CardFooter>

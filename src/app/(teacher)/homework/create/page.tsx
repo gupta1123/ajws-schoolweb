@@ -245,52 +245,54 @@ export default function CreateHomeworkPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="class_division_id">Class Division</Label>
-                  <select
-                    id="class_division_id"
-                    name="class_division_id"
-                    value={formData.class_division_id}
-                    onChange={handleInputChange}
-                    className="border rounded-md px-3 py-2 w-full"
-                    required
-                  >
-                    <option value="">Select a class</option>
-                    {loadingClasses ? (
-                      <option value="">Loading classes...</option>
-                    ) : classDivisions.length === 0 ? (
-                      <option value="">No classes found</option>
-                    ) : (
-                      classDivisions.map((division, index) => (
-                        <option key={`${division.id}-${division.division}-${index}`} value={division.id}>
-                          {formatClassName(division)}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="class_division_id">Class Division</Label>
+                    <select
+                      id="class_division_id"
+                      name="class_division_id"
+                      value={formData.class_division_id}
+                      onChange={handleInputChange}
+                      className="border rounded-md px-3 py-2 w-full"
+                      required
+                    >
+                      <option value="">Select a class</option>
+                      {loadingClasses ? (
+                        <option value="">Loading classes...</option>
+                      ) : classDivisions.length === 0 ? (
+                        <option value="">No classes found</option>
+                      ) : (
+                        classDivisions.map((division, index) => (
+                          <option key={`${division.id}-${division.division}-${index}`} value={division.id}>
+                            {formatClassName(division)}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="subject">Subject</Label>
-                  <select
-                    id="subject"
-                    name="subject"
-                    value={formData.subject}
-                    onChange={handleInputChange}
-                    className="border rounded-md px-3 py-2 w-full"
-                    required
-                  >
-                    <option value="">Select a subject</option>
-                    {availableSubjects.length === 0 ? (
-                      <option value="">No subjects assigned</option>
-                    ) : (
-                      availableSubjects.map((subject, index) => (
-                        <option key={`${subject}-${index}`} value={subject}>
-                          {subject}
-                        </option>
-                      ))
-                    )}
-                  </select>
+                  <div className="space-y-2">
+                    <Label htmlFor="subject">Subject</Label>
+                    <select
+                      id="subject"
+                      name="subject"
+                      value={formData.subject}
+                      onChange={handleInputChange}
+                      className="border rounded-md px-3 py-2 w-full"
+                      required
+                    >
+                      <option value="">Select a subject</option>
+                      {availableSubjects.length === 0 ? (
+                        <option value="">No subjects assigned</option>
+                      ) : (
+                        availableSubjects.map((subject, index) => (
+                          <option key={`${subject}-${index}`} value={subject}>
+                            {subject}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="space-y-2">

@@ -23,18 +23,7 @@ export default function AcademicStructurePage() {
 
   return (
     <ProtectedRoute>
-      <div className="container max-w-6xl mx-auto py-8">
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Academic Management</h1>
-              <p className="text-gray-600 dark:text-gray-300">
-                Manage classes, sections, and academic years
-              </p>
-            </div>
-          </div>
-        </div>
-
+      <div className="space-y-6">
         <ComprehensiveAcademicManager />
       </div>
     </ProtectedRoute>

@@ -1,15 +1,15 @@
 // src/app/reports/layout.tsx
 
-import { AppLayout } from '@/components/layout/app-layout';
-
 export default function ReportsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <AppLayout>
-      {children}
-    </AppLayout>
+    <div className="flex min-h-screen flex-col">
+      <main className="flex-1">
+        {children}
+      </main>
+    </div>
   );
 }

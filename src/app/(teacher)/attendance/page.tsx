@@ -45,7 +45,7 @@ const mockUnmarkedAttendance = [
 export default function AttendancePage() {
   const { user } = useAuth();
   const router = useRouter();
-  const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [selectedClass, setSelectedClass] = useState<string>('');
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -71,16 +71,9 @@ export default function AttendancePage() {
 
   return (
     <ProtectedRoute>
-      <div className="container max-w-6xl mx-auto py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Attendance</h1>
-          <p className="text-gray-600 dark:text-gray-300">
-            Take and manage attendance for your classes
-          </p>
-        </div>
-
+      <div className="space-y-6">
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -167,18 +160,18 @@ export default function AttendancePage() {
                   
                   <div className="space-y-2">
                     <label htmlFor="class" className="text-sm font-medium">
-                      Select Class
+                      Class
                     </label>
                     <select
                       id="class"
-                      value={selectedClass || ''}
+                      value={selectedClass}
                       onChange={(e) => setSelectedClass(e.target.value)}
-                      className="border rounded-md px-3 py-2 w-full"
+                      className="w-full border rounded-md px-3 py-2"
                     >
                       <option value="">Select a class</option>
                       {mockClasses.map((cls) => (
                         <option key={cls.id} value={cls.id}>
-                          {cls.name} - {cls.division} ({cls.studentCount} students)
+                          {cls.name}
                         </option>
                       ))}
                     </select>
@@ -188,9 +181,8 @@ export default function AttendancePage() {
                 <Button 
                   onClick={handleTakeAttendance}
                   disabled={!selectedClass || !date}
-                  className="w-full md:w-auto"
+                  className="w-full"
                 >
-                  <CheckCircle className="mr-2 h-4 w-4" />
                   Take Attendance
                 </Button>
               </CardContent>

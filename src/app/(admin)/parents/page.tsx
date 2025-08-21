@@ -30,6 +30,19 @@ interface ExtendedParent {
   email: string;
   role: string;
   is_registered: boolean;
+  created_at?: string;
+  children?: Array<{
+    id: string;
+    full_name: string;
+    admission_number: string;
+    class_division?: {
+      division: string;
+      level: {
+        name: string;
+        sequence_number: number;
+      };
+    };
+  }>;
   studentCount: number;
   relationships: string[];
 }
@@ -40,7 +53,7 @@ export default function ParentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+
   const [pagination, setPagination] = useState({
     total: 0,
     total_pages: 0,
@@ -50,74 +63,37 @@ export default function ParentsPage() {
   const [currentPage, setCurrentPage] = useState(1);
 
 
-  // Define types for better readability
-  type StudentParentMapping = {
-    parent: {
-      id: string;
-      full_name: string;
-      phone_number: string;
-      email: string;
-      role: string;
-      is_registered: boolean;
-    };
-    relationship: string;
-  };
 
-  type StudentWithParents = {
-    parent_student_mappings: StudentParentMapping[];
-  };
 
   // Fetch parents data
   const fetchParents = useCallback(async () => {
     if (!token) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await parentServices.getAllParents(token, {
         page: currentPage,
         limit: 20,
-        search: searchTerm,
-        status: statusFilter === 'all' ? undefined : statusFilter
+        search: searchTerm || undefined
       });
-      
+
       if (response.status === 'success' && response.data) {
-        // Transform students data to extract unique parents
-        const students = ((response.data as unknown) as { students: StudentWithParents[] }).students || [];
-        const parentMap = new Map();
-        
-        students.forEach((student: StudentWithParents) => {
-          if (student.parent_student_mappings) {
-            student.parent_student_mappings.forEach((mapping: StudentParentMapping) => {
-              const parent = mapping.parent;
-              if (!parentMap.has(parent.id)) {
-                parentMap.set(parent.id, {
-                  ...parent,
-                  studentCount: 1,
-                  relationships: [mapping.relationship]
-                });
-              } else {
-                const existingParent = parentMap.get(parent.id);
-                existingParent.studentCount += 1;
-                if (!existingParent.relationships.includes(mapping.relationship)) {
-                  existingParent.relationships.push(mapping.relationship);
-                }
-              }
-            });
-          }
+        // Transform the parent data to include student count and relationships
+        const transformedParents = response.data.parents.map(parent => {
+          const studentCount = parent.children?.length || 0;
+          const relationships = parent.children?.map(() => 'parent') || [];
+
+          return {
+            ...parent,
+            studentCount,
+            relationships
+          };
         });
-        
-        const uniqueParents = Array.from(parentMap.values());
-        setParents(uniqueParents);
-        
-        // For now, use a simple pagination since we're transforming data
-        setPagination({
-          total: uniqueParents.length,
-          total_pages: Math.ceil(uniqueParents.length / 20),
-          has_next: false,
-          has_prev: false
-        });
+
+        setParents(transformedParents);
+        setPagination(response.data.pagination);
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch parents';
@@ -126,7 +102,7 @@ export default function ParentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, currentPage, searchTerm, statusFilter]);
+  }, [token, currentPage, searchTerm]);
 
   // Fetch parents on component mount and when filters change
   useEffect(() => {
@@ -139,13 +115,7 @@ export default function ParentsPage() {
     setCurrentPage(1);
   };
 
-  // Handle filter changes
-  const handleFilterChange = (filterType: string, value: string) => {
-    if (filterType === 'status') {
-      setStatusFilter(value);
-    }
-    setCurrentPage(1);
-  };
+
 
   // Handle pagination
   const handlePageChange = (newPage: number) => {
@@ -181,26 +151,31 @@ export default function ParentsPage() {
 
   return (
     <ProtectedRoute>
-      <div className="container max-w-6xl mx-auto py-8">
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Parent Management</h1>
-              <p className="text-gray-600 dark:text-gray-300">
-                Manage parent accounts and their student relationships
-              </p>
+      <div className="space-y-6">
+        {/* Action Bar */}
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
+            <div className="relative w-64">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search parents..."
+                className="pl-8"
+                value={searchTerm}
+                onChange={handleSearchChange}
+              />
             </div>
-            <Button asChild>
-              <Link href="/parents/create">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Parent
-              </Link>
-            </Button>
+
           </div>
+          <Button asChild>
+            <Link href="/parents/create">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Parent
+            </Link>
+          </Button>
         </div>
 
         {error && (
-          <div className="mb-6">
+          <div>
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
@@ -208,156 +183,143 @@ export default function ParentsPage() {
           </div>
         )}
 
-        <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Parent List</CardTitle>
-              <CardDescription>
-                List of all parents in the school system
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between mb-4">
-                <div className="relative w-64">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search parents..." 
-                    className="pl-8" 
-                    value={searchTerm}
-                    onChange={handleSearchChange}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <select 
-                    className="border rounded-md px-3 py-2 text-sm"
-                    value={statusFilter}
-                    onChange={(e) => handleFilterChange('status', e.target.value)}
-                  >
-                    <option value="all">All Statuses</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Parent Name</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Students</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Registration</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {parents.map((parent) => (
-                      <TableRow key={parent.id}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            <div className="bg-gray-200 border-2 border-dashed rounded-xl w-8 h-8 flex items-center justify-center">
-                              <User className="h-4 w-4 text-gray-500" />
-                            </div>
-                            {parent.full_name}
+        {/* Parents Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Parent List</CardTitle>
+            <CardDescription>
+              List of all parents in the school system
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Parent Name</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Students</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {parents.map((parent) => (
+                    <TableRow key={parent.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <div className="bg-gray-200 border-2 border-dashed rounded-xl w-8 h-8 flex items-center justify-center">
+                            <User className="h-4 w-4 text-gray-500" />
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Phone className="h-4 w-4 text-muted-foreground" />
-                            {parent.phone_number}
+                          {parent.full_name}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          {parent.phone_number}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          {parent.email || ''}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <div className="font-medium">{parent.studentCount || 0} student(s)</div>
+                            {parent.children && parent.children.length > 0 && (
+                              <div className="text-xs text-muted-foreground">
+                                {parent.children.slice(0, 2).map(child => (
+                                  <div key={child.id}>
+                                    {child.full_name}
+                                    {child.class_division && (
+                                      <span> - {child.class_division.level.name} {child.class_division.division}</span>
+                                    )}
+                                  </div>
+                                ))}
+                                {parent.children.length > 2 && (
+                                  <div>+{parent.children.length - 2} more</div>
+                                )}
+                              </div>
+                            )}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Mail className="h-4 w-4 text-muted-foreground" />
-                            {parent.email || 'N/A'}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                            {parent.studentCount || 0} student(s)
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            parent.is_registered 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {parent.is_registered ? 'Registered' : 'Pending'}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            parent.is_registered 
-                              ? 'bg-blue-100 text-blue-800' 
-                              : 'bg-orange-100 text-orange-800'
-                          }`}>
-                            {parent.is_registered ? 'Active' : 'Setup Required'}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="outline" size="sm" className="mr-2" asChild>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            asChild
+                            title="View parent details"
+                            className="h-8 w-8 p-0"
+                          >
                             <Link href={`/parents/${parent.id}`}>
                               <Eye className="h-4 w-4" />
                             </Link>
                           </Button>
-                          <Button variant="outline" size="sm" className="mr-2" asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                            title="Edit parent"
+                            className="h-8 w-8 p-0"
+                          >
                             <Link href={`/parents/${parent.id}/edit`}>
                               <Edit className="h-4 w-4" />
                             </Link>
                           </Button>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="destructive"
                             size="sm"
-                            disabled={true}
-                            title="Delete functionality not yet implemented"
+                            title="Delete parent"
+                            className="h-8 w-8 p-0"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
 
-              {/* Pagination */}
-              {pagination.total_pages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <div className="text-sm text-gray-700">
-                    Showing {((currentPage - 1) * 20) + 1} to {Math.min(currentPage * 20, pagination.total)} of {pagination.total} results
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={!pagination.has_prev}
-                    >
-                      Previous
-                    </Button>
-                    <span className="flex items-center px-3 py-2 text-sm">
-                      Page {currentPage} of {pagination.total_pages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={!pagination.has_next}
-                    >
-                      Next
-                    </Button>
-                  </div>
+            {/* Pagination */}
+            {pagination.total_pages > 1 && (
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-gray-700">
+                  Showing {((currentPage - 1) * 20) + 1} to {Math.min(currentPage * 20, pagination.total)} of {pagination.total} results
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={!pagination.has_prev}
+                  >
+                    Previous
+                  </Button>
+                  <span className="flex items-center px-3 py-2 text-sm">
+                    Page {currentPage} of {pagination.total_pages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={!pagination.has_next}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </ProtectedRoute>
   );

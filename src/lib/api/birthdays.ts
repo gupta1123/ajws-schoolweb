@@ -181,4 +181,36 @@ export const birthdayServices = {
     const queryString = searchParams.toString() ? `?${searchParams.toString()}` : '';
     return apiClient.get(`/api/birthdays/division/${classDivisionId}${queryString}`, token);
   },
+
+  // Get teacher's assigned classes birthdays
+  getTeacherClassesBirthdays: async (
+    token: string,
+    params?: {
+      date?: string;
+      start_date?: string;
+      end_date?: string;
+      page?: number;
+      limit?: number;
+    }
+  ): Promise<ApiResponse<UpcomingBirthdaysResponse>> => {
+    const searchParams = new URLSearchParams();
+    if (params?.date) {
+      searchParams.append('date', params.date);
+    }
+    if (params?.start_date) {
+      searchParams.append('start_date', params.start_date);
+    }
+    if (params?.end_date) {
+      searchParams.append('end_date', params.end_date);
+    }
+    if (params?.page) {
+      searchParams.append('page', params.page.toString());
+    }
+    if (params?.limit) {
+      searchParams.append('limit', params.limit.toString());
+    }
+
+    const queryString = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    return apiClient.get(`/api/birthdays/my-classes${queryString}`, token);
+  },
 };

@@ -1,7 +1,6 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { PageHeader } from '@/components/page-header';
 import { Plus, Users, BellIcon, MessageSquare } from 'lucide-react';
 import { useState } from 'react';
 import { ChatInterface } from '@/components/messages/chat-interface';
@@ -15,19 +14,16 @@ export default function MessagesPage() {
   };
 
   return (
-    <div className="container max-w-6xl mx-auto py-8">
-      <PageHeader
-        title="Messages & Notifications"
-        description="Chat with parents, teachers, and send batch notifications"
-        action={
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            New Message
-          </Button>
-        }
-      />
+    <div className="space-y-6">
+      {/* Action Bar */}
+      <div className="flex justify-end">
+        <Button>
+          <Plus className="mr-2 h-4 w-4" />
+          New Message
+        </Button>
+      </div>
 
-      <div className="flex flex-wrap border-b gap-2 mb-6">
+      <div className="flex flex-wrap border-b gap-2">
         <button
           className={`py-2 px-4 font-medium text-sm rounded-t-lg ${
             activeTab === 'chat' 
@@ -60,7 +56,7 @@ export default function MessagesPage() {
         <>
           <ChatInterface />
           
-          <div className="flex justify-center gap-2 mt-6">
+          <div className="flex justify-center gap-2">
             <Button variant="outline" size="sm">
               <MessageSquare className="mr-2 h-4 w-4" />
               Start New Chat

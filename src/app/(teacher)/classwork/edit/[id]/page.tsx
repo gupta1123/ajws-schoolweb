@@ -11,29 +11,40 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, X, BookOpen, Share2, Tag, Loader2 } from 'lucide-react';
+import { Calendar, X, BookOpen, Tag, Loader2 } from 'lucide-react';
 import { classworkServices } from '@/lib/api/classwork';
+import { academicServices } from '@/lib/api/academic';
 import { Classwork } from '@/types/classwork';
+import { toast } from '@/hooks/use-toast';
 
-// Mock data for class divisions (this would come from an API in a real implementation)
-const mockClassDivisions = [
-  { id: '1', name: 'Grade 5 - Section A' },
-  { id: '2', name: 'Grade 6 - Section B' },
-  { id: '3', name: 'Grade 7 - Section C' }
-];
 
-// Common subjects
-const commonSubjects = [
-  'Mathematics',
-  'Science',
-  'English',
-  'History',
-  'Geography',
-  'Art',
-  'Music',
-  'Physical Education',
-  'Foreign Language'
-];
+
+// Interface for the API response structure
+interface AssignedClass {
+  assignment_id: string;
+  class_division_id: string;
+  division: string;
+  class_name: string;
+  class_level: string;
+  sequence_number: number;
+  academic_year: string;
+  assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
+  is_primary: boolean;
+  assigned_date: string;
+  subject?: string;
+}
+
+// Interface for the transformed class data we're using
+interface TransformedClass {
+  id: string;
+  division: string;
+  class_level: {
+    name: string;
+  };
+  academic_year: {
+    year_name: string;
+  };
+}
 
 export default function EditClassworkPage({ params }: { params: Promise<{ id: string }> }) {
   const { user, token } = useAuth();
@@ -42,13 +53,20 @@ export default function EditClassworkPage({ params }: { params: Promise<{ id: st
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [classwork, setClasswork] = useState<Classwork | null>(null);
+  const [classDivisions, setClassDivisions] = useState<TransformedClass[]>([]);
+  const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(true);
+
+  // Format class division name for display
+  const formatClassName = (division: TransformedClass) => {
+    return `${division.class_level?.name || 'Unknown'} - Section ${division.division}`;
+  };
   const [formData, setFormData] = useState({
     class_division_id: '',
     subject: '',
     summary: '',
     topics_covered: [] as string[],
-    date: '',
-    is_shared_with_parents: false
+    date: ''
   });
   const [topicInput, setTopicInput] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -59,48 +77,82 @@ export default function EditClassworkPage({ params }: { params: Promise<{ id: st
       const resolvedParams = await params;
       const { id: classworkIdFromParams } = resolvedParams;
       
-      // Fetch classwork data for editing
-      const fetchClasswork = async () => {
+      // Fetch classwork data and class divisions for editing
+      const fetchData = async () => {
         if (!token || !classworkIdFromParams || !user) return;
-        
+
         try {
           setLoading(true);
+          setLoadingClasses(true);
           setError(null);
-          
-          // For now, we'll simulate fetching the classwork data
-          // In a real implementation, you'd have a getClassworkById API call
-          // For now, we'll create mock data based on the ID
-          const mockClassworkData: Classwork = {
-            id: classworkIdFromParams,
-            class_division_id: '1',
-            teacher_id: user.id || '',
-            subject: 'Mathematics',
-            summary: 'Introduction to Fractions',
-            topics_covered: ['Fractions', 'Numerators', 'Denominators'],
-            date: '2025-08-15',
-            is_shared_with_parents: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-          
-          setClasswork(mockClassworkData);
-          setFormData({
-            class_division_id: mockClassworkData.class_division_id,
-            subject: mockClassworkData.subject,
-            summary: mockClassworkData.summary,
-            topics_covered: [...mockClassworkData.topics_covered],
-            date: mockClassworkData.date,
-            is_shared_with_parents: mockClassworkData.is_shared_with_parents
-          });
+
+          // First fetch teacher assignments
+          const teacherResponse = await academicServices.getMyTeacherClasses(token);
+          if (teacherResponse.status === 'success' && teacherResponse.data) {
+            // Filter for only subject teacher assignments
+            const subjectTeacherClasses = teacherResponse.data.assigned_classes.filter(
+              (assignment: AssignedClass) => assignment.assignment_type === 'subject_teacher'
+            );
+
+            // Extract unique subjects
+            const subjects = [...new Set(
+              subjectTeacherClasses
+                .map((assignment: AssignedClass) => assignment.subject)
+                .filter((subject: string | undefined): subject is string => !!subject)
+            )];
+            setAvailableSubjects(subjects);
+
+            // Transform classes for the dropdown
+            const transformedClasses = subjectTeacherClasses.map((assignment: AssignedClass) => ({
+              id: assignment.class_division_id,
+              division: assignment.division,
+              class_level: {
+                name: assignment.class_level
+              },
+              academic_year: {
+                year_name: assignment.academic_year
+              }
+            }));
+
+            // Remove duplicates
+            const uniqueClasses = transformedClasses.filter((classItem: TransformedClass, index: number, self: TransformedClass[]) =>
+              index === self.findIndex(c => c.id === classItem.id)
+            );
+
+            setClassDivisions(uniqueClasses);
+          }
+
+          // Fetch specific classwork data
+          const classworkResponse = await classworkServices.getClassworkById(token, classworkIdFromParams);
+          if (classworkResponse.status === 'success' && classworkResponse.data?.classwork) {
+            const classworkData = classworkResponse.data.classwork;
+            setClasswork(classworkData);
+            setFormData({
+              class_division_id: classworkData.class_division_id,
+              subject: classworkData.subject,
+              summary: classworkData.summary,
+              topics_covered: [...classworkData.topics_covered],
+              date: classworkData.date
+            });
+          } else {
+            setError('Classwork not found');
+            console.error('API Response:', classworkResponse);
+          }
         } catch (err) {
           setError('Failed to load classwork data');
-          console.error('Error fetching classwork:', err);
+          console.error('Error fetching data:', err);
+          toast({
+            title: "Error",
+            description: "Failed to load classwork data",
+            variant: "error",
+          });
         } finally {
           setLoading(false);
+          setLoadingClasses(false);
         }
       };
 
-      fetchClasswork();
+      fetchData();
     };
     
     extractId();
@@ -284,48 +336,70 @@ export default function EditClassworkPage({ params }: { params: Promise<{ id: st
             </CardHeader>
             
             <CardContent className="space-y-6">
-              {/* Class Selection */}
-              <div className="space-y-2">
-                <Label htmlFor="class_division_id">Class</Label>
-                <select
-                  id="class_division_id"
-                  name="class_division_id"
-                  value={formData.class_division_id}
-                  onChange={handleInputChange}
-                  className="w-full border rounded-md px-3 py-2"
-                >
-                  <option value="">Select a class</option>
-                  {mockClassDivisions.map((division) => (
-                    <option key={division.id} value={division.id}>
-                      {division.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.class_division_id && (
-                  <p className="text-sm text-red-500">{errors.class_division_id}</p>
-                )}
-              </div>
+              {/* Class, Subject, Date in one line */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Class Selection */}
+                <div className="space-y-2">
+                  <Label htmlFor="class_division_id">Class</Label>
+                  <select
+                    id="class_division_id"
+                    name="class_division_id"
+                    value={formData.class_division_id}
+                    onChange={handleInputChange}
+                    className="w-full border rounded-md px-3 py-2"
+                  >
+                    <option value="">Select a class</option>
+                    {classDivisions.map((division) => (
+                      <option key={division.id} value={division.id}>
+                        {formatClassName(division)}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.class_division_id && (
+                    <p className="text-sm text-red-500">{errors.class_division_id}</p>
+                  )}
+                </div>
 
-              {/* Subject */}
-              <div className="space-y-2">
-                <Label htmlFor="subject">Subject</Label>
-                <select
-                  id="subject"
-                  name="subject"
-                  value={formData.subject}
-                  onChange={handleInputChange}
-                  className="w-full border rounded-md px-3 py-2"
-                >
-                  <option value="">Select a subject</option>
-                  {commonSubjects.map((subject) => (
-                    <option key={subject} value={subject}>
-                      {subject}
-                    </option>
-                  ))}
-                </select>
-                {errors.subject && (
-                  <p className="text-sm text-red-500">{errors.subject}</p>
-                )}
+                {/* Subject */}
+                <div className="space-y-2">
+                  <Label htmlFor="subject">Subject</Label>
+                  <select
+                    id="subject"
+                    name="subject"
+                    value={formData.subject}
+                    onChange={handleInputChange}
+                    className="w-full border rounded-md px-3 py-2"
+                  >
+                    <option value="">Select a subject</option>
+                    {availableSubjects.map((subject) => (
+                      <option key={subject} value={subject}>
+                        {subject}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.subject && (
+                    <p className="text-sm text-red-500">{errors.subject}</p>
+                  )}
+                </div>
+
+                {/* Date */}
+                <div className="space-y-2">
+                  <Label htmlFor="date">Date</Label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="date"
+                      name="date"
+                      type="date"
+                      value={formData.date}
+                      onChange={handleInputChange}
+                      className="pl-10"
+                    />
+                  </div>
+                  {errors.date && (
+                    <p className="text-sm text-red-500">{errors.date}</p>
+                  )}
+                </div>
               </div>
 
               {/* Summary */}
@@ -388,40 +462,10 @@ export default function EditClassworkPage({ params }: { params: Promise<{ id: st
                 </div>
               </div>
 
-              {/* Date */}
-              <div className="space-y-2">
-                <Label htmlFor="date">Date</Label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="date"
-                    name="date"
-                    type="date"
-                    value={formData.date}
-                    onChange={handleInputChange}
-                    className="pl-10"
-                  />
-                </div>
-                {errors.date && (
-                  <p className="text-sm text-red-500">{errors.date}</p>
-                )}
-              </div>
+
 
               {/* Share with Parents */}
-              <div className="flex items-center space-x-2">
-                <input
-                  id="is_shared_with_parents"
-                  name="is_shared_with_parents"
-                  type="checkbox"
-                  checked={formData.is_shared_with_parents}
-                  onChange={handleCheckboxChange}
-                  className="rounded border-gray-300"
-                />
-                <Label htmlFor="is_shared_with_parents" className="flex items-center gap-2">
-                  <Share2 className="h-4 w-4" />
-                  Share with Parents
-                </Label>
-              </div>
+
             </CardContent>
 
             <CardFooter className="flex justify-between">

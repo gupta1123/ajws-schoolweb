@@ -4,7 +4,6 @@
 
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
-import { AppLayout } from '@/components/layout/app-layout';
 
 export default function AdminLayout({
   children,
@@ -27,11 +26,7 @@ export default function AdminLayout({
 
   return (
     <ProtectedRoute>
-      <div className="flex min-h-screen flex-col">
-        <AppLayout>
-          {children}
-        </AppLayout>
-      </div>
+      {children}
     </ProtectedRoute>
   );
 }

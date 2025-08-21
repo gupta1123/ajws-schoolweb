@@ -3,6 +3,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,9 +20,10 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Search, Plus, Edit, Trash2, Loader2, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Loader2, AlertTriangle, User, Phone, Shield, Key, Save, X, UserPlus, UserCog, Eye } from 'lucide-react';
 import { useStaff } from '@/hooks/use-staff';
 import type { Staff, UpdateStaffRequest } from '@/types/staff';
+import Link from 'next/link';
 
 // Extended interface for form handling
 interface StaffFormData extends Partial<Staff> {
@@ -29,11 +31,12 @@ interface StaffFormData extends Partial<Staff> {
 }
 
 // Available roles and departments for filtering
-const availableRoles = ['All', 'Admin', 'Principal', 'Teacher', 'Librarian', 'Accountant'];
+const availableRoles = ['All', 'Admin', 'Principal', 'Teacher'];
 const availableStatuses = ['All', 'Active', 'Inactive'];
 
 export default function StaffPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const {
     staff,
     loading,
@@ -175,27 +178,48 @@ export default function StaffPage() {
 
   return (
     <ProtectedRoute>
-      <div className="container max-w-6xl mx-auto py-8">
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Staff Management</h1>
-              <p className="text-gray-600 dark:text-gray-300">
-                Manage staff members and their information
-              </p>
+      <div className="space-y-6">
+        {/* Action Bar */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="relative w-full md:w-64">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search staff..." 
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-            <div className="flex gap-2">
-              <Button onClick={handleAddNew}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Staff
-              </Button>
-            </div>
+            <select 
+              className="border rounded-md px-3 py-2 text-sm"
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+            >
+              <option value="">All Roles</option>
+              <option value="teacher">Teacher</option>
+              <option value="admin">Admin</option>
+              <option value="principal">Principal</option>
+            </select>
+            <select 
+              className="border rounded-md px-3 py-2 text-sm"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
           </div>
+          <Button onClick={handleAddNew}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Staff
+          </Button>
         </div>
 
         {/* Error Display */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
             <div className="flex items-center gap-2 text-red-800">
               <AlertTriangle className="h-5 w-5" />
               <span>{error}</span>
@@ -206,118 +230,115 @@ export default function StaffPage() {
           </div>
         )}
 
-        <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Staff List</CardTitle>
-              <CardDescription>
-                List of all staff members in the school
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col md:flex-row items-center justify-between mb-4 gap-4">
-                <div className="relative w-full md:w-64">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search staff..." 
-                    className="pl-8"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Select value={roleFilter} onValueChange={setRoleFilter}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Filter by role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableRoles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Filter by status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableStatuses.map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
+        {/* Staff Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Staff List</CardTitle>
+            <CardDescription>
+              List of all staff members in the school
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableCell colSpan={5} className="text-center py-8">
+                        <div className="flex items-center justify-center gap-2">
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          <span>Loading staff...</span>
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8">
-                          <div className="flex items-center justify-center gap-2">
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                            <span>Loading staff...</span>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : filteredStaff.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8">
-                          <span className="text-muted-foreground">
-                            {searchTerm || roleFilter !== 'All' || statusFilter !== 'All'
-                              ? 'No staff found matching the filters'
-                              : 'No staff members found'
-                            }
+                  ) : filteredStaff.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8">
+                        <span className="text-muted-foreground">
+                          {searchTerm || roleFilter !== 'All' || statusFilter !== 'All'
+                            ? 'No staff found matching the filters'
+                            : 'No staff members found'
+                          }
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredStaff.map((staff) => (
+                      <TableRow key={staff.id}>
+                        <TableCell className="font-medium">{staff.full_name}</TableCell>
+                        <TableCell className="capitalize">{staff.role}</TableCell>
+                        <TableCell>{staff.phone_number}</TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            staff.is_active 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {staff.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredStaff.map((staffMember) => (
-                        <TableRow key={staffMember.id}>
-                          <TableCell className="font-medium">{staffMember.full_name}</TableCell>
-                          <TableCell>{staffMember.role}</TableCell>
-                          <TableCell>{staffMember.phone_number}</TableCell>
-                          <TableCell>
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              staffMember.is_active !== false 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-red-100 text-red-800'
-                            }`}>
-                              {staffMember.is_active !== false ? 'Active' : 'Inactive'}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="outline" size="sm" className="mr-2" onClick={() => handleEdit(staffMember)}>
-                              <Edit className="mr-2 h-4 w-4" />
+                        <TableCell className="text-right">
+                          <Button variant="outline" size="sm" className="mr-2" asChild>
+                            <Link href={`/staff/${staff.id}`}>
+                              View
+                            </Link>
+                          </Button>
+                          <Button variant="outline" size="sm" className="mr-2" asChild>
+                            <Link href={`/staff/${staff.id}/edit`}>
                               Edit
-                            </Button>
-                            <Button variant="destructive" size="sm" onClick={() => handleDelete(staffMember.id)}>
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                            </Link>
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleDelete(staff.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            Delete
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
       
       {/* Add/Edit Staff Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{isEditing ? 'Edit Staff Member' : 'Add New Staff Member'}</DialogTitle>
+        <DialogContent className="max-w-md">
+          <DialogHeader className="space-y-3">
+            <div className="flex items-center gap-3">
+              {isEditing ? (
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                  <UserCog className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                </div>
+              ) : (
+                <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
+                  <UserPlus className="h-6 w-6 text-green-600 dark:text-green-400" />
+                </div>
+              )}
+              <div>
+                <DialogTitle className="text-xl">
+                  {isEditing ? 'Edit Staff Member' : 'Add New Staff Member'}
+                </DialogTitle>
+                <p className="text-sm text-muted-foreground">
+                  {isEditing ? 'Update staff information' : 'Create a new staff account'}
+                </p>
+              </div>
+            </div>
           </DialogHeader>
           
           {/* Local Error Display */}
@@ -333,78 +354,164 @@ export default function StaffPage() {
             </div>
           )}
           
-          <div className="py-4 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="full_name">Full Name</Label>
-              <Input 
-                id="full_name" 
-                name="full_name" 
-                value={currentStaff?.full_name || ''} 
-                onChange={handleInputChange} 
-              />
+          <div className="py-6 space-y-6">
+            {/* Personal Information Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b">
+                <User className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Personal Information</h3>
+              </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="full_name" className="text-sm font-medium">Full Name *</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Input
+                          id="full_name"
+                          name="full_name"
+                          value={currentStaff?.full_name || ''}
+                          onChange={handleInputChange}
+                          placeholder="Enter full name"
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="phone_number" className="text-sm font-medium">Phone Number</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Input
+                          id="phone_number"
+                          name="phone_number"
+                          value={currentStaff?.phone_number || ''}
+                          onChange={handleInputChange}
+                          placeholder="Enter phone number"
+                          className="pl-10 bg-muted cursor-not-allowed opacity-60"
+                          readOnly
+                          disabled
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Phone number cannot be changed. Contact admin for updates.
+                      </p>
+                    </div>
+                  </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
-              <Select 
-                name="role" 
-                value={currentStaff?.role || ''} 
-                onValueChange={(value) => handleSelectChange('role', value)}
-              >
-                <SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger>
-                <SelectContent>
-                  {availableRoles.filter(role => role !== 'All').map(role => 
-                    <SelectItem key={role} value={role}>{role}</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+
+            {/* Professional Information Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b">
+                <Shield className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Professional Information</h3>
+              </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="role" className="text-sm font-medium">Role *</Label>
+                      <div className="relative">
+                        <Shield className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
+                        <Select
+                          name="role"
+                          value={currentStaff?.role || ''}
+                          onValueChange={(value) => handleSelectChange('role', value)}
+                        >
+                          <SelectTrigger className="pl-10">
+                            <SelectValue placeholder="Select a role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableRoles.filter(role => role !== 'All').map(role =>
+                              <SelectItem key={role} value={role}>
+                                <div className="flex items-center gap-2">
+                                  <Shield className="h-4 w-4" />
+                                  {role}
+                                </div>
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="status" className="text-sm font-medium">Account Status</Label>
+                      <Select
+                        name="status"
+                        value={currentStaff?.is_active !== false ? 'Active' : 'Inactive'}
+                        onValueChange={(value) => handleSelectChange('is_active', value === 'Active' ? 'true' : 'false')}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableStatuses.filter(status => status !== 'All').map(status =>
+                            <SelectItem key={status} value={status}>
+                              <div className="flex items-center gap-2">
+                                {status === 'Active' ? (
+                                  <div className="w-2 h-2 bg-green-500 rounded-full" />
+                                ) : (
+                                  <div className="w-2 h-2 bg-gray-400 rounded-full" />
+                                )}
+                                {status}
+                              </div>
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone_number">Phone</Label>
-              <Input 
-                id="phone_number" 
-                name="phone_number" 
-                value={currentStaff?.phone_number || ''} 
-                onChange={handleInputChange} 
-              />
-            </div>
+
+            {/* Account Security Section */}
             {!isEditing && (
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input 
-                  id="password" 
-                  name="password" 
-                  type="password" 
-                  value={currentStaff?.password || ''} 
-                  onChange={handleInputChange} 
-                  placeholder="Set initial password"
-                  required
-                />
-                <p className="text-sm text-gray-500">
-                  This will be the initial password for the staff member&apos;s user account
-                </p>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <Key className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-foreground">Account Security</h3>
+                </div>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="text-sm font-medium">Initial Password *</Label>
+                    <div className="relative">
+                      <Key className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="password"
+                        name="password"
+                        type="password"
+                        value={currentStaff?.password || ''}
+                        onChange={handleInputChange}
+                        placeholder="Set initial password"
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      This will be the initial password for the staff member&apos;s user account
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select 
-                name="status" 
-                value={currentStaff?.is_active !== false ? 'Active' : 'Inactive'} 
-                onValueChange={(value) => handleSelectChange('is_active', value === 'Active' ? 'true' : 'false')}
-              >
-                <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
-                <SelectContent>
-                  {availableStatuses.filter(status => status !== 'All').map(status => 
-                    <SelectItem key={status} value={status}>{status}</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={loading}>
-              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Save
+          <DialogFooter className="gap-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsDialogOpen(false)}
+              className="flex items-center gap-2"
+            >
+              <X className="h-4 w-4" />
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={loading}
+              className="flex items-center gap-2"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {isEditing ? 'Update Staff' : 'Create Staff'}
             </Button>
           </DialogFooter>
         </DialogContent>

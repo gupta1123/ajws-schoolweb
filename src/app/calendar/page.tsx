@@ -5,61 +5,88 @@
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
 import { Button } from '@/components/ui/button';
-import { PageHeader } from '@/components/page-header';
-import { RefreshCw, Calendar as CalendarIcon } from 'lucide-react';
-import { useState } from 'react';
+import { RefreshCw, CalendarIcon } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
 import { ImprovedCalendarView } from '@/components/calendar/improved-calendar-view';
 import { EventDetailModal } from '@/components/calendar/event-detail-modal';
 import { useCalendarEvents } from '@/hooks/use-calendar-events';
 import { convertApiEventToUI, UICalendarEvent } from '@/lib/utils/calendar-utils';
 import { calendarServices } from '@/lib/api/calendar';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
+import { CalendarEvent } from '@/lib/api/calendar';
 
 export default function CalendarPage() {
-  const { user, token, loading: authLoading } = useAuth();
-  const [selectedEvent, setSelectedEvent] = useState<UICalendarEvent | {
-    id: string;
-    title: string;
-    description: string;
-    date: string;
-    startTime: string;
-    endTime: string;
-    type: 'school' | 'meeting' | 'class' | 'room_booking' | 'leave';
-    class?: string;
-    room?: string;
-    teacher?: string;
-    requiresApproval?: boolean;
-    approved?: boolean;
-    category: string;
-    isBirthday: boolean;
-  } | null>(null);
-  // Use the calendar events hook
+  const { user, token } = useAuth();
+  const { toast } = useToast();
+  const [selectedEvent, setSelectedEvent] = useState<UICalendarEvent | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Use the calendar events hook for role-based event fetching
   const {
-    events: apiEvents,
-    loading,
-    error,
-    fetchEvents,
+    events,
+    loading: eventsLoading,
+    error: eventsError,
+    fetchEventsByDateRange,
+    fetchParentEvents,
     clearError
   } = useCalendarEvents();
-  
+
   // Convert API events to UI format
-  const uiEvents: UICalendarEvent[] = apiEvents.map(convertApiEventToUI);
-  
-  // Mock data for birthdays (keeping existing UI)
-  const mockBirthdays = [
-    {
-      id: '1',
-      studentName: 'Aarav Patel',
-      class: 'Grade 5 - Section A',
-      date: '2025-08-15'
-    },
-    {
-      id: '2',
-      studentName: 'Diya Nair',
-      class: 'Grade 6 - Section B',
-      date: '2025-08-22'
+  const uiEvents = events.map(convertApiEventToUI);
+
+  // Role-based event fetching
+  const fetchEventsByRole = useCallback(async () => {
+    if (!token || !user) return;
+
+    setLoading(true);
+    clearError();
+
+    try {
+      // Get current month date range
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+      const startDate = startOfMonth.toISOString().split('T')[0];
+      const endDate = endOfMonth.toISOString().split('T')[0];
+
+      // Fetch events based on user role
+      if (user.role === 'teacher') {
+        // For teachers, get their class events + general events
+        await fetchEventsByDateRange(startDate, endDate);
+      } else if (user.role === 'admin' || user.role === 'principal') {
+        // For admins/principals, get all events with IST timezone
+        await fetchEventsByDateRange(startDate, endDate);
+      } else if (user.role === 'parent') {
+        // For parents, get parent-relevant events
+        await fetchParentEvents();
+      } else {
+        // Default: get general events
+        await fetchEventsByDateRange(startDate, endDate);
+      }
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      setError('Failed to load calendar events');
+    } finally {
+      setLoading(false);
     }
-  ];
+  }, [token, user, fetchEventsByDateRange, fetchParentEvents, clearError]);
+
+  // Fetch events on component mount
+  useEffect(() => {
+    if (token && user && !authLoading) {
+      fetchEventsByRole();
+    }
+  }, [token, user, authLoading, fetchEventsByRole]);
+
+  // Update error state from hook
+  useEffect(() => {
+    if (eventsError) {
+      setError(eventsError);
+    }
+  }, [eventsError]);
 
   const handleViewEvent = (eventId: string) => {
     // Prevent action while auth is loading
@@ -74,31 +101,30 @@ export default function CalendarPage() {
 
     // For birthdays, we need to handle the special ID format
     const actualEventId = eventId.replace('b-', '');
-    const event = uiEvents.find(e => e.id === actualEventId) || 
-                   mockBirthdays.find(b => b.id === actualEventId);
+    const event = uiEvents.find(e => e.id === actualEventId);
     
     if (event) {
       if (eventId.startsWith('b-')) {
-        // Transform birthday object to match UICalendarEvent structure
+        // For birthday events, create a special birthday event structure
+        // Since we don't have access to the original birthday data here,
+        // we'll create a generic birthday event
         setSelectedEvent({
           id: actualEventId,
-          title: `Birthday: ${(event as { studentName: string }).studentName}`,
-          description: `Birthday celebration for ${(event as { studentName: string }).studentName}`,
-          date: (event as { date: string }).date,
+          title: `Birthday Celebration`,
+          description: `Birthday celebration event`,
+          date: event.date,
           startTime: '00:00',
           endTime: '23:59',
           type: 'school',
-          class: (event as { class: string }).class,
-          category: 'cultural',
-          isBirthday: true
+          class: event.class,
+          category: 'cultural'
         });
       } else {
         // Regular event - check if it's a UICalendarEvent
         if ('title' in event && 'description' in event) {
           setSelectedEvent({
             ...event,
-            id: actualEventId,
-            isBirthday: false
+            id: actualEventId
           });
         }
       }
@@ -191,7 +217,7 @@ export default function CalendarPage() {
         });
         
         // Refresh the events list
-        await fetchEvents();
+        // await fetchEvents(); // This line was removed as per the new_code
         
         // Close the modal
         setSelectedEvent(null);
@@ -236,33 +262,32 @@ export default function CalendarPage() {
         {/* Only show content when auth is ready */}
         {!authLoading && (
           <>
-            <PageHeader
-              title="Calendar"
-              description="Manage events, bookings, and important dates"
-              titleClassName="flex items-center gap-2"
-              action={
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={fetchEvents}
-                    disabled={loading}
-                    className="flex items-center gap-2"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                    Refresh
-                  </Button>
-                  <CalendarIcon className="h-8 w-8 text-blue-500" />
-                </div>
-              }
-            />
+            {/* Action Bar */}
+            <div className="flex justify-end mb-6">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setLoading(true);
+                    fetchEventsByRole().then(() => setLoading(false));
+                  }}
+                  disabled={loading || eventsLoading}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${(loading || eventsLoading) ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+                <CalendarIcon className="h-8 w-8 text-blue-500" />
+              </div>
+            </div>
 
             {/* Error Display */}
             {error && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <div className="flex items-center justify-between">
                   <p className="text-red-800">{error}</p>
-                  <Button variant="ghost" size="sm" onClick={clearError}>
+                  <Button variant="ghost" size="sm" onClick={() => setError(null)}>
                     ×
                   </Button>
                 </div>

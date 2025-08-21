@@ -211,13 +211,14 @@ function LeaveRequestsContent() {
     );
   }
 
-  // Only allow admins and principals to access this page for approvals
-  if (user?.role !== 'admin' && user?.role !== 'principal') {
+  // Allow admins, principals, and teachers to access this page
+  // Teachers can view leave requests for their assigned classes but cannot approve/reject
+  if (user?.role !== 'admin' && user?.role !== 'principal' && user?.role !== 'teacher') {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only admins and principals can approve leave requests.</p>
+          <p className="text-gray-600">You don&apos;t have permission to access leave requests.</p>
         </div>
       </div>
     );
@@ -294,32 +295,25 @@ function LeaveRequestsContent() {
           </div>
         )}
 
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Leave Requests</h1>
-              <p className="text-gray-600 dark:text-gray-300">
-                Approve or reject leave requests from parents
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {urgentCount > 0 && (
-                <div className="flex items-center gap-1 bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm">
-                  <AlertTriangle className="h-4 w-4" />
-                  {urgentCount} urgent
-                </div>
-              )}
-              {pendingCount > 0 && (
-                <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">
-                  {pendingCount} pending
-                </div>
-              )}
-            </div>
+        {/* Action Bar with Status Indicators */}
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            {urgentCount > 0 && (
+              <div className="flex items-center gap-1 bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm">
+                <AlertTriangle className="h-4 w-4" />
+                {urgentCount} urgent
+              </div>
+            )}
+            {pendingCount > 0 && (
+              <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">
+                {pendingCount} pending
+              </div>
+            )}
           </div>
         </div>
 
         {/* Summary Cards - Simple KPIs */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4 flex items-center">
               <div className={`rounded-full ${cardColors.total.replace('text-', 'text-').replace('dark:text-', 'dark:text-')} p-3 mr-4`}>
@@ -388,9 +382,12 @@ function LeaveRequestsContent() {
         <div className="grid gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Manage Leave Requests</CardTitle>
+              <CardTitle>Leave Requests</CardTitle>
               <CardDescription>
-                Approve or reject leave requests from parents
+                {user?.role === 'admin' || user?.role === 'principal'
+                  ? 'Approve or reject leave requests from parents'
+                  : 'View leave requests for your assigned classes'
+                }
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -548,25 +545,28 @@ function LeaveRequestsContent() {
                               <StatusBadge status={request.status} />
                             </TableCell>
                             <TableCell className="text-right">
-                              {request.status === 'pending' && (
+                              {request.status === 'pending' && (user?.role === 'admin' || user?.role === 'principal') && (
                                 <>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
                                     className="mr-2 hover:bg-green-50 dark:hover:bg-green-900/20"
                                     onClick={() => handleApproveRequest(request.id)}
                                   >
                                     <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
                                   </Button>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
                                     className="hover:bg-red-50 dark:hover:bg-red-900/20"
                                     onClick={() => handleRejectRequest(request.id)}
                                   >
                                     <X className="h-4 w-4 text-red-600 dark:text-red-400" />
                                   </Button>
                                 </>
+                              )}
+                              {user?.role === 'teacher' && (
+                                <span className="text-sm text-muted-foreground italic">View only</span>
                               )}
                             </TableCell>
                           </TableRow>

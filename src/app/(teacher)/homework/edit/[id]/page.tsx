@@ -13,14 +13,38 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { homeworkServices } from '@/lib/api/homework';
+import { academicServices } from '@/lib/api/academic';
 import { Homework } from '@/types/homework';
+import { toast } from '@/hooks/use-toast';
 
-// Mock data for class divisions (this would come from an API in a real implementation)
-const mockClassDivisions = [
-  { id: '1', name: 'Grade 5 - Section A' },
-  { id: '2', name: 'Grade 6 - Section B' },
-  { id: '3', name: 'Grade 7 - Section C' }
-];
+// Interface for the API response structure
+interface AssignedClass {
+  assignment_id: string;
+  class_division_id: string;
+  division: string;
+  class_name: string;
+  class_level: string;
+  sequence_number: number;
+  academic_year: string;
+  assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
+  is_primary: boolean;
+  assigned_date: string;
+  subject?: string;
+}
+
+// Interface for the transformed class data we're using
+interface TransformedClass {
+  id: string;
+  division: string;
+  class_level: {
+    name: string;
+  };
+  academic_year: {
+    year_name: string;
+  };
+}
+
+
 
 export default function EditHomeworkPage({ params }: { params: Promise<{ id: string }> }) {
   const { user, token } = useAuth();
@@ -29,6 +53,14 @@ export default function EditHomeworkPage({ params }: { params: Promise<{ id: str
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [homework, setHomework] = useState<Homework | null>(null);
+  const [classDivisions, setClassDivisions] = useState<TransformedClass[]>([]);
+  const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(true);
+
+  // Format class division name for display
+  const formatClassName = (division: TransformedClass) => {
+    return `${division.class_level?.name || 'Unknown'} - Section ${division.division}`;
+  };
   const [formData, setFormData] = useState({
     class_division_id: '',
     subject: '',
@@ -43,58 +75,96 @@ export default function EditHomeworkPage({ params }: { params: Promise<{ id: str
       const resolvedParams = await params;
       const { id: homeworkIdFromParams } = resolvedParams;
       
-      // Fetch homework data for editing
-      const fetchHomework = async () => {
+      // Fetch homework data and class divisions for editing
+      const fetchData = async () => {
         if (!user || !token || !homeworkIdFromParams) return;
-        
+
         try {
           setLoading(true);
+          setLoadingClasses(true);
           setError(null);
-          
-          // For now, we'll simulate fetching the homework data
-          // In a real implementation, you'd have a getHomeworkById API call
-          // For now, we'll create mock data based on the ID
-          const mockHomeworkData: Homework = {
-            id: homeworkIdFromParams,
-            class_division_id: '1',
-            teacher_id: user.id || '',
-            subject: 'Mathematics',
-            title: 'Chapter 3 Exercises',
-            description: 'Complete exercises 1-10 from Chapter 3',
-            due_date: '2025-08-20',
-            created_at: new Date().toISOString(),
-            teacher: {
-              id: user.id || '',
-              full_name: user.full_name || 'Unknown Teacher'
-            },
-            class_division: {
-              id: '1',
-              level: {
-                name: 'Grade 10',
-                sequence_number: 10
+
+          // Fetch class divisions and subjects first
+          const teacherResponse = await academicServices.getMyTeacherClasses(token);
+          if (teacherResponse.status === 'success' && teacherResponse.data) {
+            // Filter for only subject teacher assignments
+            const subjectTeacherClasses = teacherResponse.data.assigned_classes.filter(
+              (assignment: AssignedClass) => assignment.assignment_type === 'subject_teacher'
+            );
+
+            // Extract unique subjects
+            const subjects = [...new Set(
+              subjectTeacherClasses
+                .map((assignment: AssignedClass) => assignment.subject)
+                .filter((subject: string | undefined): subject is string => !!subject)
+            )];
+            setAvailableSubjects(subjects);
+
+            // Transform classes for the dropdown
+            const transformedClasses = subjectTeacherClasses.map((assignment: AssignedClass) => ({
+              id: assignment.class_division_id,
+              division: assignment.division,
+              class_level: {
+                name: assignment.class_level
               },
-              division: 'A'
-            },
-            attachments: []
-          };
-          
-          setHomework(mockHomeworkData);
-          setFormData({
-            class_division_id: mockHomeworkData.class_division_id,
-            subject: mockHomeworkData.subject,
-            title: mockHomeworkData.title,
-            description: mockHomeworkData.description,
-            due_date: mockHomeworkData.due_date
-          });
+              academic_year: {
+                year_name: assignment.academic_year
+              }
+            }));
+
+            // Remove duplicates
+            const uniqueClasses = transformedClasses.filter((classItem: TransformedClass, index: number, self: TransformedClass[]) =>
+              index === self.findIndex(c => c.id === classItem.id)
+            );
+
+            setClassDivisions(uniqueClasses);
+          }
+
+          // Fetch specific homework data
+          console.log('Fetching homework with ID:', homeworkIdFromParams);
+          const homeworkResponse = await homeworkServices.getHomeworkById(token, homeworkIdFromParams);
+          console.log('API Response:', homeworkResponse);
+
+          // Handle different possible response structures
+          if (homeworkResponse.status === 'success') {
+            const homeworkData = homeworkResponse.data?.homework || homeworkResponse.data;
+            if (homeworkData) {
+              console.log('Found homework data:', homeworkData);
+              setHomework(homeworkData);
+              const formattedDueDate = homeworkData.due_date ? new Date(homeworkData.due_date).toISOString().split('T')[0] : '';
+              console.log('Original due_date:', homeworkData.due_date);
+              console.log('Formatted due_date:', formattedDueDate);
+
+              setFormData({
+                class_division_id: homeworkData.class_division_id,
+                subject: homeworkData.subject,
+                title: homeworkData.title,
+                description: homeworkData.description,
+                due_date: formattedDueDate
+              });
+            } else {
+              setError('Homework data not found in response');
+              console.error('No homework data in response:', homeworkResponse.data);
+            }
+          } else {
+            setError('Failed to fetch homework');
+            console.error('API Error:', homeworkResponse);
+          }
         } catch (err) {
           setError('Failed to load homework data');
-          console.error('Error fetching homework:', err);
+          console.error('Error fetching data:', err);
+          toast({
+            title: "Error",
+            description: "Failed to load homework data",
+            variant: "error",
+          });
         } finally {
           setLoading(false);
+          setLoadingClasses(false);
         }
       };
 
-      fetchHomework();
+      fetchData();
     };
     
     extractId();
@@ -204,35 +274,37 @@ export default function EditHomeworkPage({ params }: { params: Promise<{ id: str
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="class_division_id">Class</Label>
-                <select 
-                  id="class_division_id"
-                  name="class_division_id"
-                  value={formData.class_division_id}
-                  onChange={handleChange}
-                  className="border rounded-md px-3 py-2 w-full"
-                  required
-                >
-                  <option value="">Select a class</option>
-                  {mockClassDivisions.map((division) => (
-                    <option key={division.id} value={division.id}>
-                      {division.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="subject">Subject</Label>
-                <Input
-                  id="subject"
-                  name="subject"
-                  value={formData.subject}
-                  onChange={handleChange}
-                  placeholder="Enter subject"
-                  required
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="class_division_id">Class</Label>
+                  <select
+                    id="class_division_id"
+                    name="class_division_id"
+                    value={formData.class_division_id}
+                    onChange={handleChange}
+                    className="border rounded-md px-3 py-2 w-full"
+                    required
+                  >
+                    <option value="">Select a class</option>
+                    {classDivisions.map((division) => (
+                      <option key={division.id} value={division.id}>
+                        {formatClassName(division)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="subject">Subject</Label>
+                  <Input
+                    id="subject"
+                    name="subject"
+                    value={formData.subject}
+                    onChange={handleChange}
+                    placeholder="Enter subject"
+                    required
+                  />
+                </div>
               </div>
               
               <div className="space-y-2">

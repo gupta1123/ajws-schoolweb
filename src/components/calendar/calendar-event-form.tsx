@@ -17,25 +17,8 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 
-// Mock data
-const mockClassDivisions = [
-  { id: '1', name: 'Grade 5 - Section A' },
-  { id: '2', name: 'Grade 6 - Section B' },
-  { id: '3', name: 'Grade 7 - Section C' }
-];
-
-const mockRooms = [
-  { id: '1', name: 'Science Lab', capacity: 30 },
-  { id: '2', name: 'Computer Lab', capacity: 25 },
-  { id: '3', name: 'Auditorium', capacity: 200 },
-  { id: '4', name: 'Library', capacity: 50 }
-];
-
-const mockTeachers = [
-  { id: '1', name: 'Rajesh Kumar' },
-  { id: '2', name: 'Sunita Reddy' },
-  { id: '3', name: 'Priya Sharma' }
-];
+// This component should receive real data as props instead of using mock data
+// The parent component should fetch and pass the required data
 
 interface CalendarEventFormData {
   title: string;
@@ -51,18 +34,43 @@ interface CalendarEventFormData {
   type: 'school_wide' | 'class_specific' | 'room_booking' | 'leave_request';
 }
 
+interface ClassDivision {
+  id: string;
+  level: {
+    name: string;
+  };
+  division: string;
+}
+
+interface Room {
+  id: string;
+  name: string;
+  capacity: number;
+}
+
+interface Teacher {
+  id: string;
+  full_name: string;
+}
+
 interface CalendarEventFormProps {
   initialData?: Partial<CalendarEventFormData>;
   onSubmit: (data: CalendarEventFormData) => void;
   onCancel: () => void;
   isLoading: boolean;
+  classDivisions?: ClassDivision[];
+  rooms?: Room[];
+  teachers?: Teacher[];
 }
 
-export function CalendarEventForm({ 
-  initialData, 
-  onSubmit, 
-  onCancel, 
-  isLoading 
+export function CalendarEventForm({
+  initialData,
+  onSubmit,
+  onCancel,
+  isLoading,
+  classDivisions = [],
+  rooms = [],
+  teachers = []
 }: CalendarEventFormProps) {
   const [eventType, setEventType] = useState<'school_wide' | 'class_specific' | 'room_booking' | 'leave_request'>(
     initialData?.type || 'school_wide'
@@ -266,9 +274,9 @@ export function CalendarEventForm({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Select a class</SelectItem>
-                  {mockClassDivisions.map(division => (
+                  {classDivisions.map(division => (
                     <SelectItem key={division.id} value={division.id}>
-                      {division.name}
+                      {division.level.name} - Section {division.division}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -288,7 +296,7 @@ export function CalendarEventForm({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Select a room</SelectItem>
-                  {mockRooms.map(room => (
+                  {rooms.map(room => (
                     <SelectItem key={room.id} value={room.id}>
                       {room.name} (Capacity: {room.capacity})
                     </SelectItem>
@@ -310,9 +318,9 @@ export function CalendarEventForm({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Select a teacher</SelectItem>
-                  {mockTeachers.map(teacher => (
+                  {teachers.map(teacher => (
                     <SelectItem key={teacher.id} value={teacher.id}>
-                      {teacher.name}
+                      {teacher.full_name}
                     </SelectItem>
                   ))}
                 </SelectContent>

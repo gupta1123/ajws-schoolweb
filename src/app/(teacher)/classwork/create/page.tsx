@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Calendar, X, BookOpen, Share2, Tag } from 'lucide-react';
+import { Calendar, X, BookOpen, Tag } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import { academicServices } from '@/lib/api/academic';
@@ -54,7 +54,7 @@ export default function CreateClassworkPage() {
     summary: '',
     topics: [] as string[],
     date: new Date().toISOString().split('T')[0], // Default to today
-    shareWithParents: false
+
   });
   const [topicInput, setTopicInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -209,7 +209,7 @@ export default function CreateClassworkPage() {
         summary: formData.summary,
         topics_covered: formData.topics,
         date: formData.date,
-        is_shared_with_parents: formData.shareWithParents
+        is_shared_with_parents: true, // Default to sharing with parents
       };
       
       const response = await classworkServices.createClasswork(payload, token!);
@@ -263,57 +263,78 @@ export default function CreateClassworkPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="classDivisionId">Class Division *</Label>
-                      <select
-                        id="classDivisionId"
-                        name="classDivisionId"
-                        value={formData.classDivisionId}
-                        onChange={handleInputChange}
-                        className={`border rounded-md px-3 py-2 w-full ${errors.classDivisionId ? 'border-red-500' : ''}`}
-                      >
-                        <option value="">Select a class</option>
-                        {loadingClasses ? (
-                          <option value="">Loading classes...</option>
-                        ) : assignedClasses.length === 0 ? (
-                          <option value="">No classes assigned</option>
-                        ) : (
-                          assignedClasses.map(division => (
-                            <option key={division.id} value={division.id}>
-                              {`${division.class_level?.name || 'Unknown'} - Section ${division.division}`}
-                            </option>
-                          ))
+                    {/* Class, Subject, Date in one line */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="classDivisionId">Class Division *</Label>
+                        <select
+                          id="classDivisionId"
+                          name="classDivisionId"
+                          value={formData.classDivisionId}
+                          onChange={handleInputChange}
+                          className={`border rounded-md px-3 py-2 w-full ${errors.classDivisionId ? 'border-red-500' : ''}`}
+                        >
+                          <option value="">Select a class</option>
+                          {loadingClasses ? (
+                            <option value="">Loading classes...</option>
+                          ) : assignedClasses.length === 0 ? (
+                            <option value="">No classes assigned</option>
+                          ) : (
+                            assignedClasses.map(division => (
+                              <option key={division.id} value={division.id}>
+                                {`${division.class_level?.name || 'Unknown'} - Section ${division.division}`}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                        {errors.classDivisionId && (
+                          <p className="text-sm text-red-500">{errors.classDivisionId}</p>
                         )}
-                      </select>
-                      {errors.classDivisionId && (
-                        <p className="text-sm text-red-500">{errors.classDivisionId}</p>
-                      )}
-                    </div>
+                      </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="subject">Subject *</Label>
-                      <select
-                        id="subject"
-                        name="subject"
-                        value={formData.subject}
-                        onChange={handleInputChange}
-                        className={`border rounded-md px-3 py-2 w-full ${errors.subject ? 'border-red-500' : ''}`}
-                        required
-                      >
-                        <option value="">Select a subject</option>
-                        {availableSubjects.length === 0 ? (
-                          <option value="">No subjects assigned</option>
-                        ) : (
-                          availableSubjects.map((subject, index) => (
-                            <option key={`${subject}-${index}`} value={subject}>
-                              {subject}
-                            </option>
-                          ))
+                      <div className="space-y-2">
+                        <Label htmlFor="subject">Subject *</Label>
+                        <select
+                          id="subject"
+                          name="subject"
+                          value={formData.subject}
+                          onChange={handleInputChange}
+                          className={`border rounded-md px-3 py-2 w-full ${errors.subject ? 'border-red-500' : ''}`}
+                          required
+                        >
+                          <option value="">Select a subject</option>
+                          {availableSubjects.length === 0 ? (
+                            <option value="">No subjects assigned</option>
+                          ) : (
+                            availableSubjects.map((subject, index) => (
+                              <option key={`${subject}-${index}`} value={subject}>
+                                {subject}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                        {errors.subject && (
+                          <p className="text-sm text-red-500">{errors.subject}</p>
                         )}
-                      </select>
-                      {errors.subject && (
-                        <p className="text-sm text-red-500">{errors.subject}</p>
-                      )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="date">Date *</Label>
+                        <div className="relative">
+                          <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="date"
+                            name="date"
+                            type="date"
+                            value={formData.date}
+                            onChange={handleInputChange}
+                            className={`pl-10 ${errors.date ? 'border-red-500' : ''}`}
+                          />
+                        </div>
+                        {errors.date && (
+                          <p className="text-sm text-red-500">{errors.date}</p>
+                        )}
+                      </div>
                     </div>
 
                     <div className="space-y-2">
@@ -369,57 +390,13 @@ export default function CreateClassworkPage() {
                       </p>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="date">Date *</Label>
-                      <div className="relative">
-                        <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="date"
-                          name="date"
-                          type="date"
-                          value={formData.date}
-                          onChange={handleInputChange}
-                          className={`pl-10 ${errors.date ? 'border-red-500' : ''}`}
-                        />
-                      </div>
-                      {errors.date && (
-                        <p className="text-sm text-red-500">{errors.date}</p>
-                      )}
-                    </div>
+
                   </CardContent>
                 </Card>
               </div>
               
               <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Sharing Options</CardTitle>
-                    <CardDescription>
-                      Control who can see this classwork
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-start space-x-2">
-                      <input
-                        id="shareWithParents"
-                        name="shareWithParents"
-                        type="checkbox"
-                        checked={formData.shareWithParents}
-                        onChange={handleInputChange}
-                        className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <div>
-                        <Label htmlFor="shareWithParents" className="font-medium">
-                          Share with parents
-                        </Label>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                          When enabled, parents will be notified about this classwork.
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
+
                 <Card>
                   <CardHeader>
                     <CardTitle>Quick Tips</CardTitle>
@@ -433,10 +410,7 @@ export default function CreateClassworkPage() {
                       <Tag className="h-4 w-4 mt-0.5 text-blue-500 flex-shrink-0" />
                       <p>Add relevant topics to help categorize and search classwork later.</p>
                     </div>
-                    <div className="flex items-start gap-2 text-sm">
-                      <Share2 className="h-4 w-4 mt-0.5 text-blue-500 flex-shrink-0" />
-                      <p>Sharing with parents helps keep them informed about class activities.</p>
-                    </div>
+
                   </CardContent>
                 </Card>
               </div>

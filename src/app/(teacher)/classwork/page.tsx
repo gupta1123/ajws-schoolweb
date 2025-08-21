@@ -7,14 +7,38 @@ import { ProtectedRoute } from '@/lib/auth/protected-route';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, Edit, Trash2, BookOpen, Calendar, Share2, Loader2 } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table';
+import { Search, Plus, Edit, Trash2, BookOpen, Calendar, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
 import { classworkServices } from '@/lib/api/classwork';
+import { academicServices } from '@/lib/api/academic';
 import { Classwork } from '@/types/classwork';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/utils';
+
+// Interface for the API response structure
+interface AssignedClass {
+  assignment_id: string;
+  class_division_id: string;
+  division: string;
+  class_name: string;
+  class_level: string;
+  sequence_number: number;
+  academic_year: string;
+  assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
+  is_primary: boolean;
+  assigned_date: string;
+  subject?: string;
+}
 
 // Subject icon mapping
 const subjectIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -30,84 +54,7 @@ const subjectIcons: Record<string, React.ComponentType<{ className?: string }>> 
   default: BookOpen
 };
 
-// Classwork card component
-const ClassworkCard = ({ 
-  entry,
-  onDelete
-}: { 
-  entry: Classwork; 
-  onDelete: (id: string) => void;
-}) => {
-  const SubjectIcon = subjectIcons[entry.subject] || subjectIcons.default;
-  const classDisplayName = entry.class_division ? 
-    `${entry.class_division.level.name} - Section ${entry.class_division.division}` : 
-    'Unknown Class';
-  
-  return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardHeader className="pb-3">
-        <div className="flex justify-between items-start">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-              <SubjectIcon className="h-5 w-5 text-blue-600 dark:text-blue-300" />
-            </div>
-            <div>
-              <CardTitle className="text-lg">{entry.subject}</CardTitle>
-              <p className="text-sm text-gray-600 dark:text-gray-300">{classDisplayName}</p>
-            </div>
-          </div>
-          <div className="flex gap-1">
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/classwork/edit/${entry.id}`}>
-                <Edit className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => onDelete(entry.id)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          <div>
-            <p className="text-sm text-gray-600 dark:text-gray-300">{entry.summary}</p>
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {entry.topics_covered.map((topic, index) => (
-              <span
-                key={index}
-                className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-              >
-                {topic}
-              </span>
-            ))}
-          </div>
-          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-            <div className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
-              {formatDate(entry.date)}
-            </div>
-            <div className="flex items-center gap-1">
-              {entry.is_shared_with_parents ? (
-                <>
-                  <Share2 className="h-4 w-4" />
-                  <span>Shared with parents</span>
-                </>
-              ) : (
-                <span>Not shared</span>
-              )}
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
+
 
 export default function ClassworkPage() {
   const { user, token, isAuthenticated, loading: authLoading } = useAuth();
@@ -115,6 +62,11 @@ export default function ClassworkPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [subjectFilter, setSubjectFilter] = useState('all');
   const [classFilter, setClassFilter] = useState('all');
+  const [teacherAssignments, setTeacherAssignments] = useState<{
+    assigned_classes: AssignedClass[];
+  } | null>(null);
+  const [teacherSubjects, setTeacherSubjects] = useState<string[]>([]);
+  const [teacherClasses, setTeacherClasses] = useState<string[]>([]);
   const [classwork, setClasswork] = useState<Classwork[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -127,12 +79,43 @@ export default function ClassworkPage() {
     
     setLoading(true);
     try {
+      // First fetch teacher assignments
+      const teacherResponse = await academicServices.getMyTeacherClasses(token);
+      if (teacherResponse.status === 'success' && teacherResponse.data) {
+        setTeacherAssignments(teacherResponse.data);
+
+        // Filter for only subject teacher assignments
+        const subjectTeacherClasses = teacherResponse.data.assigned_classes.filter(
+          (assignment: AssignedClass) => assignment.assignment_type === 'subject_teacher'
+        );
+
+        // Extract unique subjects
+        const subjects = [...new Set(
+          subjectTeacherClasses
+            .map((assignment: AssignedClass) => assignment.subject)
+            .filter((subject: string | undefined): subject is string => !!subject)
+        )];
+        setTeacherSubjects(subjects);
+
+        // Extract unique classes
+        const classes = [...new Set(
+          subjectTeacherClasses
+            .map((assignment: AssignedClass) => `${assignment.class_level} - Section ${assignment.division}`)
+        )];
+        setTeacherClasses(classes);
+      }
+
+      // Then fetch classwork data
       const response = await classworkServices.getClasswork(token, currentPage, itemsPerPage, {
         subject: subjectFilter === 'all' ? undefined : subjectFilter,
         class_division_id: classFilter === 'all' ? undefined : classFilter,
       });
       if (response.status === 'success' && response.data) {
-        setClasswork(response.data.classwork);
+        // Sort by date in descending order (newest first)
+        const sortedClasswork = response.data.classwork.sort((a, b) =>
+          new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+        setClasswork(sortedClasswork);
         setTotalItems(response.data.total_count);
       }
     } catch (err: unknown) {
@@ -217,141 +200,187 @@ export default function ClassworkPage() {
 
   return (
     <ProtectedRoute>
-      <div className="container max-w-6xl mx-auto py-8">
-        <div className="mb-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Classwork</h1>
-              <p className="text-gray-600 dark:text-gray-300">
-                Record and manage classwork entries for your classes
-              </p>
-            </div>
-            <Button asChild className="w-full sm:w-auto">
-              <Link href="/classwork/create">
-                <Plus className="mr-2 h-4 w-4" />
-                Record Classwork
-              </Link>
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Classwork Entries</CardTitle>
-              <CardDescription>
-                List of classwork entries you&apos;ve recorded
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                <div className="relative w-full md:w-64">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search classwork..." 
-                    className="pl-8" 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-wrap gap-2 w-full md:w-auto">
-                  <select 
-                    value={subjectFilter}
-                    onChange={(e) => setSubjectFilter(e.target.value)}
-                    className="border rounded-md px-3 py-2 text-sm w-full md:w-auto"
-                  >
-                    <option value="all">All Subjects</option>
-                    {/* Assuming subjects are fetched from the API or a global list */}
-                    {/* For now, we'll use a placeholder or fetch them */}
-                    <option value="Mathematics">Mathematics</option>
-                    <option value="Science">Science</option>
-                    <option value="English">English</option>
-                    <option value="History">History</option>
-                    <option value="Geography">Geography</option>
-                    <option value="Art">Art</option>
-                    <option value="Music">Music</option>
-                    <option value="PE">PE</option>
-                    <option value="Foreign Language">Foreign Language</option>
-                  </select>
-                  <select 
-                    value={classFilter}
-                    onChange={(e) => setClassFilter(e.target.value)}
-                    className="border rounded-md px-3 py-2 text-sm w-full md:w-auto"
-                  >
-                    <option value="all">All Classes</option>
-                    {/* Assuming classes are fetched from the API or a global list */}
-                    {/* For now, we'll use a placeholder or fetch them */}
-                    <option value="Grade 5 - Section A">Grade 5 - Section A</option>
-                    <option value="Grade 6 - Section B">Grade 6 - Section B</option>
-                    <option value="Grade 7 - Section C">Grade 7 - Section C</option>
-                  </select>
-                </div>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Classwork Entries</CardTitle>
+            <CardDescription>
+              List of classwork entries you&apos;ve recorded
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+              <div className="flex justify-end mb-4 md:mb-0 md:order-2">
+                <Button asChild className="w-full sm:w-auto">
+                  <Link href="/classwork/create">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Record Classwork
+                  </Link>
+                </Button>
               </div>
-              
-              {loading ? (
-                <div className="flex justify-center items-center py-12">
-                  <Loader2 className="h-12 w-12 text-blue-500 animate-spin" />
-                  <p className="ml-4 text-gray-500 dark:text-gray-400">Loading classwork...</p>
-                </div>
-              ) : error ? (
-                <div className="text-center py-12 text-red-500">
-                  <p>{error}</p>
-                </div>
-              ) : classwork.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {classwork.map((entry) => (
-                    <ClassworkCard 
-                      key={entry.id} 
-                      entry={entry} 
-                      onDelete={handleDelete} 
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">No classwork entries found</h3>
-                  <p className="text-gray-500 dark:text-gray-400 mb-4">
-                    {searchTerm || subjectFilter !== 'all' || classFilter !== 'all' 
-                      ? 'Try adjusting your filters or search term' 
-                      : 'Get started by recording your first classwork entry'}
-                  </p>
-                  {!(searchTerm || subjectFilter !== 'all' || classFilter !== 'all') && (
-                    <Button asChild>
-                      <Link href="/classwork/create">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Record Classwork
-                      </Link>
-                    </Button>
+              <div className="relative w-full md:w-64 md:order-1">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search classwork..." 
+                  className="pl-8" 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                <select 
+                  value={subjectFilter}
+                  onChange={(e) => setSubjectFilter(e.target.value)}
+                  className="border rounded-md px-3 py-2 text-sm w-full md:w-auto"
+                >
+                  <option value="all">All Subjects</option>
+                  {teacherSubjects.length > 0 ? (
+                    teacherSubjects.map(subject => (
+                      <option key={subject} value={subject}>{subject}</option>
+                    ))
+                  ) : (
+                    <option value="" disabled>No subjects assigned</option>
                   )}
-                </div>
-              )}
-              {totalPages > 1 && (
-                <div className="flex justify-center items-center mt-8">
-                  <Button
-                    variant="outline"
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className="mr-2"
-                  >
-                    Previous
+                </select>
+                <select 
+                  value={classFilter}
+                  onChange={(e) => setClassFilter(e.target.value)}
+                  className="border rounded-md px-3 py-2 text-sm w-full md:w-auto"
+                >
+                  <option value="all">All Classes</option>
+                  {teacherClasses.length > 0 ? (
+                    teacherClasses.map(cls => (
+                      <option key={cls} value={cls}>{cls}</option>
+                    ))
+                  ) : (
+                    <option value="" disabled>No classes assigned</option>
+                  )}
+                </select>
+              </div>
+            </div>
+              
+            {loading ? (
+              <div className="flex justify-center items-center py-12">
+                <Loader2 className="h-12 w-12 text-blue-500 animate-spin" />
+                <p className="ml-4 text-gray-500 dark:text-gray-400">Loading classwork...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-12 text-red-500">
+                <p>{error}</p>
+              </div>
+            ) : classwork.length > 0 ? (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Subject</TableHead>
+                      <TableHead>Summary</TableHead>
+                      <TableHead>Class</TableHead>
+                      <TableHead>Date</TableHead>
+
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {classwork.map((entry) => {
+                      const SubjectIcon = subjectIcons[entry.subject] || subjectIcons.default;
+                      const classDisplayName = entry.class_division ? `${entry.class_division.level.name} - Section ${entry.class_division.division}` : 'Unknown Class';
+
+                      return (
+                        <TableRow key={entry.id} className="hover:bg-muted/50">
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1 rounded bg-blue-100 dark:bg-blue-900/30">
+                                <SubjectIcon className="h-3 w-3 text-blue-600 dark:text-blue-300" />
+                              </div>
+                              {entry.subject}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{entry.summary}</div>
+                              {entry.topics_covered.length > 0 && (
+                                <div className="text-sm text-muted-foreground">
+                                  Topics: {entry.topics_covered.slice(0, 3).join(', ')}
+                                  {entry.topics_covered.length > 3 && '...'}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>{classDisplayName}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4 text-muted-foreground" />
+                              {formatDate(entry.date)}
+                            </div>
+                          </TableCell>
+
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button variant="outline" size="sm" asChild>
+                                <Link href={`/classwork/edit/${entry.id}`}>
+                                  <Edit className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDelete(entry.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">No classwork entries found</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-4">
+                  {searchTerm || subjectFilter !== 'all' || classFilter !== 'all' 
+                    ? 'Try adjusting your filters or search term' 
+                    : 'Get started by recording your first classwork entry'}
+                </p>
+                {!(searchTerm || subjectFilter !== 'all' || classFilter !== 'all') && (
+                  <Button asChild>
+                    <Link href="/classwork/create">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Record Classwork
+                    </Link>
                   </Button>
-                  <span className="mx-2 text-gray-600 dark:text-gray-300">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                    className="ml-2"
-                  >
-                    Next
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                )}
+              </div>
+            )}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center mt-8">
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="mr-2"
+                >
+                  Previous
+                </Button>
+                <span className="mx-2 text-gray-600 dark:text-gray-300">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="ml-2"
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </ProtectedRoute>
   );

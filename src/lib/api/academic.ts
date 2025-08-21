@@ -301,9 +301,65 @@ export const academicServices = {
     return response as { status: string; data: { students: Array<{ id: string; full_name: string; admission_number: string }>; count: number } };
   },
 
-  getClassDivisionsSummary: async (token: string): Promise<{ status: string; data: { divisions: Array<{ id: string; division: string; level: { name: string; sequence_number: number } }>; total_divisions: number; total_students: number } }> => {
+  getClassDivisionsSummary: async (token: string): Promise<{ 
+    status: string; 
+    data: { 
+      divisions: Array<{ 
+        id: string; 
+        division: string; 
+        level: { name: string; sequence_number: number };
+        academic_year: { id: string; is_active: boolean; year_name: string };
+        class_teacher: { id: string; name: string; is_class_teacher: boolean };
+        subject_teachers: Array<{
+          id: string;
+          name: string;
+          subject: string | null;
+          is_class_teacher: boolean;
+        }>;
+        subjects: Array<{ id: string; name: string; code: string }>;
+        student_count: number;
+      }>; 
+      total_divisions: number; 
+      total_students: number;
+      academic_year: { id: string | null; name: string };
+      summary: {
+        total_subject_teachers: number;
+        total_subjects: number;
+        divisions_with_class_teachers: number;
+        divisions_with_subject_teachers: number;
+      };
+    } 
+  }> => {
     const response = await apiClient.get('/api/students/divisions/summary', token);
-    return response as { status: string; data: { divisions: Array<{ id: string; division: string; level: { name: string; sequence_number: number } }>; total_divisions: number; total_students: number } };
+    return response as { 
+      status: string; 
+      data: { 
+        divisions: Array<{ 
+          id: string; 
+          division: string; 
+          level: { name: string; sequence_number: number };
+          academic_year: { id: string; is_active: boolean; year_name: string };
+          class_teacher: { id: string; name: string; is_class_teacher: boolean };
+          subject_teachers: Array<{
+            id: string;
+            name: string;
+            subject: string | null;
+            is_class_teacher: boolean;
+          }>;
+          subjects: Array<{ id: string; name: string; code: string }>;
+          student_count: number;
+        }>; 
+        total_divisions: number; 
+        total_students: number;
+        academic_year: { id: string | null; name: string };
+        summary: {
+          total_subject_teachers: number;
+          total_subjects: number;
+          divisions_with_class_teachers: number;
+          divisions_with_subject_teachers: number;
+        };
+      } 
+    };
   },
 
   // Bulk Operations

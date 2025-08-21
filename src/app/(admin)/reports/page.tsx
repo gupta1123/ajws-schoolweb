@@ -32,25 +32,18 @@ export default function ReportsDashboardPage() {
 
   return (
     <ProtectedRoute>
-      <div className="container max-w-6xl mx-auto py-8">
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Reports Dashboard</h1>
-              <p className="text-gray-600 dark:text-gray-300">
-                Comprehensive analytics and reporting
-              </p>
-            </div>
-            <Button onClick={handleExportAll} className="flex items-center gap-2">
-              <Download className="h-4 w-4" />
-              Export All Reports
-            </Button>
-          </div>
+      <div className="space-y-6">
+        {/* Action Bar */}
+        <div className="flex justify-end">
+          <Button onClick={handleExportAll} className="flex items-center gap-2">
+            <Download className="h-4 w-4" />
+            Export All Reports
+          </Button>
         </div>
 
         <DashboardWidgets />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-center gap-2">

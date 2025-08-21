@@ -22,12 +22,12 @@ export interface DeleteHomeworkResponse {
 
 export const homeworkServices = {
   // Get homework list
-  getHomework: async (token: string, filters?: { 
-    class_division_id?: string; 
-    subject?: string; 
+  getHomework: async (token: string, filters?: {
+    class_division_id?: string;
+    subject?: string;
     status?: string;
-    date_from?: string; 
-    date_to?: string 
+    date_from?: string;
+    date_to?: string
   }): Promise<ApiResponse<HomeworkResponse>> => {
     const params = new URLSearchParams();
     if (filters) {
@@ -35,9 +35,14 @@ export const homeworkServices = {
         if (value) params.append(key, value);
       });
     }
-    
+
     const queryString = params.toString() ? `?${params.toString()}` : '';
     return apiClient.get(`/api/homework${queryString}`, token);
+  },
+
+  // Get homework by ID
+  getHomeworkById: async (token: string, id: string): Promise<ApiResponse<{ homework: Homework }>> => {
+    return apiClient.get(`/api/homework/${id}`, token);
   },
 
   // Create homework
