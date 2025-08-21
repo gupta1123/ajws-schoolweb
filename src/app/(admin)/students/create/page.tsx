@@ -116,17 +116,12 @@ export default function CreateStudentPage() {
       <div className="min-h-screen p-4 md:p-8">
         <main className="max-w-2xl mx-auto pt-16">
           <div className="mb-6">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               onClick={() => router.back()}
-              className="mb-4"
             >
               ← Back to Students
             </Button>
-            <h1 className="text-3xl font-bold mb-2">Add New Student</h1>
-            <p className="text-gray-600 dark:text-gray-300">
-              Add a new student to the school system
-            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">

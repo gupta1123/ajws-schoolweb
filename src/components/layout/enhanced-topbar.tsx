@@ -77,6 +77,10 @@ const pageHeaders: Record<string, PageHeader> = {
   '/parents/create': {
     title: 'Add New Parent',
     subtitle: 'Create a new parent account. Student linking is optional and can be done later.'
+  },
+  '/students/create': {
+    title: 'Add New Student',
+    subtitle: 'Add a new student to the school system.'
   }
 };
 
