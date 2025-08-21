@@ -60,6 +60,7 @@ interface SubjectTeacherAssignmentProps {
   teachers: Teacher[];
   availableSubjects: Subject[];
   currentSubjectTeachers?: SubjectTeacher[];
+  prefillData?: { teacherId: string; subject: string }; // For editing existing assignments
   onSave: (divisionId: string, teacherId: string, subject: string, isPrimary: boolean) => void;
   onCancel: () => void;
   onRemove?: (divisionId: string, teacherId: string, subject?: string | null) => void;
@@ -70,12 +71,13 @@ export function SubjectTeacherAssignment({
   teachers,
   availableSubjects,
   currentSubjectTeachers = [],
+  prefillData,
   onSave,
   onCancel,
   onRemove
 }: SubjectTeacherAssignmentProps) {
-  const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
-  const [selectedSubject, setSelectedSubject] = useState<string>('');
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>(prefillData?.teacherId || '');
+  const [selectedSubject, setSelectedSubject] = useState<string>(prefillData?.subject || '');
   const [isPrimary, setIsPrimary] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

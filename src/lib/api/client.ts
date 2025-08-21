@@ -71,13 +71,28 @@ export const apiClient = {
         }
       }
 
+      // Log error details for debugging
+      console.error('API Error:', {
+        endpoint,
+        status: response.status,
+        statusText: response.statusText,
+        message: errorMessage,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent
+      });
+
       // Return error response instead of throwing
       return {
         status: 'error',
         message: errorMessage,
         statusCode: response.status,
         error: response.statusText,
-        details: { endpoint, status: response.status }
+        details: {
+          endpoint,
+          status: response.status,
+          timestamp: new Date().toISOString(),
+          url: `${API_BASE_URL}${endpoint}`
+        }
       };
     }
 

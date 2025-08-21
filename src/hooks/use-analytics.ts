@@ -81,9 +81,17 @@ export function useAnalytics() {
           setData(newData);
         } else if (response.status === 'error') {
           setError(response.message || 'Failed to load analytics data');
+        } else {
+          // Handle unexpected response format
+          setError('Unexpected response format from analytics service');
         }
       } catch (err) {
-        console.error('Failed to fetch analytics:', err);
+        console.error('Failed to fetch analytics:', {
+          error: err,
+          timestamp: new Date().toISOString(),
+          token: token ? `${token.substring(0, 10)}...` : 'no-token',
+          cacheKey: cacheKey.current
+        });
 
         // Provide more specific error messages
         if (err instanceof Error) {

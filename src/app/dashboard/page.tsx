@@ -5,9 +5,9 @@
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
 import { WelcomeBanner } from '@/components/dashboard/welcome-banner';
-import { useAnalytics } from '@/hooks/use-analytics';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ErrorBoundary, ApiErrorFallback } from '@/components/ui/error-boundary';
 import Link from 'next/link';
 import { Suspense, useMemo } from 'react';
 import dynamic from 'next/dynamic';
@@ -24,10 +24,6 @@ const ClassOverviewCard = dynamic(() => import('@/components/dashboard/class-ove
   loading: () => <div className="h-32 bg-muted animate-pulse rounded-lg" />
 });
 
-const ApprovalPipeline = dynamic(() => import('@/components/dashboard/approval-pipeline').then(mod => mod.ApprovalPipeline), {
-  loading: () => <div className="h-48 bg-muted animate-pulse rounded-lg" />
-});
-
 const UpcomingEvents = dynamic(() => import('@/components/dashboard/upcoming-events').then(mod => mod.UpcomingEvents), {
   loading: () => <div className="h-32 bg-muted animate-pulse rounded-lg" />
 });
@@ -36,47 +32,34 @@ const UpcomingBirthdays = dynamic(() => import('@/components/dashboard/upcoming-
   loading: () => <div className="h-32 bg-muted animate-pulse rounded-lg" />
 });
 
-const RecentActivity = dynamic(() => import('@/components/dashboard/recent-activity').then(mod => mod.RecentActivity), {
-  loading: () => <div className="h-40 bg-muted animate-pulse rounded-lg" />
-});
-
 
 
 const DashboardPage = () => {
   const { user } = useAuth();
-  const { data: analyticsData, loading: analyticsLoading, error: analyticsError } = useAnalytics();
 
   // Memoize admin cards to prevent re-creation on every render
   const adminQuickAccessCards = useMemo(() => [
     {
       title: 'Students',
-      description: 'Manage student records',
-      icon: <GraduationCap className="h-6 w-6" />,
-      href: '/students',
-      stats: analyticsLoading ? null : analyticsError ? 'Error' : analyticsData.totalStudents
+      icon: <GraduationCap className="h-5 w-5" />,
+      href: '/students'
     },
     {
       title: 'Parents',
-      description: 'Parent management',
-      icon: <UserCheck className="h-6 w-6" />,
-      href: '/parents',
-      stats: 'Manage'
+      icon: <UserCheck className="h-5 w-5" />,
+      href: '/parents'
     },
     {
       title: 'Staff',
-      description: 'Teacher & staff management',
-      icon: <User className="h-6 w-6" />,
-      href: '/staff',
-      stats: analyticsLoading ? null : analyticsError ? 'Error' : analyticsData.totalStaff
+      icon: <User className="h-5 w-5" />,
+      href: '/staff'
     },
     {
-      title: 'Academic Structure',
-      description: 'Classes & subjects',
-      icon: <Building2 className="h-6 w-6" />,
-      href: '/academic',
-      stats: analyticsLoading ? null : analyticsError ? 'Error' : analyticsData.activeClasses
+      title: 'Academic',
+      icon: <Building2 className="h-5 w-5" />,
+      href: '/academic'
     }
-  ], [analyticsData, analyticsLoading, analyticsError]);
+  ], []);
 
   return (
     <ProtectedRoute>
@@ -90,12 +73,16 @@ const DashboardPage = () => {
                 <ClassOverviewCard />
               </Suspense>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
-                  <UpcomingEvents />
-                </Suspense>
-                <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
-                  <UpcomingBirthdays />
-                </Suspense>
+                <ErrorBoundary fallback={ApiErrorFallback}>
+                  <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
+                    <UpcomingEvents />
+                  </Suspense>
+                </ErrorBoundary>
+                <ErrorBoundary fallback={ApiErrorFallback}>
+                  <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
+                    <UpcomingBirthdays />
+                  </Suspense>
+                </ErrorBoundary>
               </div>
             </div>
             <div>
@@ -124,84 +111,20 @@ const DashboardPage = () => {
         ) : user?.role === 'admin' || user?.role === 'principal' ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              {/* KPIs Section */}
-              <div>
-                <h2 className="text-xl font-semibold mb-4">Key Metrics</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm text-muted-foreground">Total Classes</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">
-                        {analyticsLoading ? (
-                          <Skeleton className="h-8 w-16" />
-                        ) : analyticsError ? (
-                          <span className="text-red-500 text-sm">Error</span>
-                        ) : (
-                          analyticsData.activeClasses || 0
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">Active divisions</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm text-muted-foreground">Total Students</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">
-                        {analyticsLoading ? (
-                          <Skeleton className="h-8 w-16" />
-                        ) : analyticsError ? (
-                          <span className="text-red-500 text-sm">Error</span>
-                        ) : (
-                          analyticsData.totalStudents || 0
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">Enrolled students</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm text-muted-foreground">Total Staff</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">
-                        {analyticsLoading ? (
-                          <Skeleton className="h-8 w-12" />
-                        ) : analyticsError ? (
-                          <span className="text-red-500 text-sm">Error</span>
-                        ) : (
-                          analyticsData.totalStaff || 0
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">Teaching staff</p>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-
               {/* Quick Actions */}
               <div>
                 <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {adminQuickAccessCards.map((card, index) => (
                     <Link key={index} href={card.href}>
-                      <Card className="hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer border-l-4 border-l-transparent hover:border-l-primary">
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-muted">
+                      <Card className="hover:shadow-md transition-all duration-200 hover:scale-105 cursor-pointer h-20 flex items-center justify-center">
+                        <CardContent className="p-4">
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="p-2 rounded-lg bg-primary/10">
                               {card.icon}
                             </div>
-                            <div className="flex-1">
-                              <CardTitle className="text-lg mb-1">{card.title}</CardTitle>
-                              <CardDescription className="text-sm">{card.description}</CardDescription>
-                            </div>
+                            <div className="text-sm font-medium text-center">{card.title}</div>
                           </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold">{card.stats}</div>
                         </CardContent>
                       </Card>
                     </Link>
@@ -209,89 +132,24 @@ const DashboardPage = () => {
                 </div>
               </div>
 
-              {/* Approval Pipeline */}
-              <Suspense fallback={<div className="h-48 bg-muted animate-pulse rounded-lg" />}>
-                <ApprovalPipeline />
-              </Suspense>
 
-              {/* Recent Activity */}
-              <Suspense fallback={<div className="h-40 bg-muted animate-pulse rounded-lg" />}>
-                <RecentActivity />
-              </Suspense>
             </div>
 
             {/* Right Pane - Events and Birthdays */}
             <div className="space-y-6">
               {/* Upcoming Events */}
-              <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
-                <UpcomingEvents />
-              </Suspense>
+              <ErrorBoundary fallback={ApiErrorFallback}>
+                <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
+                  <UpcomingEvents />
+                </Suspense>
+              </ErrorBoundary>
 
               {/* Upcoming Birthdays */}
-              <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
-                <UpcomingBirthdays />
-              </Suspense>
-              
-              {/* Quick Stats */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    Quick Stats
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                      <div>
-                        <div className="font-medium">Active Users</div>
-                        <div className="text-sm text-muted-foreground">Today</div>
-                      </div>
-                      <div className="text-2xl font-bold">
-                        {analyticsLoading ? (
-                          <Skeleton className="h-8 w-16" />
-                        ) : analyticsError ? (
-                          <span className="text-red-500 text-sm">Error</span>
-                        ) : (
-                          analyticsData.activeUsers || 0
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                      <div>
-                        <div className="font-medium">Messages Sent</div>
-                        <div className="text-sm text-muted-foreground">This week</div>
-                      </div>
-                                              <div className="text-2xl font-bold">
-                        {analyticsLoading ? (
-                          <Skeleton className="h-8 w-12" />
-                        ) : analyticsError ? (
-                          <span className="text-red-500 text-sm">Error</span>
-                        ) : (
-                          analyticsData.newMessages || 0
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                      <div>
-                        <div className="font-medium">Pending Requests</div>
-                        <div className="text-sm text-muted-foreground">Awaiting approval</div>
-                      </div>
-                                              <div className="text-2xl font-bold text-orange-500">
-                        {analyticsLoading ? (
-                          <Skeleton className="h-8 w-12" />
-                        ) : analyticsError ? (
-                          <span className="text-red-500 text-sm">Error</span>
-                        ) : (
-                          analyticsData.pendingApprovals || 0
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <ErrorBoundary fallback={ApiErrorFallback}>
+                <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
+                  <UpcomingBirthdays />
+                </Suspense>
+              </ErrorBoundary>
             </div>
           </div>
         ) : null}

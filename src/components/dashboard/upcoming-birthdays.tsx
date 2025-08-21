@@ -29,16 +29,16 @@ export function UpcomingBirthdays() {
     const fetchUpcomingBirthdays = async () => {
       if (!token) return;
 
+      // Get current date and next 30 days for date range
+      const today = new Date();
+      const endDate = new Date();
+      endDate.setDate(today.getDate() + 30);
+
+      const startDateStr = today.toISOString().split('T')[0];
+      const endDateStr = endDate.toISOString().split('T')[0];
+
       try {
         setLoading(true);
-        
-        // Get current date and next 30 days for date range
-        const today = new Date();
-        const endDate = new Date();
-        endDate.setDate(today.getDate() + 30);
-        
-        const startDateStr = today.toISOString().split('T')[0];
-        const endDateStr = endDate.toISOString().split('T')[0];
 
         let response;
         
@@ -69,65 +69,88 @@ export function UpcomingBirthdays() {
           });
         }
 
-        if (response.status === 'success' && response.data.upcoming_birthdays) {
-          // Process birthdays to calculate days until birthday and age
-          const processedBirthdays = response.data.upcoming_birthdays.flatMap((monthData: {
-            date: string;
-            students: Array<{
-              id: string;
-              full_name: string;
-              date_of_birth: string;
-              academic_records: Array<{
-                class_division: {
-                  division: string;
-                  level: {
-                    name: string;
-                    sequence_number: number;
+        if (response.status === 'success' && response.data?.upcoming_birthdays) {
+                    try {
+            // Process birthdays to calculate days until birthday and age
+            const processedBirthdays = response.data.upcoming_birthdays.flatMap((monthData: {
+              date: string;
+              students: Array<{
+                id: string;
+                full_name: string;
+                date_of_birth: string;
+                academic_records?: Array<{
+                  class_division: {
+                    division: string;
+                    level: {
+                      name: string;
+                      sequence_number: number;
+                    };
                   };
-                };
-                roll_number: string;
+                  roll_number: string;
+                }>;
               }>;
-            }>;
-          }) => 
-            monthData.students.map((birthday) => {
-              const birthDate = new Date(birthday.date_of_birth);
-              const today = new Date();
-              
-              // Calculate next birthday
-              const nextBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
-              if (nextBirthday < today) {
-                nextBirthday.setFullYear(today.getFullYear() + 1);
-              }
-              
-              const daysUntilBirthday = Math.ceil((nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-              const age = today.getFullYear() - birthDate.getFullYear();
-              
-              // Extract class info from academic records
-              const classInfo = birthday.academic_records[0];
-              const className = classInfo?.class_division?.level?.name;
-              const division = classInfo?.class_division?.division;
-              
-              return {
-                id: birthday.id,
-                student_name: birthday.full_name,
-                date_of_birth: birthday.date_of_birth,
-                class_name: className,
-                division: division,
-                age: age,
-                days_until_birthday: daysUntilBirthday
-              };
-            })
-          );
+            }) => {
+              if (!monthData?.students) return [];
 
-          // Sort by days until birthday (closest first)
-          const sortedBirthdays = processedBirthdays
-            .sort((a, b) => (a.days_until_birthday || 0) - (b.days_until_birthday || 0))
-            .slice(0, 5); // Show only next 5 birthdays
-          
-          setBirthdays(sortedBirthdays);
+              return monthData.students.map((birthday) => {
+                try {
+                  const birthDate = new Date(birthday.date_of_birth);
+                  const today = new Date();
+
+                  // Calculate next birthday
+                  const nextBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+                  if (nextBirthday < today) {
+                    nextBirthday.setFullYear(today.getFullYear() + 1);
+                  }
+
+                  const daysUntilBirthday = Math.ceil((nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                  const age = today.getFullYear() - birthDate.getFullYear();
+
+                  // Extract class info from academic records
+                  const classInfo = birthday.academic_records?.[0];
+                  const className = classInfo?.class_division?.level?.name;
+                  const division = classInfo?.class_division?.division;
+
+                  return {
+                    id: birthday.id,
+                    student_name: birthday.full_name,
+                    date_of_birth: birthday.date_of_birth,
+                    class_name: className,
+                    division: division,
+                    age: age,
+                    days_until_birthday: daysUntilBirthday
+                  };
+                } catch (birthdayError) {
+                  console.warn('Error processing birthday data for student:', birthday.full_name, birthdayError);
+                  return null;
+                }
+              }).filter(Boolean); // Filter out null entries
+            });
+
+            // Sort by days until birthday (closest first)
+            const sortedBirthdays = processedBirthdays
+              .filter((birthday) => birthday !== null)
+              .sort((a, b) => (a!.days_until_birthday || 0) - (b!.days_until_birthday || 0))
+              .slice(0, 5); // Show only next 5 birthdays
+
+            setBirthdays(sortedBirthdays as BirthdayData[]);
+          } catch (processingError) {
+            console.error('Error processing birthday data:', processingError);
+            setBirthdays([]); // Set empty array on error
+            return;
+          }
         }
       } catch (error) {
-        console.error('Error fetching upcoming birthdays:', error);
+        console.error('Error fetching upcoming birthdays:', {
+          error,
+          timestamp: new Date().toISOString(),
+          userRole: user?.role,
+          token: token ? `${token.substring(0, 10)}...` : 'no-token',
+          dateRange: {
+            startDate: startDateStr,
+            endDate: endDateStr
+          }
+        });
       } finally {
         setLoading(false);
       }
