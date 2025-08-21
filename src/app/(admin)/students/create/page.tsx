@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Calendar, X, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { ParentLinker } from '@/components/students/ParentLinker';
+
 import { studentServices, CreateStudentRequest } from '@/lib/api/students';
 import { academicServices } from '@/lib/api/academic';
 
@@ -26,7 +26,7 @@ export default function CreateStudentPage() {
     classDivisionId: '',
     rollNumber: ''
   });
-  const [linkedParent, setLinkedParent] = useState<{ id: string; isNew: boolean; full_name?: string; phone_number?: string; email?: string } | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [classDivisions, setClassDivisions] = useState<Array<{
     id: string;
@@ -77,13 +77,7 @@ export default function CreateStudentPage() {
     }));
   };
 
-  const handleParentLink = (parentId: string) => {
-    setLinkedParent({ id: parentId, isNew: false });
-  };
 
-  const handleParentCreate = (parentData: { id: string; full_name: string; phone_number: string; email: string }) => {
-    setLinkedParent({ ...parentData, isNew: true });
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,27 +98,8 @@ export default function CreateStudentPage() {
       };
 
       const response = await studentServices.createStudent(studentData, token);
-      
+
       if (response.status === 'success') {
-        // If there's a linked parent, link them to the student
-        if (linkedParent && response.data) {
-          try {
-            await studentServices.linkStudentToParent(
-              response.data.id,
-              {
-                parent_id: linkedParent.id,
-                relationship: 'father', // Default relationship
-                is_primary_guardian: true,
-                access_level: 'full'
-              },
-              token
-            );
-          } catch (err: unknown) {
-            console.error('Error linking parent:', err);
-            // Continue even if parent linking fails
-          }
-        }
-        
         // Redirect to students list
         router.push('/students');
       }
@@ -263,10 +238,7 @@ export default function CreateStudentPage() {
               </CardContent>
             </Card>
 
-            <ParentLinker
-              onParentLink={handleParentLink}
-              onParentCreate={handleParentCreate}
-            />
+
 
             <div className="flex justify-end space-x-2">
               <Button 
@@ -285,7 +257,7 @@ export default function CreateStudentPage() {
                     Adding...
                   </>
                 ) : (
-                  'Add Student & Link Parent'
+                  'Add Student'
                 )}
               </Button>
             </div>
