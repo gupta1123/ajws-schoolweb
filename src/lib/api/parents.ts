@@ -174,5 +174,34 @@ export const parentServices = {
     token: string
   ): Promise<ApiResponse<{ message: string; mapping: { id: string; relationship: string; is_primary_guardian: boolean; access_level: string } }>> => {
     return apiClient.put(`/api/academic/update-parent-access/${mappingId}`, data, token);
+  },
+
+  // Get parent-student parent count
+  getParentStudentCount: async (token: string): Promise<ApiResponse<{ count: number }>> => {
+    return apiClient.get('/api/parent-student/parents', token);
+  },
+
+  // Get all parents with advanced filters
+  getAllParentsWithFilters: async (
+    token: string,
+    params?: {
+      class_id?: string;
+      class_division_id?: string;
+      student_id?: string;
+      search?: string;
+      page?: number;
+      limit?: number;
+    }
+  ): Promise<ApiResponse<ParentListResponse>> => {
+    const queryParams = new URLSearchParams();
+    if (params?.class_id) queryParams.append('class_id', params.class_id);
+    if (params?.class_division_id) queryParams.append('class_division_id', params.class_division_id);
+    if (params?.student_id) queryParams.append('student_id', params.student_id);
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+
+    const url = `/api/parent-student/parents${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return apiClient.get(url, token);
   }
 };

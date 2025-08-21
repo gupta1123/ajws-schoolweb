@@ -12,3 +12,4 @@ export { academicServices } from './academic';
 export { staffServices } from './staff';
 export { studentServices } from './students';
 export { parentServices } from './parents';
+export { analyticsServices } from './analytics';

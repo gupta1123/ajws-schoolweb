@@ -37,17 +37,17 @@ export function UpcomingEvents() {
         
         try {
           if (user?.role === 'teacher') {
-            // For teachers, try to get events for their classes first
+            // For teachers, get events for their classes with date range filter
             console.log('Fetching teacher events...');
             response = await calendarServices.getTeacherEvents(
               token,
-              startDateStr, 
-              endDateStr, 
+              startDateStr,
+              endDateStr,
               'academic'
             );
             console.log('Teacher events response:', response);
           } else if (user?.role === 'parent') {
-            // For parents, get events for their children's classes
+            // For parents, get events for their children's classes with date range
             console.log('Fetching parent events...');
             response = await calendarServices.getParentEvents(
               token,
@@ -58,8 +58,8 @@ export function UpcomingEvents() {
               }
             );
             console.log('Parent events response:', response);
-          } else {
-            // For admin/principal, get all events
+          } else if (user?.role === 'admin' || user?.role === 'principal') {
+            // For admin/principal, get all events with date range and IST
             console.log('Fetching admin events...');
             response = await calendarServices.getEvents(
               token,
@@ -71,13 +71,9 @@ export function UpcomingEvents() {
               }
             );
             console.log('Admin events response:', response);
-          }
-        } catch (teacherError) {
-          console.error('Error with role-specific events API:', teacherError);
-          
-          // Fallback to general events API for all roles
-          console.log('Falling back to general events API...');
-          try {
+          } else {
+            // Default fallback for other roles
+            console.log('Fetching default events...');
             response = await calendarServices.getEvents(
               token,
               {
@@ -87,11 +83,11 @@ export function UpcomingEvents() {
                 use_ist: true
               }
             );
-            console.log('Fallback events response:', response);
-          } catch (fallbackError) {
-            console.error('Error with fallback events API:', fallbackError);
-            throw fallbackError;
+            console.log('Default events response:', response);
           }
+        } catch (error) {
+          console.error('Error with events API:', error);
+          throw error;
         }
 
         if (response.status === 'success' && response.data.events) {

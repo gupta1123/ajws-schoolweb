@@ -43,15 +43,30 @@ export function UpcomingBirthdays() {
         let response;
         
         if (user?.role === 'teacher') {
-          // For teachers, get birthdays for their classes
-          response = await birthdayServices.getMyClassBirthdays(startDateStr, endDateStr, token);
+          // For teachers, get birthdays for their classes with date range
+          response = await birthdayServices.getTeacherClassesBirthdays(token, {
+            start_date: startDateStr,
+            end_date: endDateStr
+          });
         } else if (user?.role === 'parent') {
           // For parents, get birthdays for their children's class
-          // This would need to be implemented based on parent's children
-          response = await birthdayServices.getUpcomingBirthdays(token);
+          // Using upcoming birthdays with date range
+          response = await birthdayServices.getUpcomingBirthdays(token, {
+            start_date: startDateStr,
+            end_date: endDateStr
+          });
+        } else if (user?.role === 'admin' || user?.role === 'principal') {
+          // For admin/principal, get all upcoming birthdays with date range
+          response = await birthdayServices.getUpcomingBirthdays(token, {
+            start_date: startDateStr,
+            end_date: endDateStr
+          });
         } else {
-          // For admin/principal, get all upcoming birthdays
-          response = await birthdayServices.getUpcomingBirthdays(token);
+          // Default fallback
+          response = await birthdayServices.getUpcomingBirthdays(token, {
+            start_date: startDateStr,
+            end_date: endDateStr
+          });
         }
 
         if (response.status === 'success' && response.data.upcoming_birthdays) {

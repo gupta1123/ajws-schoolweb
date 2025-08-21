@@ -268,8 +268,25 @@ export const studentServices = {
   },
 
   // Get class divisions summary
-  getClassDivisionsSummary: async (token: string): Promise<ApiResponse<ClassDivisionsSummaryResponse>> => {
-    return apiClient.get('/api/students/divisions/summary', token);
+  getClassDivisionsSummary: async (token: string, params?: { academic_year_id?: string }): Promise<ApiResponse<ClassDivisionsSummaryResponse>> => {
+    const queryParams = new URLSearchParams();
+    if (params?.academic_year_id) queryParams.append('academic_year_id', params.academic_year_id);
+
+    const url = `/api/students/divisions/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return apiClient.get(url, token);
+  },
+
+  // Get teacher-specific division summary
+  getTeacherDivisionSummary: async (
+    token: string,
+    teacherId: string,
+    params?: { academic_year_id?: string }
+  ): Promise<ApiResponse<ClassDivisionsSummaryResponse>> => {
+    const queryParams = new URLSearchParams();
+    if (params?.academic_year_id) queryParams.append('academic_year_id', params.academic_year_id);
+
+    const url = `/api/students/divisions/teacher/${teacherId}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return apiClient.get(url, token);
   },
 
   // Upload student profile photo

@@ -127,6 +127,8 @@ export const birthdayServices = {
       class_division_id?: string;
       page?: number;
       limit?: number;
+      start_date?: string;
+      end_date?: string;
     }
   ): Promise<ApiResponse<UpcomingBirthdaysResponse>> => {
     const searchParams = new URLSearchParams();
@@ -138,6 +140,12 @@ export const birthdayServices = {
     }
     if (params?.limit) {
       searchParams.append('limit', params.limit.toString());
+    }
+    if (params?.start_date) {
+      searchParams.append('start_date', params.start_date);
+    }
+    if (params?.end_date) {
+      searchParams.append('end_date', params.end_date);
     }
 
     const queryString = searchParams.toString() ? `?${searchParams.toString()}` : '';
