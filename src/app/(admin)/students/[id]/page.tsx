@@ -21,7 +21,9 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { ParentLinking } from '@/components/students/parent-linking';
 import { studentServices, Student } from '@/lib/api/students';
+import { leaveRequestServices } from '@/lib/api/leave-requests';
 import { formatDate } from '@/lib/utils';
+import { LeaveRequest } from '@/types/leave-requests';
 
 export default function StudentDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { user, token } = useAuth();
@@ -31,6 +33,8 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
   const [studentId, setStudentId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [leaveHistory, setLeaveHistory] = useState<LeaveRequest[]>([]);
+  const [leaveHistoryLoading, setLeaveHistoryLoading] = useState(false);
 
   // Extract student ID from params
   useEffect(() => {
@@ -41,19 +45,40 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
     extractId();
   }, [params]);
 
+  // Fetch leave history for the student
+  const fetchLeaveHistory = async () => {
+    if (!token || !studentId) return;
+
+    try {
+      setLeaveHistoryLoading(true);
+      const response = await leaveRequestServices.getByStudent(studentId, {}, token);
+
+      if (response.status === 'success' && response.data) {
+        setLeaveHistory(response.data.leave_requests || []);
+      }
+    } catch (err: unknown) {
+      console.error('Error fetching leave history:', err);
+      // Don't show error for leave history, just log it
+    } finally {
+      setLeaveHistoryLoading(false);
+    }
+  };
+
   // Fetch student data
   useEffect(() => {
     const fetchStudentData = async () => {
       if (!token || !studentId) return;
-      
+
       try {
         setLoading(true);
         setError(null);
-        
+
         const response = await studentServices.getStudentById(studentId, token);
-        
+
         if (response.status === 'success' && response.data) {
           setStudentData(response.data.student);
+          // Fetch leave history after student data is loaded
+          fetchLeaveHistory();
         }
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch student data';
@@ -390,6 +415,76 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                         />
                       </CardContent>
                     </Card>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Leave History */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Leave History</CardTitle>
+                <CardDescription>
+                  Student&apos;s leave request history and status
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {leaveHistoryLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <span className="ml-2">Loading leave history...</span>
+                  </div>
+                ) : leaveHistory.length === 0 ? (
+                  <div className="text-center py-4 text-gray-500">
+                    <p>No leave requests found for this student.</p>
+                  </div>
+                ) : (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date Range</TableHead>
+                          <TableHead>Reason</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Applied Date</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {leaveHistory.map((leave) => (
+                          <TableRow key={leave.id}>
+                            <TableCell>
+                              <div className="font-medium">
+                                {formatDate(leave.start_date)} - {formatDate(leave.end_date)}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {Math.ceil((new Date(leave.end_date).getTime() - new Date(leave.start_date).getTime()) / (1000 * 60 * 60 * 24))} day(s)
+                              </div>
+                            </TableCell>
+                            <TableCell>{leave.reason}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  leave.status === 'approved' ? 'default' :
+                                  leave.status === 'rejected' ? 'destructive' :
+                                  'secondary'
+                                }
+                              >
+                                {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{formatDate(leave.created_at)}</TableCell>
+                            <TableCell>
+                              <Button variant="outline" size="sm" asChild>
+                                <Link href={`/leave-requests/${leave.id}`}>
+                                  View Details
+                                </Link>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 )}
               </CardContent>
