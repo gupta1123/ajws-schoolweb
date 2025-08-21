@@ -213,4 +213,16 @@ export const birthdayServices = {
     const queryString = searchParams.toString() ? `?${searchParams.toString()}` : '';
     return apiClient.get(`/api/birthdays/my-classes${queryString}`, token);
   },
+
+  // Get birthdays for teacher's classes with date range (alias for getTeacherClassesBirthdays)
+  getMyClassBirthdays: async (
+    startDate: string,
+    endDate: string,
+    token: string
+  ): Promise<ApiResponse<UpcomingBirthdaysResponse>> => {
+    return birthdayServices.getTeacherClassesBirthdays(token, {
+      start_date: startDate,
+      end_date: endDate
+    });
+  }
 };

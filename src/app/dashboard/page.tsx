@@ -9,6 +9,7 @@ import { ClassOverviewCard } from '@/components/dashboard/class-overview-card';
 import { SchoolHealthDashboard } from '@/components/dashboard/school-health-dashboard';
 import { ApprovalPipeline } from '@/components/dashboard/approval-pipeline';
 import { UpcomingEvents } from '@/components/dashboard/upcoming-events';
+import { UpcomingBirthdays } from '@/components/dashboard/upcoming-birthdays';
 import { RecentActivity } from '@/components/dashboard/recent-activity';
 import { PerformanceSummaryCard } from '@/components/dashboard/performance-summary-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,6 +33,7 @@ export default function DashboardPage() {
               <ClassOverviewCard />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <UpcomingEvents />
+                <UpcomingBirthdays />
               </div>
             </div>
             <div>

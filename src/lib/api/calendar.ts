@@ -280,5 +280,22 @@ export const calendarServices = {
       end_date: endDate,
       ...params
     });
+  },
+
+  // Get events for teachers (academic events for their classes)
+  getTeacherEvents: async (
+    token: string,
+    startDate: string,
+    endDate: string,
+    eventCategory: string,
+    tokenParam: string
+  ): Promise<ApiResponse<EventsResponse>> => {
+    const searchParams = new URLSearchParams();
+    searchParams.append('start_date', startDate);
+    searchParams.append('end_date', endDate);
+    searchParams.append('event_category', eventCategory);
+    
+    const queryString = searchParams.toString();
+    return apiClient.get(`/api/calendar/events/teacher?${queryString}`, tokenParam);
   }
 };

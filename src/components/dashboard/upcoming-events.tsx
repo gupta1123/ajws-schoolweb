@@ -2,78 +2,153 @@
 
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { 
-  Calendar, 
-  Clock,
-  Users,
-  BookOpen,
-  Cake
-} from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, BookOpen, Clipboard } from 'lucide-react';
 import Link from 'next/link';
-import { formatDate } from '@/lib/utils';
-
-// Mock data - in a real app this would come from an API
-const mockEvents = [
-  {
-    id: '1',
-    title: 'Parent-Teacher Meeting',
-    type: 'meeting',
-    date: '2025-08-20',
-    time: '15:00',
-    location: 'Room 101',
-    attendees: 'Grade 5A Parents'
-  },
-  {
-    id: '2',
-    title: 'Mathematics Test',
-    type: 'test',
-    date: '2025-08-25',
-    time: '10:00',
-    location: 'Classroom 5A',
-    attendees: 'Grade 5A Students'
-  },
-  {
-    id: '3',
-    title: 'Student Birthday - Aarav Patel',
-    type: 'birthday',
-    date: '2025-08-15',
-    time: 'All day',
-    location: 'Classroom 5A',
-    attendees: 'Grade 5A Students'
-  }
-];
+import { useAuth } from '@/lib/auth/context';
+import { calendarServices } from '@/lib/api';
+import { CalendarEvent } from '@/lib/api/calendar';
 
 export function UpcomingEvents() {
-  const getEventIcon = (type: string) => {
-    switch (type) {
+  const { user, token } = useAuth();
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUpcomingEvents = async () => {
+      if (!token) return;
+
+      try {
+        setLoading(true);
+        
+        // Get current date and next 30 days for date range
+        const today = new Date();
+        const endDate = new Date();
+        endDate.setDate(today.getDate() + 30);
+        
+        const startDateStr = today.toISOString().split('T')[0];
+        const endDateStr = endDate.toISOString().split('T')[0];
+
+        let response;
+        
+        if (user?.role === 'teacher') {
+          // For teachers, get events for their classes
+          response = await calendarServices.getTeacherEvents(
+            startDateStr, 
+            endDateStr, 
+            'academic',
+            token,
+            token
+          );
+        } else if (user?.role === 'parent') {
+          // For parents, get events for their children's classes
+          response = await calendarServices.getParentEvents(
+            token,
+            {
+              start_date: startDateStr,
+              end_date: endDateStr,
+              event_category: 'meeting'
+            }
+          );
+        } else {
+          // For admin/principal, get all events
+          response = await calendarServices.getEvents(
+            token,
+            {
+              start_date: startDateStr,
+              end_date: endDateStr,
+              event_category: 'meeting',
+              use_ist: true
+            }
+          );
+        }
+
+        if (response.status === 'success' && response.data.events) {
+          // Sort events by event date (recent to future)
+          const sortedEvents = response.data.events
+            .sort((a: CalendarEvent, b: CalendarEvent) => 
+              new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
+            )
+            .slice(0, 5); // Show only next 5 events
+          
+          setEvents(sortedEvents);
+        }
+      } catch (error) {
+        console.error('Error fetching upcoming events:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUpcomingEvents();
+  }, [token, user?.role]);
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  };
+
+  const getEventIcon = (category: string) => {
+    switch (category.toLowerCase()) {
+      case 'academic':
+        return <BookOpen className="h-4 w-4" />;
       case 'meeting':
         return <Users className="h-4 w-4" />;
-      case 'test':
-        return <BookOpen className="h-4 w-4" />;
-      case 'birthday':
-        return <Cake className="h-4 w-4" />;
+      case 'homework':
+        return <Clipboard className="h-4 w-4" />;
       default:
         return <Calendar className="h-4 w-4" />;
     }
   };
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
+  const getEventColor = (category: string) => {
+    switch (category.toLowerCase()) {
+      case 'academic':
+        return 'text-blue-600 bg-blue-50 dark:bg-blue-900/20';
       case 'meeting':
-        return 'text-blue-500';
-      case 'test':
-        return 'text-green-500';
-      case 'birthday':
-        return 'text-pink-500';
+        return 'text-purple-600 bg-purple-50 dark:bg-purple-900/20';
+      case 'homework':
+        return 'text-orange-600 bg-orange-50 dark:bg-orange-900/20';
       default:
-        return 'text-gray-500';
+        return 'text-gray-600 bg-gray-50 dark:bg-gray-900/20';
     }
   };
 
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Upcoming Events
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4 text-muted-foreground">
+            Loading events...
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card className="mb-6">
+    <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
@@ -82,33 +157,65 @@ export function UpcomingEvents() {
           </CardTitle>
           <Button variant="ghost" size="sm" className="text-xs" asChild>
             <Link href="/calendar">
-              View Calendar
+              View All
             </Link>
           </Button>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {mockEvents.map((event) => (
-            <div key={event.id} className="flex items-start gap-3 p-3 rounded-lg border bg-muted/20">
-              <div className={`mt-0.5 ${getTypeColor(event.type)}`}>
-                {getEventIcon(event.type)}
+        {events.length > 0 ? (
+          <div className="space-y-3">
+            {events.map((event) => (
+              <div key={event.id} className="p-3 rounded-lg border hover:bg-muted/30 transition-colors">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`p-1.5 rounded-full ${getEventColor(event.event_category)}`}>
+                      {getEventIcon(event.event_category)}
+                    </div>
+                                         <div>
+                       <h4 className="font-medium text-sm">{event.title}</h4>
+                       {event.class_info && (
+                         <p className="text-xs text-muted-foreground">
+                           {event.class_info.class_level} - {event.class_info.division}
+                         </p>
+                       )}
+                     </div>
+                   </div>
+                   <div className={`px-2 py-1 rounded-full text-xs font-medium ${getEventColor(event.event_category)}`}>
+                     {event.event_category}
+                   </div>
+                 </div>
+                 
+                 <div className="space-y-1 text-xs text-muted-foreground">
+                   <div className="flex items-center gap-1">
+                     <Clock className="h-3 w-3" />
+                     <span>{formatDate(event.event_date)} at {formatTime(event.event_date)}</span>
+                   </div>
+                   
+                   {event.start_time && event.end_time && (
+                     <div className="flex items-center gap-1">
+                       <MapPin className="h-3 w-3" />
+                       <span>{event.start_time} - {event.end_time}</span>
+                     </div>
+                   )}
+                   
+                   {event.creator_name && (
+                     <div className="flex items-center gap-1">
+                       <Users className="h-3 w-3" />
+                       <span>Created by {event.creator_name}</span>
+                     </div>
+                   )}
+                 </div>
               </div>
-              <div className="flex-1">
-                <h3 className="font-medium text-sm">{event.title}</h3>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                  <Calendar className="h-3 w-3" />
-                  <span>{formatDate(event.date)}</span>
-                  <Clock className="h-3 w-3" />
-                  <span>{event.time}</span>
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {event.location} • {event.attendees}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p>No upcoming events</p>
+            <p className="text-xs">Events will appear here when scheduled</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
