@@ -2,65 +2,113 @@
 
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { 
-  Users, 
-  BookOpen, 
-  Clipboard,
-  Calendar
-} from 'lucide-react';
+import { Users } from 'lucide-react';
 import Link from 'next/link';
-import { Progress } from '@/components/ui/progress';
+import { useAuth } from '@/lib/auth/context';
+import { academicServices } from '@/lib/api';
 
-// Mock class data - in a real app this would come from an API
-const mockClasses = [
-  {
-    id: '1',
-    name: 'Grade 5',
-    division: 'A',
-    studentCount: 32,
-    homeworkCompletion: 85,
-    recentClasswork: 'Mathematics - Fractions',
-    upcomingAssignments: 2,
-    healthScore: 92
-  },
-  {
-    id: '2',
-    name: 'Grade 6',
-    division: 'B',
-    studentCount: 28,
-    homeworkCompletion: 78,
-    recentClasswork: 'Science - Photosynthesis',
-    upcomingAssignments: 1,
-    healthScore: 85
-  },
-  {
-    id: '3',
-    name: 'Grade 7',
-    division: 'C',
-    studentCount: 30,
-    homeworkCompletion: 92,
-    recentClasswork: 'English - Poetry',
-    upcomingAssignments: 3,
-    healthScore: 95
-  }
-];
+interface TeacherClass {
+  id: string;
+  name: string;
+  division: string;
+  studentCount: number;
+  teacherRole: 'class_teacher' | 'subject_teacher';
+  subject?: string;
+  classDivisionId: string;
+  assignmentId: string;
+}
 
 export function ClassOverviewCard() {
-  // Function to get health score color
-  const getHealthColor = (score: number) => {
-    if (score >= 90) return 'text-green-500';
-    if (score >= 75) return 'text-yellow-500';
-    return 'text-red-500';
-  };
+  const { token } = useAuth();
+  const [classes, setClasses] = useState<TeacherClass[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Function to get health background
-  const getHealthBackground = (score: number) => {
-    if (score >= 90) return 'bg-green-100 dark:bg-green-900/20';
-    if (score >= 75) return 'bg-yellow-100 dark:bg-yellow-900/20';
-    return 'bg-red-100 dark:bg-red-900/20';
-  };
+  useEffect(() => {
+    const fetchTeacherClasses = async () => {
+      if (!token) return;
+
+      try {
+        setLoading(true);
+        const response = await academicServices.getMyTeacherClasses(token);
+        
+        if (response.status === 'success' && response.data.assigned_classes) {
+          // Transform the API data to match our interface
+          const transformedClasses = response.data.assigned_classes.map((assignment: {
+            assignment_id: string;
+            class_division_id: string;
+            class_level: string;
+            division: string;
+            assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
+            subject?: string;
+          }) => {
+            // Extract class name from class_level
+            const className = assignment.class_level || 'Unknown Class';
+            const division = assignment.division || 'Unknown Division';
+            
+            return {
+              id: `${assignment.assignment_id}-${assignment.class_division_id}`,
+              name: className,
+              division: division,
+              studentCount: 0, // Will be fetched separately
+              teacherRole: assignment.assignment_type === 'class_teacher' ? 'class_teacher' : 'subject_teacher' as 'class_teacher' | 'subject_teacher',
+              subject: assignment.subject,
+              classDivisionId: assignment.class_division_id,
+              assignmentId: assignment.assignment_id
+            };
+          });
+
+          // Fetch student count for each class
+          const classesWithStudentCounts = await Promise.all(
+            transformedClasses.map(async (cls) => {
+              try {
+                const studentsResponse = await academicServices.getStudentsByClass(cls.classDivisionId, token);
+                if (studentsResponse.status === 'success') {
+                  cls.studentCount = studentsResponse.data.students?.length || 0;
+                }
+              } catch (error) {
+                console.error(`Error fetching students for class ${cls.classDivisionId}:`, error);
+                cls.studentCount = 0;
+              }
+              return cls;
+            })
+          );
+
+          setClasses(classesWithStudentCounts);
+        }
+      } catch (error) {
+        console.error('Error fetching teacher classes:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTeacherClasses();
+  }, [token]);
+
+  // Separate classes by role
+  const classTeacherClasses = classes.filter(cls => cls.teacherRole === 'class_teacher');
+  const subjectTeacherClasses = classes.filter(cls => cls.teacherRole === 'subject_teacher');
+
+  if (loading) {
+    return (
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Class Overview</h2>
+          <Button variant="ghost" size="sm" className="text-xs" asChild>
+            <Link href="/classes">
+              View All
+            </Link>
+          </Button>
+        </div>
+        <div className="text-center py-8 text-muted-foreground">
+          Loading classes...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mb-6">
@@ -73,66 +121,66 @@ export function ClassOverviewCard() {
         </Button>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {mockClasses.map((classItem) => (
-          <Card key={classItem.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold">
-                  {classItem.name} - {classItem.division}
-                </CardTitle>
-                <div className={`px-2 py-1 rounded-full text-xs font-medium ${getHealthBackground(classItem.healthScore)}`}>
-                  <span className={getHealthColor(classItem.healthScore)}>
-                    {classItem.healthScore}%
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Users className="h-4 w-4" />
-                <span>{classItem.studentCount} students</span>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="text-muted-foreground">Homework Completion</span>
-                  <span className="font-medium">{classItem.homeworkCompletion}%</span>
-                </div>
-                <Progress value={classItem.homeworkCompletion} className="h-2" />
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <Clipboard className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Recent:</span>
-                  <span className="font-medium truncate">{classItem.recentClasswork}</span>
-                </div>
-                
-                <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Upcoming:</span>
-                  <span className="font-medium">{classItem.upcomingAssignments} assignments</span>
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 text-xs" asChild>
-                  <Link href={`/homework/create?classId=${classItem.id}`}>
-                    <BookOpen className="h-3 w-3 mr-1" />
-                    Homework
-                  </Link>
-                </Button>
-                <Button variant="outline" size="sm" className="flex-1 text-xs" asChild>
-                  <Link href={`/classwork/create?classId=${classItem.id}`}>
-                    <Clipboard className="h-3 w-3 mr-1" />
-                    Classwork
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Class Teacher Section */}
+      {classTeacherClasses.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-md font-medium text-muted-foreground mb-3">As Class Teacher</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {classTeacherClasses.map((classItem) => (
+              <Card key={classItem.assignmentId} className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold">
+                    {classItem.name} - {classItem.division}
+                  </CardTitle>
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Users className="h-4 w-4" />
+                    <span>{classItem.studentCount} students</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm text-muted-foreground">
+                    Class Teacher
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Subject Teacher Section */}
+      {subjectTeacherClasses.length > 0 && (
+        <div>
+          <h3 className="text-md font-medium text-muted-foreground mb-3">As Subject Teacher</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {subjectTeacherClasses.map((classItem) => (
+              <Card key={classItem.assignmentId} className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold">
+                    {classItem.name} - {classItem.division}
+                  </CardTitle>
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Users className="h-4 w-4" />
+                    <span>{classItem.studentCount} students</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm text-muted-foreground">
+                    Subject: {classItem.subject}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* No Classes Message */}
+      {classes.length === 0 && !loading && (
+        <div className="text-center py-8 text-muted-foreground">
+          No classes assigned yet.
+        </div>
+      )}
     </div>
   );
 }

@@ -83,25 +83,9 @@ export default function ClassesPage() {
             })
           );
 
-          // Remove duplicates based on classDivisionId, keeping the most relevant assignment
-          const uniqueClasses = transformedClasses.reduce((acc, current) => {
-            const existingClass = acc.find(item => item.classDivisionId === current.classDivisionId);
-            
-            if (!existingClass) {
-              // First occurrence of this class, add it
-              acc.push(current);
-            } else {
-              // Class already exists, prioritize class_teacher over subject_teacher
-              if (current.teacherRole === 'class_teacher' && existingClass.teacherRole === 'subject_teacher') {
-                // Replace subject teacher with class teacher
-                const index = acc.findIndex(item => item.classDivisionId === current.classDivisionId);
-                acc[index] = current;
-              }
-              // If both are same role or current is subject teacher, keep existing
-            }
-            
-            return acc;
-          }, [] as TeacherClass[]);
+          // Show all assignments - no deduplication needed
+          // Each assignment represents a different role or subject for the teacher
+          const uniqueClasses = transformedClasses;
 
           setClasses(uniqueClasses);
         }
@@ -207,7 +191,7 @@ export default function ClassesPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredAndSortedClasses.map((classItem) => (
                   <ClassCard
-                    key={`${classItem.classDivisionId}-${classItem.assignmentId}`}
+                    key={classItem.assignmentId}
                     name={classItem.name}
                     division={classItem.division}
                     studentCount={classItem.studentCount}
