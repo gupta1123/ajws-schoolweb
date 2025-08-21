@@ -44,7 +44,7 @@ const RecentActivity = dynamic(() => import('@/components/dashboard/recent-activ
 
 const DashboardPage = () => {
   const { user } = useAuth();
-  const { data: analyticsData, loading: analyticsLoading } = useAnalytics();
+  const { data: analyticsData, loading: analyticsLoading, error: analyticsError } = useAnalytics();
 
   // Memoize admin cards to prevent re-creation on every render
   const adminQuickAccessCards = useMemo(() => [
@@ -53,7 +53,7 @@ const DashboardPage = () => {
       description: 'Manage student records',
       icon: <GraduationCap className="h-6 w-6" />,
       href: '/students',
-      stats: analyticsLoading ? null : analyticsData.totalStudents
+      stats: analyticsLoading ? null : analyticsError ? 'Error' : analyticsData.totalStudents
     },
     {
       title: 'Parents',
@@ -67,16 +67,16 @@ const DashboardPage = () => {
       description: 'Teacher & staff management',
       icon: <User className="h-6 w-6" />,
       href: '/staff',
-      stats: analyticsLoading ? null : analyticsData.totalStaff
+      stats: analyticsLoading ? null : analyticsError ? 'Error' : analyticsData.totalStaff
     },
     {
       title: 'Academic Structure',
       description: 'Classes & subjects',
       icon: <Building2 className="h-6 w-6" />,
       href: '/academic',
-      stats: analyticsLoading ? null : analyticsData.activeClasses
+      stats: analyticsLoading ? null : analyticsError ? 'Error' : analyticsData.activeClasses
     }
-  ], [analyticsData, analyticsLoading]);
+  ], [analyticsData, analyticsLoading, analyticsError]);
 
   return (
     <ProtectedRoute>
@@ -136,6 +136,8 @@ const DashboardPage = () => {
                       <div className="text-2xl font-bold">
                         {analyticsLoading ? (
                           <Skeleton className="h-8 w-16" />
+                        ) : analyticsError ? (
+                          <span className="text-red-500 text-sm">Error</span>
                         ) : (
                           analyticsData.activeClasses || 0
                         )}
@@ -151,6 +153,8 @@ const DashboardPage = () => {
                       <div className="text-2xl font-bold">
                         {analyticsLoading ? (
                           <Skeleton className="h-8 w-16" />
+                        ) : analyticsError ? (
+                          <span className="text-red-500 text-sm">Error</span>
                         ) : (
                           analyticsData.totalStudents || 0
                         )}
@@ -166,6 +170,8 @@ const DashboardPage = () => {
                       <div className="text-2xl font-bold">
                         {analyticsLoading ? (
                           <Skeleton className="h-8 w-12" />
+                        ) : analyticsError ? (
+                          <span className="text-red-500 text-sm">Error</span>
                         ) : (
                           analyticsData.totalStaff || 0
                         )}
@@ -244,6 +250,8 @@ const DashboardPage = () => {
                       <div className="text-2xl font-bold">
                         {analyticsLoading ? (
                           <Skeleton className="h-8 w-16" />
+                        ) : analyticsError ? (
+                          <span className="text-red-500 text-sm">Error</span>
                         ) : (
                           analyticsData.activeUsers || 0
                         )}
@@ -258,6 +266,8 @@ const DashboardPage = () => {
                                               <div className="text-2xl font-bold">
                         {analyticsLoading ? (
                           <Skeleton className="h-8 w-12" />
+                        ) : analyticsError ? (
+                          <span className="text-red-500 text-sm">Error</span>
                         ) : (
                           analyticsData.newMessages || 0
                         )}
@@ -272,6 +282,8 @@ const DashboardPage = () => {
                                               <div className="text-2xl font-bold text-orange-500">
                         {analyticsLoading ? (
                           <Skeleton className="h-8 w-12" />
+                        ) : analyticsError ? (
+                          <span className="text-red-500 text-sm">Error</span>
                         ) : (
                           analyticsData.pendingApprovals || 0
                         )}

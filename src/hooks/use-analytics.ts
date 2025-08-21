@@ -82,7 +82,25 @@ export function useAnalytics() {
         }
       } catch (err) {
         console.error('Failed to fetch analytics:', err);
-        setError('Failed to load analytics data');
+
+        // Provide more specific error messages
+        if (err instanceof Error) {
+          if (err.message.includes('Failed to fetch') || err.message.includes('Network')) {
+            setError('Network error - please check your connection');
+          } else if (err.message.includes('401') || err.message.includes('Unauthorized')) {
+            setError('Authentication error - please log in again');
+          } else if (err.message.includes('403') || err.message.includes('Forbidden')) {
+            setError('Access denied - insufficient permissions');
+          } else if (err.message.includes('404') || err.message.includes('Not Found')) {
+            setError('Analytics service not available');
+          } else if (err.message.includes('500') || err.message.includes('Internal Server Error')) {
+            setError('Server error - please try again later');
+          } else {
+            setError(err.message || 'Failed to load analytics data');
+          }
+        } else {
+          setError('Failed to load analytics data');
+        }
       } finally {
         setLoading(false);
       }

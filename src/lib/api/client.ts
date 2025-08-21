@@ -26,8 +26,26 @@ export const apiClient = {
 
     // 304 Not Modified is a successful response, not an error
     if (!response.ok && response.status !== 304) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'An error occurred');
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+
+      try {
+        // Try to parse JSON error response
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch (jsonError) {
+        // If JSON parsing fails, try to get text content
+        try {
+          const textContent = await response.text();
+          if (textContent && textContent.length < 500) { // Only use if it's a reasonable error message
+            errorMessage = textContent;
+          }
+        } catch (textError) {
+          // If both JSON and text parsing fail, use the default error message
+          console.warn('Failed to parse error response:', textError);
+        }
+      }
+
+      throw new Error(errorMessage);
     }
 
     // For 304 responses, we need to handle them differently since they don't have a body
