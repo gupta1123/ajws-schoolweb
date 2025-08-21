@@ -16,10 +16,9 @@ import { useToast } from '@/hooks/use-toast';
 import { CalendarEvent } from '@/lib/api/calendar';
 
 export default function CalendarPage() {
-  const { user, token } = useAuth();
+  const { user, token, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [selectedEvent, setSelectedEvent] = useState<UICalendarEvent | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
