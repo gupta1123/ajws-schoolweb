@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "School Management System",
+  title: "AJWS",
   description: "A comprehensive school management platform",
 };
 

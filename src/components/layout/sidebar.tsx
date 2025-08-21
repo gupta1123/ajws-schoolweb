@@ -179,8 +179,8 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                 <BookOpen className="h-5 w-5 text-primary-foreground" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-lg text-primary group-hover:text-primary/80 transition-colors">SchoolMS</span>
-                <span className="text-xs text-muted-foreground font-medium">School Management</span>
+                <span className="font-bold text-lg text-primary group-hover:text-primary/80 transition-colors">AJWS</span>
+                <span className="text-xs text-muted-foreground font-medium">School Management System</span>
               </div>
             </Link>
           </div>
@@ -273,8 +273,8 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                 <BookOpen className="h-5 w-5 text-primary-foreground" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-lg text-primary group-hover:text-primary/80 transition-colors">SchoolMS</span>
-                <span className="text-xs text-muted-foreground font-medium">School Management</span>
+                <span className="font-bold text-lg text-primary group-hover:text-primary/80 transition-colors">AJWS</span>
+                <span className="text-xs text-muted-foreground font-medium">School Management System</span>
               </div>
             </Link>
           </div>

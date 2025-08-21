@@ -53,7 +53,7 @@ export function Header() {
             <div className="bg-primary rounded-md w-8 h-8 flex items-center justify-center">
               <BookOpen className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="hidden sm:inline">SchoolMS</span>
+            <span className="hidden sm:inline">AJWS</span>
           </Link>
         </div>
 

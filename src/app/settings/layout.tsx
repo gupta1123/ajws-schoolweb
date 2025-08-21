@@ -3,7 +3,7 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Settings - School Management System',
+  title: 'Settings - AJWS',
   description: 'Manage your account settings and preferences',
 };
 

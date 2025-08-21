@@ -43,7 +43,7 @@ export function UserOnboardingWizard() {
   const steps: OnboardingStep[] = [
     {
       id: 'welcome',
-      title: 'Welcome to SchoolMS',
+      title: 'Welcome to AJWS',
       description: 'Get started with our comprehensive school management system',
       icon: <User className="h-6 w-6" />,
       content: (
@@ -52,7 +52,7 @@ export function UserOnboardingWizard() {
             <User className="h-8 w-8 text-primary" />
           </div>
           <p className="text-muted-foreground mb-4">
-            Hi {user?.full_name?.split(' ')[0] || 'there'}! Welcome to SchoolMS, 
+            Hi {user?.full_name?.split(' ')[0] || 'there'}! Welcome to AJWS, 
             your new school management system. Let&apos;s take a quick tour to help you get started.
           </p>
           <div className="bg-muted/30 rounded-lg p-4 text-left">
@@ -180,7 +180,7 @@ export function UserOnboardingWizard() {
             <Calendar className="h-8 w-8 text-primary" />
           </div>
           <p className="text-muted-foreground mb-4">
-            Discover the powerful features that make SchoolMS unique.
+            Discover the powerful features that make AJWS unique.
           </p>
           <div className="bg-muted/30 rounded-lg p-4 text-left space-y-3">
             <div className="flex items-start gap-3">
