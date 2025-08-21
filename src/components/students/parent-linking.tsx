@@ -63,6 +63,7 @@ interface ParentLinkingProps {
 export function ParentLinking({ onLinkParent, onCancel, existingParentMappings = [] }: ParentLinkingProps) {
   const { token } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchType, setSearchType] = useState<'name' | 'phone' | 'email'>('name');
   const [selectedParentId, setSelectedParentId] = useState('');
   const [relationship, setRelationship] = useState('father');
   const [isPrimary, setIsPrimary] = useState(true); // Default to primary guardian
@@ -124,7 +125,7 @@ export function ParentLinking({ onLinkParent, onCancel, existingParentMappings =
 
     try {
       setIsSearching(true);
-      const response = await parentServices.getAllParents(token, { limit: 100 });
+      const response = await parentServices.getAllParents(token, { limit: 10 });
 
       if (response.status === 'success' && response.data) {
         setParents(response.data.parents || []);
@@ -147,7 +148,7 @@ export function ParentLinking({ onLinkParent, onCancel, existingParentMappings =
       setIsSearching(true);
       const response = await parentServices.getAllParents(token, { 
         search: searchTerm.trim(),
-        limit: 100 
+        limit: 50 
       });
 
       if (response.status === 'success' && response.data) {
@@ -208,32 +209,76 @@ export function ParentLinking({ onLinkParent, onCancel, existingParentMappings =
       
       {/* Search Section */}
       <div className="space-y-2">
-        <Label htmlFor="parent-search">Search Parents</Label>
+        <Label htmlFor="parent-search">Search Parents by {searchType.charAt(0).toUpperCase() + searchType.slice(1)}</Label>
         <div className="flex gap-2">
+          <Select value={searchType} onValueChange={(value) => {
+            setSearchType(value as 'name' | 'phone' | 'email');
+            setSearchTerm(''); // Clear search when changing type
+            setFilteredParents(parents); // Reset to initial parents
+          }}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name">Name</SelectItem>
+              <SelectItem value="phone">Phone</SelectItem>
+              <SelectItem value="email">Email</SelectItem>
+            </SelectContent>
+          </Select>
           <div className="relative flex-1">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
               id="parent-search"
-              placeholder="Search by name, phone, or email"
+              placeholder={
+                searchType === 'name' ? 'Enter parent name...' :
+                searchType === 'phone' ? 'Enter phone number...' :
+                'Enter email address...'
+              }
               className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              title={`Search parents by ${searchType}`}
             />
           </div>
           <Button 
             onClick={handleSearch}
             disabled={isSearching || !searchTerm.trim()}
             variant="outline"
+            title={`Search parents by ${searchType}`}
           >
-            {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
+            {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : `Search by ${searchType}`}
           </Button>
+          {searchTerm && (
+            <Button 
+              onClick={() => {
+                setSearchTerm('');
+                setFilteredParents(parents);
+              }}
+              variant="ghost"
+              size="sm"
+              title="Clear search and show initial 10 parents"
+            >
+              Clear
+            </Button>
+          )}
         </div>
       </div>
       
       {/* Parents Table */}
       <div className="space-y-2">
-        <Label>Available Parents</Label>
+        <div className="flex justify-between items-center">
+          <Label>Available Parents</Label>
+          {!searchTerm ? (
+            <span className="text-sm text-muted-foreground">
+              Showing first 10 parents. Use search to find more.
+            </span>
+          ) : (
+            <span className="text-sm text-muted-foreground">
+              Search results for {searchType}: "{searchTerm}" ({filteredParents.length} found)
+            </span>
+          )}
+        </div>
         <div className="border rounded-md max-h-64 overflow-y-auto">
           <Table>
             <TableHeader>
@@ -256,7 +301,7 @@ export function ParentLinking({ onLinkParent, onCancel, existingParentMappings =
               ) : filteredParents.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    {searchTerm ? 'No parents found matching your search.' : 'No parents available.'}
+                    {searchTerm ? 'No parents found matching your search.' : 'No parents available. Try searching by name, phone, or email.'}
                   </TableCell>
                 </TableRow>
               ) : (

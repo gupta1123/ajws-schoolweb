@@ -30,7 +30,7 @@ export default function ParentDetailsPage({ params }: { params: Promise<{ id: st
   const { user, token } = useAuth();
   const router = useRouter();
   const [parentId, setParentId] = useState<string>('');
-  const [parentData, setParentData] = useState<ParentDetailsResponse | null>(null);
+  const [parentData, setParentData] = useState<ParentDetailsResponse['parent'] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,8 +61,8 @@ export default function ParentDetailsPage({ params }: { params: Promise<{ id: st
         const response = await parentServices.getParentById(parentId, token);
 
         if (response.status === 'success' && response.data) {
-          // Single parent response from /api/parents/:parent_id
-          setParentData(response.data);
+          // Single parent response from /api/parent-student/parents/:parent_id
+          setParentData(response.data.parent);
         } else if (response.status === 'error') {
           // Handle API error response
           const errorResponse = response as any;
@@ -224,7 +224,7 @@ export default function ParentDetailsPage({ params }: { params: Promise<{ id: st
                         <Calendar className="mr-2 h-4 w-4" />
                         Created Date
                       </div>
-                      <p className="font-medium">{formatDate(getParent()?.created_at!)}</p>
+                      <p className="font-medium">{getParent()?.created_at ? formatDate(getParent()?.created_at) : 'N/A'}</p>
                     </div>
                   )}
                 </div>
@@ -282,14 +282,16 @@ export default function ParentDetailsPage({ params }: { params: Promise<{ id: st
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {getParent()?.children && getParent()?.children.map((child: any) => (
+                        {getParent()?.children?.map((child) => (
                           <TableRow key={child.id}>
                             <TableCell className="font-medium">
                               {child.full_name}
                             </TableCell>
                             <TableCell>{child.admission_number}</TableCell>
                             <TableCell>
-                              <Badge>Primary</Badge>
+                              <Badge variant={child.is_primary_guardian ? "default" : "secondary"}>
+                                {child.is_primary_guardian ? "Primary" : "Secondary"}
+                              </Badge>
                             </TableCell>
                             <TableCell className="text-right">
                               <Button variant="outline" size="sm" asChild>

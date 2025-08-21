@@ -70,27 +70,23 @@ export interface ParentListResponse {
 }
 
 export interface ParentDetailsResponse {
-  // Single parent response from /api/parents/:parent_id
-  id: string;
-  full_name: string;
-  phone_number: string;
-  email: string | null;
-  role: string;
-  is_registered: boolean;
-  created_at: string;
-  updated_at?: string;
-  children: Array<{
+  // Single parent response from /api/parent-student/parents/:parent_id
+  parent: {
     id: string;
     full_name: string;
-    admission_number: string;
-    class_division?: {
-      division: string;
-      level: {
-        name: string;
-        sequence_number: number;
-      };
-    };
-  }>;
+    phone_number: string;
+    email: string | null;
+    role: string;
+    created_at: string;
+    children: Array<{
+      id: string;
+      full_name: string;
+      admission_number: string;
+      date_of_birth: string;
+      relationship: string;
+      is_primary_guardian: boolean;
+    }>;
+  };
 }
 
 export const parentServices = {
@@ -119,8 +115,8 @@ export const parentServices = {
 
   // Get parent details by ID
   getParentById: async (parentId: string, token: string): Promise<ApiResponse<ParentDetailsResponse> | ApiErrorResponse> => {
-    // Use the correct endpoint: /api/parents/:parent_id
-    return apiClient.get(`/api/parents/${parentId}`, token);
+    // Use the correct endpoint: /api/parent-student/parents/:parent_id
+    return apiClient.get(`/api/parent-student/parents/${parentId}`, token);
   },
 
   // Update parent information

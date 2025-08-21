@@ -12,7 +12,7 @@ import { SubjectManager } from './SubjectManager';
 import { useAcademicStructure } from '@/hooks/use-academic-structure';
 
 export function ComprehensiveAcademicManager() {
-  const [activeView, setActiveView] = useState<'current' | 'years' | 'history' | 'subjects'>('current');
+  const [activeView, setActiveView] = useState<'current' | 'years' | 'subjects'>('current');
   const { 
     classLevels, 
     classDivisions, 
@@ -26,16 +26,13 @@ export function ComprehensiveAcademicManager() {
     <div className="space-y-6">
       {/* Navigation Tabs - Moved to top */}
       <div className="flex justify-center">
-        <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'current' | 'years' | 'history' | 'subjects')} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'current' | 'years' | 'subjects')} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="current" onClick={() => setActiveView('current')}>
               Current Structure
             </TabsTrigger>
             <TabsTrigger value="years" onClick={() => setActiveView('years')}>
               Academic Years
-            </TabsTrigger>
-            <TabsTrigger value="history" onClick={() => setActiveView('history')}>
-              History
             </TabsTrigger>
             <TabsTrigger value="subjects" onClick={() => setActiveView('subjects')}>
               Subjects
@@ -127,32 +124,7 @@ export function ComprehensiveAcademicManager() {
         </div>
       )}
 
-      {activeView === 'history' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">Academic History</h2>
-              <p className="text-muted-foreground">
-                View and manage historical academic data
-              </p>
-            </div>
-          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Historical Data</CardTitle>
-              <CardDescription>
-                This section will contain historical academic data and reports
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Historical data management features are coming soon.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
 
       {activeView === 'subjects' && (
         <div className="space-y-6">

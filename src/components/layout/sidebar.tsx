@@ -185,7 +185,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
               </div>
               <div className="flex flex-col">
                 <span className="font-bold text-lg text-primary group-hover:text-primary/80 transition-colors">AJWS</span>
-                <span className="text-xs text-muted-foreground font-medium">School Management System</span>
+                <span className="text-xs text-muted-foreground font-medium">School Management</span>
               </div>
             </Link>
           </div>

@@ -20,11 +20,9 @@ import {
   Trash2,
   User,
   AlertTriangle,
-  BookOpen,
   GraduationCap,
   Loader2,
   Users,
-  TrendingUp,
   AlertCircle
 } from 'lucide-react';
 import { useAcademicStructure } from '@/hooks/use-academic-structure';
@@ -312,102 +310,11 @@ export function AcademicStructureManager() {
         </Card>
       )}
       
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <BookOpen className="h-8 w-8 text-green-500" />
-              <div>
-                <p className="text-base text-muted-foreground font-medium">Grades</p>
-                <p className="text-3xl font-bold">
-                  {loadingSummary ? <Loader2 className="h-8 w-8 animate-spin" /> : classLevels.length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <Users className="h-8 w-8 text-blue-500" />
-              <div>
-                <p className="text-base text-muted-foreground font-medium">Sections</p>
-                <p className="text-3xl font-bold">
-                  {loadingSummary ? <Loader2 className="h-8 w-8 animate-spin" /> : divisionsSummary?.total_divisions || 0}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <User className="h-8 w-8 text-purple-500" />
-              <div>
-                <p className="text-base text-muted-foreground font-medium">Teachers</p>
-                <p className="text-3xl font-bold">
-                  {loadingSummary ? <Loader2 className="h-8 w-8 animate-spin" /> : teachers.length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="h-8 w-8 text-orange-500" />
-              <div>
-                <p className="text-base text-muted-foreground font-medium">Unassigned</p>
-                <p className="text-3xl font-bold">
-                  {loadingSummary ? <Loader2 className="h-8 w-8 animate-spin" /> :
-                    divisionsSummary?.divisions.filter((d) => !d.class_teacher).length || 0}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* School Overview Card */}
-      {divisionsSummary && (
-        <Card className="mb-8">
-          <CardHeader className="pb-6">
-            <CardTitle className="flex items-center gap-3 text-xl font-bold">
-              <TrendingUp className="h-6 w-6" />
-              School Overview
-            </CardTitle>
-            <CardDescription className="text-base text-muted-foreground">
-              Current academic year summary and statistics
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="text-center p-6 bg-muted/30 rounded-xl">
-                <div className="text-4xl font-bold text-primary mb-3">
-                  {divisionsSummary.total_divisions}
-                </div>
-                <div className="text-base text-muted-foreground font-medium">Total Class Sections</div>
-              </div>
-              <div className="text-center p-6 bg-muted/30 rounded-xl">
-                <div className="text-4xl font-bold text-green-600 mb-3">
-                  {divisionsSummary.total_students}
-                </div>
-                <div className="text-base text-muted-foreground font-medium">Total Students</div>
-              </div>
-              <div className="text-center p-6 bg-muted/30 rounded-xl">
-                <div className="text-4xl font-bold text-blue-600 mb-3">
-                  {Math.round(divisionsSummary.total_students / divisionsSummary.total_divisions) || 0}
-                </div>
-                <div className="text-base text-muted-foreground font-medium">Avg Students per Class</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
       
       {/* Add Section Form */}
       {addingSection && (
@@ -493,7 +400,7 @@ export function AcademicStructureManager() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
+                {loadingSummary ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-12">
                       <div className="flex items-center justify-center gap-3">
@@ -502,127 +409,120 @@ export function AcademicStructureManager() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ) : classLevels.length === 0 ? (
+                ) : !divisionsSummary || divisionsSummary.divisions.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-12">
-                      <span className="text-lg text-muted-foreground">No class levels found</span>
+                      <span className="text-lg text-muted-foreground">No divisions found</span>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  classLevels.map(level => {
-                    const divisions = getDivisionsByLevel(level.id);
-                    return divisions.map((division, index) => {
-                      const assignedTeacher = teachers.find(t => t.teacher_id === division.teacher_id);
+                  divisionsSummary.divisions.map((division, index) => {
+                    // Group divisions by level for display
+                    const showGradeName = index === 0 || 
+                      divisionsSummary.divisions[index - 1]?.level.name !== division.level.name;
 
-                      // Get student count from divisions summary
-                      const divisionSummary = divisionsSummary?.divisions.find((d) => d.id === division.id);
-                      const studentCount = divisionSummary?.student_count || 0;
+                    // Clean up subject teachers data - remove duplicates and null subjects
+                    const cleanSubjectTeachers = division.subject_teachers 
+                      ? division.subject_teachers
+                          .filter((st) => st.name && st.name.trim() !== '')
+                          .filter((st, idx, arr) => 
+                            arr.findIndex((t) => t.name === st.name) === idx
+                          )
+                      : [];
 
-                      // Show grade name only for the first division of each level
-                      const showGradeName = index === 0;
-
-                      // Clean up subject teachers data - remove duplicates and null subjects
-                      const cleanSubjectTeachers = divisionSummary?.subject_teachers 
-                        ? divisionSummary.subject_teachers
-                            .filter((st) => st.name && st.name.trim() !== '')
-                            .filter((st, idx, arr) => 
-                              arr.findIndex((t) => t.name === st.name) === idx
-                            )
-                        : [];
-
-                      return (
-                        <TableRow key={division.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                          <TableCell className={`py-4 px-6 ${showGradeName ? "font-semibold text-lg" : "text-muted-foreground"}`}>
-                            {showGradeName ? level.name : ""}
-                          </TableCell>
-                          <TableCell className="py-4 px-6">
-                            <span className="font-semibold text-lg">Section {division.division}</span>
-                          </TableCell>
-                          <TableCell className="py-4 px-6">
+                    return (
+                      <TableRow key={division.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                        <TableCell className={`py-4 px-6 ${showGradeName ? "font-semibold text-lg" : "text-muted-foreground"}`}>
+                          {showGradeName ? division.level.name : ""}
+                        </TableCell>
+                        <TableCell className="py-4 px-6">
+                          <span className="font-semibold text-lg">Section {division.division}</span>
+                        </TableCell>
+                        <TableCell className="py-4 px-6">
+                          <div className="flex items-center gap-3">
+                            <Users className="h-5 w-5 text-muted-foreground" />
+                            <span className="font-semibold text-lg">{division.student_count}</span>
+                            {division.student_count === 0 && (
+                              <span className="text-sm text-orange-500 font-medium">(Empty)</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-4 px-6">
+                          {division.class_teacher ? (
                             <div className="flex items-center gap-3">
-                              <Users className="h-5 w-5 text-muted-foreground" />
-                              <span className="font-semibold text-lg">{studentCount}</span>
-                              {studentCount === 0 && (
-                                <span className="text-sm text-orange-500 font-medium">(Empty)</span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-4 px-6">
-                            {assignedTeacher ? (
-                              <div className="flex items-center gap-3">
-                                <User className="h-5 w-5 text-muted-foreground" />
-                                <div>
-                                  <div className="font-semibold text-lg">{assignedTeacher.full_name}</div>
-                                  {assignedTeacher.department && (
-                                    <div className="text-sm text-muted-foreground">
-                                      {assignedTeacher.department}
-                                    </div>
-                                  )}
+                              <User className="h-5 w-5 text-muted-foreground" />
+                              <div>
+                                <div className="font-semibold text-lg">{division.class_teacher.name}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  Class Teacher
                                 </div>
                               </div>
-                            ) : (
-                              <span className="text-muted-foreground italic flex items-center gap-2 text-lg">
-                                <AlertCircle className="h-4 w-4" />
-                                No teacher assigned
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="py-4 px-6">
-                            {cleanSubjectTeachers && cleanSubjectTeachers.length > 0 ? (
-                              <div className="text-base space-y-2">
-                                {cleanSubjectTeachers.map((st) => (
-                                  <div key={st.id} className="flex items-center gap-2">
-                                    <User className="h-4 w-4 text-muted-foreground" />
-                                    <span className="font-semibold">{st.name}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-base text-muted-foreground">
-                                <span className="italic">No subject teachers</span>
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right py-4 px-6">
-                            <div className="flex gap-3 justify-end">
-                              <Button
-                                variant="outline"
-                                size="default"
-                                onClick={() => handleStartTeacherAssignment(division.id)}
-                                className="px-4 py-2 text-sm font-medium"
-                              >
-                                <User className="h-4 w-4 mr-2" />
-                                {assignedTeacher ? 'Change' : 'Assign'}
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="default"
-                                onClick={() => handleStartSubjectTeacherAssignment(division.id)}
-                                className="px-4 py-2 text-sm font-medium"
-                              >
-                                <GraduationCap className="h-4 w-4 mr-2" />
-                                Subject
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="default"
-                                onClick={() => handleDeleteClassDivision(division.id)}
-                                className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
                             </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    });
+                          ) : (
+                            <span className="text-muted-foreground italic flex items-center gap-2 text-lg">
+                              <AlertCircle className="h-4 w-4" />
+                              No teacher assigned
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="py-4 px-6">
+                          {cleanSubjectTeachers && cleanSubjectTeachers.length > 0 ? (
+                            <div className="text-base space-y-2">
+                              {cleanSubjectTeachers.map((st) => (
+                                <div key={st.id} className="flex items-center gap-2">
+                                  <User className="h-4 w-4 text-muted-foreground" />
+                                  <span className="font-semibold">{st.name}</span>
+                                  {st.subject && (
+                                    <span className="text-sm text-muted-foreground">({st.subject})</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-base text-muted-foreground">
+                              <span className="italic">No subject teachers</span>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right py-4 px-6">
+                          <div className="flex gap-3 justify-end">
+                            <Button
+                              variant="outline"
+                              size="default"
+                              onClick={() => handleStartTeacherAssignment(division.id)}
+                              className="px-4 py-2 text-sm font-medium"
+                            >
+                              <User className="h-4 w-4 mr-2" />
+                              {division.class_teacher ? 'Change' : 'Assign'}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="default"
+                              onClick={() => handleStartSubjectTeacherAssignment(division.id)}
+                              className="px-4 py-2 text-sm font-medium"
+                            >
+                              <GraduationCap className="h-4 w-4 mr-2" />
+                              Subject
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="default"
+                              onClick={() => handleDeleteClassDivision(division.id)}
+                              className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
                   })
                 )}
               </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       
       {/* Teacher Assignment Modal */}
       {assigningTeacher && (
