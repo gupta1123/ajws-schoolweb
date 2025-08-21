@@ -57,12 +57,32 @@ export default function ParentDetailsPage({ params }: { params: Promise<{ id: st
         if (response.status === 'success' && response.data) {
           setParentData(response.data);
         } else {
-          setError('Failed to fetch parent data');
+          // Handle different error scenarios
+          if (response.status === 'error') {
+            setError('Parent not found or access denied');
+          } else {
+            setError('Failed to fetch parent data');
+          }
         }
       } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch parent data';
-        setError(errorMessage);
         console.error('Error fetching parent data:', err);
+
+        // Provide more specific error messages based on the error
+        if (err instanceof Error) {
+          if (err.message.includes('404') || err.message.includes('Not Found')) {
+            setError('Parent not found. The parent may have been deleted or you may not have access.');
+          } else if (err.message.includes('403') || err.message.includes('Forbidden')) {
+            setError('Access denied. You do not have permission to view this parent.');
+          } else if (err.message.includes('401') || err.message.includes('Unauthorized')) {
+            setError('Authentication required. Please log in again.');
+          } else if (err.message.includes('Failed to fetch') || err.message.includes('Network')) {
+            setError('Network error. Please check your connection and try again.');
+          } else {
+            setError(`Error: ${err.message}`);
+          }
+        } else {
+          setError('Failed to fetch parent data. Please try again.');
+        }
       } finally {
         setLoading(false);
       }

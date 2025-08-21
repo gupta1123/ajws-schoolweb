@@ -28,20 +28,43 @@ export const apiClient = {
     if (!response.ok && response.status !== 304) {
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
 
+      // Handle specific HTTP status codes with user-friendly messages
+      if (response.status === 404) {
+        errorMessage = 'Resource not found';
+      } else if (response.status === 403) {
+        errorMessage = 'Access denied';
+      } else if (response.status === 401) {
+        errorMessage = 'Authentication required';
+      } else if (response.status === 500) {
+        errorMessage = 'Internal server error';
+      }
+
       try {
         // Try to parse JSON error response
         const errorData = await response.json();
-        errorMessage = errorData.message || errorData.error || errorMessage;
+        // Override with API-provided message if available
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (errorData.detail) {
+          errorMessage = errorData.detail;
+        }
+        // Include status code for debugging
+        errorMessage = `${errorMessage} (HTTP ${response.status})`;
       } catch (jsonError) {
         // If JSON parsing fails, try to get text content
         try {
           const textContent = await response.text();
           if (textContent && textContent.length < 500) { // Only use if it's a reasonable error message
-            errorMessage = textContent;
+            errorMessage = `${textContent} (HTTP ${response.status})`;
+          } else {
+            errorMessage = `${errorMessage} (HTTP ${response.status})`;
           }
         } catch (textError) {
-          // If both JSON and text parsing fail, use the default error message
+          // If both JSON and text parsing fail, use the default error message with status
           console.warn('Failed to parse error response:', textError);
+          errorMessage = `${errorMessage} (HTTP ${response.status})`;
         }
       }
 
