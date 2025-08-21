@@ -12,119 +12,108 @@ import {
   Filter,
   Users,
   BookOpen,
-  Clipboard,
-  Calendar,
-  TrendingUp,
-  MessageSquare
+  Clipboard
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-
 import Link from 'next/link';
 import { ClassCard } from '@/components/classes/class-card';
-import { TeacherWorkloadSummary } from '@/components/dashboard/teacher-workload-summary';
-import { PriorityAlerts } from '@/components/dashboard/priority-alerts';
+import { academicServices } from '@/lib/api/academic';
 
-// Mock data for classes with extended information
-const mockClasses = [
-  {
-    id: '1',
-    name: 'Grade 5',
-    division: 'A',
-    studentCount: 32,
-    homeworkCompletion: 85,
-    recentClasswork: 'Mathematics - Fractions',
-    upcomingAssignments: 2,
-    upcomingBirthdays: 3,
-    unreadMessages: 1,
-    healthScore: 92,
-    level: {
-      id: '1',
-      name: 'Grade 5',
-      sequence_number: 5
-    },
-    teacher: {
-      id: '1',
-      full_name: 'John Doe'
-    }
-  },
-  {
-    id: '2',
-    name: 'Grade 6',
-    division: 'B',
-    studentCount: 28,
-    homeworkCompletion: 78,
-    recentClasswork: 'Science - Photosynthesis',
-    upcomingAssignments: 1,
-    upcomingBirthdays: 1,
-    unreadMessages: 0,
-    healthScore: 85,
-    level: {
-      id: '2',
-      name: 'Grade 6',
-      sequence_number: 6
-    },
-    teacher: {
-      id: '1',
-      full_name: 'John Doe'
-    }
-  },
-  {
-    id: '3',
-    name: 'Grade 7',
-    division: 'C',
-    studentCount: 30,
-    homeworkCompletion: 92,
-    recentClasswork: 'English - Poetry',
-    upcomingAssignments: 3,
-    upcomingBirthdays: 2,
-    unreadMessages: 2,
-    healthScore: 95,
-    level: {
-      id: '3',
-      name: 'Grade 7',
-      sequence_number: 7
-    },
-    teacher: {
-      id: '1',
-      full_name: 'John Doe'
-    }
-  }
-];
+interface TeacherClass {
+  name: string;
+  division: string;
+  studentCount: number;
+  teacherRole: 'class_teacher' | 'subject_teacher';
+  subject?: string;
+  classDivisionId: string;
+  assignmentId: string;
+}
 
 export default function ClassesPage() {
-  const { user } = useAuth();
-  const [classes, setClasses] = useState<Array<{
-    id: string;
-    name: string;
-    division: string;
-    studentCount: number;
-    homeworkCompletion: number;
-    recentClasswork: string;
-    upcomingAssignments: number;
-    upcomingBirthdays: number;
-    unreadMessages: number;
-    healthScore: number;
-    level: {
-      id: string;
-      name: string;
-      sequence_number: number;
-    };
-    teacher: {
-      id: string;
-      full_name: string;
-    };
-  }>>([]);
+  const { user, token } = useAuth();
+  const [classes, setClasses] = useState<TeacherClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('name');
 
   useEffect(() => {
-    // Simulate API call with mock data
-    setTimeout(() => {
-      setClasses(mockClasses);
-      setLoading(false);
-    }, 500);
-  }, []);
+    const fetchTeacherClasses = async () => {
+      if (!token || !user) return;
+
+      try {
+        setLoading(true);
+        
+        // Get teacher's assigned classes
+        const response = await academicServices.getMyTeacherClasses(token);
+        
+        if (response.status === 'success' && response.data.assigned_classes) {
+          // Transform the API data to match our interface
+          const transformedClasses: TeacherClass[] = await Promise.all(
+            response.data.assigned_classes.map(async (assignment) => {
+              // Get student count for this class
+              let studentCount = 0;
+              try {
+                const studentsResponse = await academicServices.getStudentsByClass(
+                  assignment.class_division_id, 
+                  token
+                );
+                if (studentsResponse.status === 'success') {
+                  studentCount = studentsResponse.data.count;
+                }
+              } catch (error) {
+                console.error('Error fetching student count:', error);
+              }
+
+              // Extract division from class_name (e.g., "Grade 1 B" -> "B")
+              const division = assignment.division;
+              
+              // Extract grade name from class_name (e.g., "Grade 1 B" -> "Grade 1")
+              const name = assignment.class_level;
+
+              return {
+                id: `${assignment.assignment_id}-${assignment.class_division_id}`, // Unique ID combining assignment and class
+                name: name,
+                division: division,
+                studentCount: studentCount,
+                teacherRole: assignment.assignment_type === 'class_teacher' ? 'class_teacher' : 'subject_teacher',
+                subject: assignment.subject || undefined,
+                classDivisionId: assignment.class_division_id,
+                assignmentId: assignment.assignment_id
+              };
+            })
+          );
+
+          // Remove duplicates based on classDivisionId, keeping the most relevant assignment
+          const uniqueClasses = transformedClasses.reduce((acc, current) => {
+            const existingClass = acc.find(item => item.classDivisionId === current.classDivisionId);
+            
+            if (!existingClass) {
+              // First occurrence of this class, add it
+              acc.push(current);
+            } else {
+              // Class already exists, prioritize class_teacher over subject_teacher
+              if (current.teacherRole === 'class_teacher' && existingClass.teacherRole === 'subject_teacher') {
+                // Replace subject teacher with class teacher
+                const index = acc.findIndex(item => item.classDivisionId === current.classDivisionId);
+                acc[index] = current;
+              }
+              // If both are same role or current is subject teacher, keep existing
+            }
+            
+            return acc;
+          }, [] as TeacherClass[]);
+
+          setClasses(uniqueClasses);
+        }
+      } catch (error) {
+        console.error('Error fetching teacher classes:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTeacherClasses();
+  }, [token, user]);
 
   // Only allow teachers to access this page
   if (user?.role !== 'teacher') {
@@ -149,8 +138,6 @@ export default function ClassesPage() {
         return a.name.localeCompare(b.name);
       } else if (sortBy === 'students') {
         return b.studentCount - a.studentCount;
-      } else if (sortBy === 'health') {
-        return b.healthScore - a.healthScore;
       }
       return 0;
     });
@@ -172,9 +159,6 @@ export default function ClassesPage() {
             Manage your classes and view student information
           </p>
         </div>
-
-        {/* Priority Alerts */}
-        <PriorityAlerts />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
@@ -199,7 +183,6 @@ export default function ClassesPage() {
                     >
                       <option value="name">Sort by Name</option>
                       <option value="students">Sort by Students</option>
-                      <option value="health">Sort by Health</option>
                     </select>
                     <Button variant="outline" size="icon">
                       <Filter className="h-4 w-4" />
@@ -224,66 +207,19 @@ export default function ClassesPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredAndSortedClasses.map((classItem) => (
                   <ClassCard
-                    key={classItem.id}
-                    id={classItem.id}
+                    key={`${classItem.classDivisionId}-${classItem.assignmentId}`}
                     name={classItem.name}
                     division={classItem.division}
                     studentCount={classItem.studentCount}
-                    homeworkCompletion={classItem.homeworkCompletion}
-                    recentClasswork={classItem.recentClasswork}
-                    upcomingAssignments={classItem.upcomingAssignments}
-                    upcomingBirthdays={classItem.upcomingBirthdays}
-                    unreadMessages={classItem.unreadMessages}
-                    healthScore={classItem.healthScore}
+                    teacherRole={classItem.teacherRole}
+                    subject={classItem.subject}
                   />
                 ))}
               </div>
             )}
-
-            {/* Quick Stats */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  Class Summary
-                </CardTitle>
-                <CardDescription>
-                  Overview of your teaching responsibilities
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center p-4 bg-muted/30 rounded-lg">
-                    <div className="text-2xl font-bold">{classes.length}</div>
-                    <div className="text-sm text-muted-foreground">Total Classes</div>
-                  </div>
-                  <div className="text-center p-4 bg-muted/30 rounded-lg">
-                    <div className="text-2xl font-bold">
-                      {classes.reduce((sum, cls) => sum + cls.studentCount, 0)}
-                    </div>
-                    <div className="text-sm text-muted-foreground">Total Students</div>
-                  </div>
-                  <div className="text-center p-4 bg-muted/30 rounded-lg">
-                    <div className="text-2xl font-bold">
-                      {Math.round(classes.reduce((sum, cls) => sum + cls.homeworkCompletion, 0) / classes.length) || 0}%
-                    </div>
-                    <div className="text-sm text-muted-foreground">Avg. Completion</div>
-                  </div>
-                  <div className="text-center p-4 bg-muted/30 rounded-lg">
-                    <div className="text-2xl font-bold">
-                      {classes.reduce((sum, cls) => sum + cls.upcomingAssignments, 0)}
-                    </div>
-                    <div className="text-sm text-muted-foreground">Upcoming Assignments</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
           
           <div className="space-y-6">
-            {/* Teacher Workload Summary */}
-            <TeacherWorkloadSummary />
-            
             {/* Quick Actions */}
             <Card>
               <CardHeader>
@@ -307,18 +243,6 @@ export default function ClassesPage() {
                     <Link href="/classwork/create">
                       <Clipboard className="h-4 w-4 mr-2" />
                       Record Classwork
-                    </Link>
-                  </Button>
-                  <Button variant="outline" className="justify-start" asChild>
-                    <Link href="/messages">
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Message Parents
-                    </Link>
-                  </Button>
-                  <Button variant="outline" className="justify-start" asChild>
-                    <Link href="/calendar">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      View Calendar
                     </Link>
                   </Button>
                 </div>

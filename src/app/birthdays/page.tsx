@@ -224,12 +224,7 @@ export default function BirthdaysPage() {
   return (
     <ProtectedRoute>
       <div className="space-y-6">
-        {/* Action Bar */}
-        <div className="flex justify-end">
-          <div className="flex items-center gap-2">
-            <Cake className="h-8 w-8 text-pink-500" />
-          </div>
-        </div>
+
 
         {/* Fallback Data Warning */}
         {useFallback && (

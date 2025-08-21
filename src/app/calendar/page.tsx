@@ -5,7 +5,7 @@
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, CalendarIcon } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { ImprovedCalendarView } from '@/components/calendar/improved-calendar-view';
 import { EventDetailModal } from '@/components/calendar/event-detail-modal';
@@ -19,13 +19,12 @@ export default function CalendarPage() {
   const { user, token, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [selectedEvent, setSelectedEvent] = useState<UICalendarEvent | null>(null);
-  const [loading, setLoading] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
 
   // Use the calendar events hook for role-based event fetching
   const {
     events,
-    loading: eventsLoading,
     error: eventsError,
     fetchEventsByDateRange,
     fetchParentEvents,
@@ -39,7 +38,6 @@ export default function CalendarPage() {
   const fetchEventsByRole = useCallback(async () => {
     if (!token || !user) return;
 
-    setLoading(true);
     clearError();
 
     try {
@@ -68,8 +66,6 @@ export default function CalendarPage() {
     } catch (error) {
       console.error('Error fetching events:', error);
       setError('Failed to load calendar events');
-    } finally {
-      setLoading(false);
     }
   }, [token, user, fetchEventsByDateRange, fetchParentEvents, clearError]);
 
@@ -261,25 +257,7 @@ export default function CalendarPage() {
         {/* Only show content when auth is ready */}
         {!authLoading && (
           <>
-            {/* Action Bar */}
-            <div className="flex justify-end mb-6">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setLoading(true);
-                    fetchEventsByRole().then(() => setLoading(false));
-                  }}
-                  disabled={loading || eventsLoading}
-                  className="flex items-center gap-2"
-                >
-                  <RefreshCw className={`h-4 w-4 ${(loading || eventsLoading) ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
-                <CalendarIcon className="h-8 w-8 text-blue-500" />
-              </div>
-            </div>
+
 
             {/* Error Display */}
             {error && (
