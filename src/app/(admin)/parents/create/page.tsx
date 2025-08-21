@@ -309,14 +309,7 @@ export default function CreateParentPage() {
           </Button>
         </div>
 
-        <div className="mb-8">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Add New Parent</h1>
-            <p className="text-gray-600 dark:text-gray-300">
-              Create a new parent account. Student linking is optional and can be done later.
-            </p>
-          </div>
-        </div>
+
 
         {error && (
           <div className="mb-6">
@@ -348,63 +341,73 @@ export default function CreateParentPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="full_name">Full Name *</Label>
-                <Input
-                  id="full_name"
-                  name="full_name"
-                  value={formData.full_name}
-                  onChange={handleInputChange}
-                  placeholder="Enter parent's full name"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone_number">Phone Number *</Label>
-                <div className="flex items-center">
-                  <Phone className="absolute ml-3 h-4 w-4 text-muted-foreground" />
+              {/* First Row: Full Name and Phone Number */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="full_name">Full Name *</Label>
                   <Input
-                    id="phone_number"
-                    name="phone_number"
-                    value={formData.phone_number}
+                    id="full_name"
+                    name="full_name"
+                    value={formData.full_name}
                     onChange={handleInputChange}
-                    placeholder="Enter phone number"
-                    className="pl-10"
+                    placeholder="Enter parent's full name"
                     required
                   />
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <div className="flex items-center">
-                  <Mail className="absolute ml-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="Enter email address"
-                    className="pl-10"
-                  />
+                <div className="space-y-2">
+                  <Label htmlFor="phone_number">Phone Number *</Label>
+                  <div className="flex items-center">
+                    <Phone className="absolute ml-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="phone_number"
+                      name="phone_number"
+                      type="tel"
+                      value={formData.phone_number}
+                      onChange={handleInputChange}
+                      placeholder="Enter 10-digit phone number"
+                      className="pl-10"
+                      pattern="[0-9]{10}"
+                      title="Please enter exactly 10 digits"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="initial_password">Initial Password (Optional)</Label>
-                <Input
-                  id="initial_password"
-                  name="initial_password"
-                  type="password"
-                  value={formData.initial_password}
-                  onChange={handleInputChange}
-                  placeholder="Leave blank for parent to set during registration"
-                />
-                <p className="text-xs text-gray-500">
-                  If provided, parent can use this password to register. Otherwise, they&apos;ll set their own password.
-                </p>
+              {/* Second Row: Email and Initial Password */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <div className="flex items-center">
+                    <Mail className="absolute ml-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="Enter email address"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="initial_password">Initial Password *</Label>
+                  <Input
+                    id="initial_password"
+                    name="initial_password"
+                    type="password"
+                    value={formData.initial_password}
+                    onChange={handleInputChange}
+                    placeholder="Enter initial password for parent"
+                    required
+                  />
+                  <p className="text-xs text-gray-500">
+                    Parent will use this password to register and can change it later.
+                  </p>
+                </div>
               </div>
 
               <div className="space-y-2">

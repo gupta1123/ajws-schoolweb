@@ -69,6 +69,14 @@ const pageHeaders: Record<string, PageHeader> = {
   '/profile': {
     title: 'Profile',
     subtitle: 'Manage your account settings and preferences.'
+  },
+  '/parents': {
+    title: 'Parent Management',
+    subtitle: 'Manage parent accounts and student relationships.'
+  },
+  '/parents/create': {
+    title: 'Add New Parent',
+    subtitle: 'Create a new parent account. Student linking is optional and can be done later.'
   }
 };
 
