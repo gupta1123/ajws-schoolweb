@@ -66,6 +66,7 @@ export default function CreateParentPage() {
   const [error, setError] = useState<string | null>(null);
   const [showManualInput, setShowManualInput] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [showStudentLinking, setShowStudentLinking] = useState(false);
 
   const fetchStudents = useCallback(async () => {
     if (!token) return;
@@ -212,17 +213,28 @@ export default function CreateParentPage() {
     e.preventDefault();
     if (!token) return;
 
-    // Validate that at least one student is provided (either selected or manually entered)
-    if (studentDetails.length === 0 || studentDetails.some(detail => !detail.admission_number.trim() || !detail.full_name.trim())) {
-      setError('Please provide at least one student with admission number and name');
-      return;
-    }
+    // Validate student details only if student linking is enabled
+    if (showStudentLinking) {
+      // Filter out empty student details
+      const validStudentDetails = studentDetails.filter(detail =>
+        detail.admission_number.trim() && detail.full_name.trim()
+      );
 
-    // Validate that exactly one student is marked as primary guardian
-    const primaryGuardians = studentDetails.filter(detail => detail.is_primary_guardian);
-    if (primaryGuardians.length !== 1) {
-      setError('Please mark exactly one student as the primary guardian');
-      return;
+      // If no valid students but student linking is enabled, show error
+      if (validStudentDetails.length === 0) {
+        setError('Please provide at least one student with admission number and name');
+        return;
+      }
+
+      // Validate that exactly one student is marked as primary guardian
+      const primaryGuardians = validStudentDetails.filter(detail => detail.is_primary_guardian);
+      if (primaryGuardians.length !== 1) {
+        setError('Please mark exactly one student as the primary guardian');
+        return;
+      }
+
+      // Update studentDetails to only include valid entries
+      setStudentDetails(validStudentDetails);
     }
 
     setIsLoading(true);
@@ -234,11 +246,11 @@ export default function CreateParentPage() {
         phone_number: formData.phone_number,
         email: formData.email,
         initial_password: formData.initial_password || undefined,
-        student_details: studentDetails.map(detail => ({
+        student_details: showStudentLinking ? studentDetails.map(detail => ({
           admission_number: detail.admission_number.trim(),
           relationship: detail.relationship,
           is_primary_guardian: detail.is_primary_guardian
-        }))
+        })) : []
       };
 
       console.log('Sending parent data:', createData);
@@ -301,7 +313,7 @@ export default function CreateParentPage() {
           <div>
             <h1 className="text-3xl font-bold mb-2">Add New Parent</h1>
             <p className="text-gray-600 dark:text-gray-300">
-              Create a new parent account and link to existing students.
+              Create a new parent account. Student linking is optional and can be done later.
             </p>
           </div>
         </div>
@@ -411,13 +423,29 @@ export default function CreateParentPage() {
 
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle>Student Linking</CardTitle>
-              <CardDescription>
-                Select students to link with this parent. Only students without existing parents are shown.
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Student Linking (Optional)</CardTitle>
+                  <CardDescription>
+                    Link this parent to existing students. Only students without existing parents are shown.
+                  </CardDescription>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="show-student-linking">Enable Student Linking</Label>
+                  <input
+                    id="show-student-linking"
+                    type="checkbox"
+                    checked={showStudentLinking}
+                    onChange={(e) => setShowStudentLinking(e.target.checked)}
+                    className="rounded"
+                  />
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {studentDetails.map((detail, index) => (
+              {showStudentLinking ? (
+                <>
+                  {studentDetails.map((detail, index) => (
                 <div key={index} className="border rounded-lg p-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="font-medium">Student {index + 1}</h3>
@@ -641,15 +669,21 @@ export default function CreateParentPage() {
                 </div>
               ))}
               
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addStudentDetail}
-                className="w-full"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Another Student
-              </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addStudentDetail}
+                    className="w-full"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Another Student
+                  </Button>
+                </>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>Student linking is disabled. You can link students later from the parent details page.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
