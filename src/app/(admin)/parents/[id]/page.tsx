@@ -34,6 +34,12 @@ export default function ParentDetailsPage({ params }: { params: Promise<{ id: st
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Helper function to safely get parent data
+  const getParent = () => {
+    if (!parentData) return null;
+    return parentData;
+  };
+
   // Extract parent ID from params
   useEffect(() => {
     const extractId = async () => {
@@ -55,34 +61,28 @@ export default function ParentDetailsPage({ params }: { params: Promise<{ id: st
         const response = await parentServices.getParentById(parentId, token);
 
         if (response.status === 'success' && response.data) {
+          // Single parent response from /api/parents/:parent_id
           setParentData(response.data);
-        } else {
-          // Handle different error scenarios
-          if (response.status === 'error') {
-            setError('Parent not found or access denied');
+        } else if (response.status === 'error') {
+          // Handle API error response
+          const errorResponse = response as any;
+          if (errorResponse.statusCode === 404) {
+            setError('Parent not found. The parent may have been deleted or you may not have access.');
+          } else if (errorResponse.statusCode === 403) {
+            setError('Access denied. You do not have permission to view this parent.');
+          } else if (errorResponse.statusCode === 401) {
+            setError('Authentication required. Please log in again.');
+          } else if (errorResponse.statusCode >= 500) {
+            setError('Server error. Please try again later.');
           } else {
-            setError('Failed to fetch parent data');
+            setError(errorResponse.message || 'Failed to fetch parent data');
           }
+        } else {
+          setError('Failed to fetch parent data');
         }
       } catch (err: unknown) {
         console.error('Error fetching parent data:', err);
-
-        // Provide more specific error messages based on the error
-        if (err instanceof Error) {
-          if (err.message.includes('404') || err.message.includes('Not Found')) {
-            setError('Parent not found. The parent may have been deleted or you may not have access.');
-          } else if (err.message.includes('403') || err.message.includes('Forbidden')) {
-            setError('Access denied. You do not have permission to view this parent.');
-          } else if (err.message.includes('401') || err.message.includes('Unauthorized')) {
-            setError('Authentication required. Please log in again.');
-          } else if (err.message.includes('Failed to fetch') || err.message.includes('Network')) {
-            setError('Network error. Please check your connection and try again.');
-          } else {
-            setError(`Error: ${err.message}`);
-          }
-        } else {
-          setError('Failed to fetch parent data. Please try again.');
-        }
+        setError('An unexpected error occurred. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -154,33 +154,20 @@ export default function ParentDetailsPage({ params }: { params: Promise<{ id: st
             </Button>
             <div className="flex justify-between items-start">
               <div>
-                <h1 className="text-3xl font-bold mb-2">{parentData.parent.full_name}</h1>
+                <h1 className="text-3xl font-bold mb-2">{parentData.full_name || 'Unknown Parent'}</h1>
                 <div className="flex items-center gap-2 mb-4">
                   <Badge
-                    variant={parentData.parent.is_registered ? 'default' : 'secondary'}
-                    className={parentData.parent.is_registered ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}
+                    variant="default"
+                    className="bg-green-100 text-green-800 hover:bg-green-100"
                   >
-                    {parentData.parent.is_registered ? 'Registered' : 'Not Registered'}
+                    Registered
                   </Badge>
                   <Badge variant="outline">
-                    {parentData.parent.role}
+                    {getParent()?.role || 'Unknown'}
                   </Badge>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" asChild>
-                  <Link href={`/messages?parentId=${parentData.parent.id}`}>
-                    <MessageSquare className="mr-2 h-4 w-4" />
-                    Message
-                  </Link>
-                </Button>
-                <Button asChild>
-                  <Link href={`/parents/${parentData.parent.id}/edit`}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit
-                  </Link>
-                </Button>
-              </div>
+
             </div>
           </div>
 
@@ -199,7 +186,7 @@ export default function ParentDetailsPage({ params }: { params: Promise<{ id: st
                     <User className="mr-2 h-4 w-4" />
                     Full Name
                   </div>
-                  <p className="font-medium">{parentData.parent.full_name}</p>
+                  <p className="font-medium">{getParent()?.full_name || 'Unknown'}</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -208,7 +195,7 @@ export default function ParentDetailsPage({ params }: { params: Promise<{ id: st
                       <Phone className="mr-2 h-4 w-4" />
                       Phone Number
                     </div>
-                    <p className="font-medium">{parentData.parent.phone_number}</p>
+                    <p className="font-medium">{getParent()?.phone_number || 'Unknown'}</p>
                   </div>
 
                   <div className="space-y-2">
@@ -216,7 +203,7 @@ export default function ParentDetailsPage({ params }: { params: Promise<{ id: st
                       <Mail className="mr-2 h-4 w-4" />
                       Email Address
                     </div>
-                    <p className="font-medium">{parentData.parent.email || 'Not provided'}</p>
+                    <p className="font-medium">{getParent()?.email || 'Not provided'}</p>
                   </div>
                 </div>
 
@@ -226,18 +213,18 @@ export default function ParentDetailsPage({ params }: { params: Promise<{ id: st
                       <CheckCircle className="mr-2 h-4 w-4" />
                       Registration Status
                     </div>
-                    <Badge variant={parentData.parent.is_registered ? 'default' : 'secondary'}>
-                      {parentData.parent.is_registered ? 'Registered' : 'Not Registered'}
+                    <Badge variant="default">
+                      Registered
                     </Badge>
                   </div>
 
-                  {parentData.parent.created_at && (
+                  {getParent()?.created_at && (
                     <div className="space-y-2">
                       <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                         <Calendar className="mr-2 h-4 w-4" />
                         Created Date
                       </div>
-                      <p className="font-medium">{formatDate(parentData.parent.created_at)}</p>
+                      <p className="font-medium">{formatDate(getParent()?.created_at!)}</p>
                     </div>
                   )}
                 </div>
@@ -255,7 +242,7 @@ export default function ParentDetailsPage({ params }: { params: Promise<{ id: st
               <CardContent className="space-y-2">
                 <div className="text-center p-4 bg-muted/30 rounded-lg">
                   <div className="text-2xl font-bold text-primary">
-                    {parentData.student_mappings?.length || 0}
+                    {getParent()?.children?.length || 0}
                   </div>
                   <div className="text-sm text-muted-foreground">
                     Children
@@ -263,7 +250,7 @@ export default function ParentDetailsPage({ params }: { params: Promise<{ id: st
                 </div>
                 <div className="text-center p-4 bg-muted/30 rounded-lg">
                   <div className="text-2xl font-bold text-primary">
-                    {parentData.student_mappings?.filter(m => m.is_primary_guardian).length || 0}
+                    {getParent()?.children?.length || 0}
                   </div>
                   <div className="text-sm text-muted-foreground">
                     Primary Guardian
@@ -277,55 +264,36 @@ export default function ParentDetailsPage({ params }: { params: Promise<{ id: st
           <div className="mt-8">
             <Card>
               <CardHeader>
-                <CardTitle>Children ({parentData.student_mappings?.length || 0})</CardTitle>
+                <CardTitle>Children ({getParent()?.children?.length || 0})</CardTitle>
                 <CardDescription>
                   Students associated with this parent
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {parentData.student_mappings && parentData.student_mappings.length > 0 ? (
+                {getParent()?.children && getParent()?.children.length > 0 ? (
                   <div className="rounded-md border">
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Student Name</TableHead>
                           <TableHead>Admission Number</TableHead>
-                          <TableHead>Class</TableHead>
-                          <TableHead>Relationship</TableHead>
-                          <TableHead>Access Level</TableHead>
                           <TableHead>Primary Guardian</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {parentData.student_mappings.map((mapping) => (
-                          <TableRow key={mapping.id}>
+                        {getParent()?.children && getParent()?.children.map((child: any) => (
+                          <TableRow key={child.id}>
                             <TableCell className="font-medium">
-                              {mapping.student.full_name}
+                              {child.full_name}
                             </TableCell>
-                            <TableCell>{mapping.student.admission_number}</TableCell>
+                            <TableCell>{child.admission_number}</TableCell>
                             <TableCell>
-                              {mapping.student.class_division ?
-                                `${mapping.student.class_division.level.name} - Section ${mapping.student.class_division.division}`
-                                : 'Not assigned'
-                              }
-                            </TableCell>
-                            <TableCell>{mapping.relationship}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">
-                                {mapping.access_level}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {mapping.is_primary_guardian ? (
-                                <Badge>Primary</Badge>
-                              ) : (
-                                <span className="text-muted-foreground">Secondary</span>
-                              )}
+                              <Badge>Primary</Badge>
                             </TableCell>
                             <TableCell className="text-right">
                               <Button variant="outline" size="sm" asChild>
-                                <Link href={`/students/${mapping.student.id}`}>
+                                <Link href={`/students/${child.id}`}>
                                   View Student
                                 </Link>
                               </Button>

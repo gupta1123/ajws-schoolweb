@@ -8,8 +8,10 @@ export interface Student {
   date_of_birth: string;
   admission_date: string;
   status: string;
+  profile_photo_path?: string;
+  profile_photo_url?: string;
   student_academic_records: StudentAcademicRecord[];
-  parent_student_mappings?: ParentStudentMapping[];
+  parent_mappings?: ParentStudentMapping[];
 }
 
 export interface StudentAcademicRecord {
@@ -44,7 +46,7 @@ export interface ParentStudentMapping {
     id: string;
     full_name: string;
     phone_number: string;
-    email: string;
+    email?: string;
   };
 }
 
@@ -67,9 +69,16 @@ export interface LinkParentRequest {
 }
 
 export interface LinkParentResponse {
-  message: string;
-  mapping_id: string;
-  parent_student_mapping: ParentStudentMapping;
+  mappings: Array<{
+    id: string;
+    parent_id: string;
+    student_id: string;
+    relationship: string;
+    is_primary_guardian: boolean;
+    access_level: string;
+    created_at: string;
+    updated_at: string;
+  }>;
 }
 
 export interface StudentsListResponse {
@@ -233,13 +242,25 @@ export const studentServices = {
     return apiClient.get(`/api/students/${studentId}`, token);
   },
 
-  // Link student to parent
+  // Link student to parent using the correct API endpoint
   linkStudentToParent: async (
     studentId: string,
     data: LinkParentRequest,
     token: string
   ): Promise<ApiResponse<LinkParentResponse>> => {
-    return apiClient.post(`/api/students/${studentId}/link-parent`, data, token);
+    // Use the correct endpoint from API documentation: /api/academic/link-students
+    const payload = {
+      parent_id: data.parent_id,
+      students: [
+        {
+          student_id: studentId,
+          relationship: data.relationship,
+          is_primary_guardian: data.is_primary_guardian,
+          access_level: data.access_level
+        }
+      ]
+    };
+    return apiClient.post('/api/academic/link-students', payload, token);
   },
 
   // Get students by class division

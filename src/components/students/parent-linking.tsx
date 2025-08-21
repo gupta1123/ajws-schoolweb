@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -14,45 +14,154 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, CheckCircle, User, Search } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table';
+import { AlertCircle, CheckCircle, User, Search, Loader2 } from 'lucide-react';
+import { parentServices } from '@/lib/api/parents';
+import { useAuth } from '@/lib/auth/context';
 
 interface ParentData {
   id: string;
-  name: string;
-  phone: string;
-  email: string;
+  full_name: string;
+  phone_number: string;
+  email: string | null;
+  role: string;
+  created_at?: string;
+  children?: Array<{
+    id: string;
+    full_name: string;
+    admission_number: string;
+    class_division?: {
+      division: string;
+      level: {
+        name: string;
+        sequence_number: number;
+      };
+    };
+  }>;
 }
 
 interface ParentLinkingProps {
   onLinkParent: (parentId: string, relationship: string, isPrimary: boolean, accessLevel: string) => void;
   onCancel: () => void;
+  existingParentMappings?: Array<{
+    relationship: string;
+    parent: {
+      id: string;
+      full_name: string;
+    };
+  }>;
 }
 
-export function ParentLinking({ onLinkParent, onCancel }: ParentLinkingProps) {
+export function ParentLinking({ onLinkParent, onCancel, existingParentMappings = [] }: ParentLinkingProps) {
+  const { token } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedParentId, setSelectedParentId] = useState('');
   const [relationship, setRelationship] = useState('father');
-  const [isPrimary, setIsPrimary] = useState(false);
-  const [accessLevel, setAccessLevel] = useState('full');
+  const [isPrimary, setIsPrimary] = useState(true); // Default to primary guardian
+  const [accessLevel, setAccessLevel] = useState('full'); // Default to full access
   const [isLoading, setIsLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
+  const [parents, setParents] = useState<ParentData[]>([]);
+  const [filteredParents, setFilteredParents] = useState<ParentData[]>([]);
 
-  // Mock parent data - in a real app this would come from an API
-  const mockParents: ParentData[] = [
-    { id: '1', name: 'Rajesh Patel', phone: '+91 98765 43210', email: 'rajesh.patel@example.com' },
-    { id: '2', name: 'Priya Patel', phone: '+91 98765 43215', email: 'priya.patel@example.com' },
-    { id: '3', name: 'Manoj Nair', phone: '+91 98765 43211', email: 'manoj.nair@example.com' },
-    { id: '4', name: 'Sunita Reddy', phone: '+91 98765 43212', email: 'sunita.reddy@example.com' },
-    { id: '5', name: 'Vikram Sharma', phone: '+91 98765 43213', email: 'vikram.sharma@example.com' }
-  ];
+  // Fetch parents when component mounts
+  useEffect(() => {
+    if (token) {
+      fetchParents();
+    }
+  }, [token]);
 
-  // Filter parents based on search term
-  const filteredParents = mockParents.filter(parent => 
-    parent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    parent.phone.includes(searchTerm) ||
-    parent.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter parents when search term changes
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setFilteredParents(parents);
+    } else {
+      const filtered = parents.filter(parent => 
+        parent.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        parent.phone_number.includes(searchTerm) ||
+        (parent.email && parent.email.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+      setFilteredParents(filtered);
+    }
+  }, [searchTerm, parents]);
+
+  // Get available relationships (filter out existing ones)
+  const getAvailableRelationships = () => {
+    const allRelationships = [
+      { value: 'father', label: 'Father' },
+      { value: 'mother', label: 'Mother' },
+      { value: 'guardian', label: 'Guardian' },
+      { value: 'grandparent', label: 'Grandparent' },
+      { value: 'other', label: 'Other' }
+    ];
+    
+    // Filter out relationships that already exist
+    return allRelationships.filter(rel => 
+      !existingParentMappings.some(mapping => mapping.relationship === rel.value)
+    );
+  };
+
+  // Update relationship when existing mappings change
+  useEffect(() => {
+    const availableRelationships = getAvailableRelationships();
+    if (availableRelationships.length > 0 && !availableRelationships.some(rel => rel.value === relationship)) {
+      setRelationship(availableRelationships[0].value);
+    }
+  }, [existingParentMappings]);
+
+  const fetchParents = async () => {
+    if (!token) return;
+
+    try {
+      setIsSearching(true);
+      const response = await parentServices.getAllParents(token, { limit: 100 });
+
+      if (response.status === 'success' && response.data) {
+        setParents(response.data.parents || []);
+        setFilteredParents(response.data.parents || []);
+      } else if (response.status === 'error') {
+        setError('Failed to fetch parents. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error fetching parents:', err);
+      setError('Failed to fetch parents. Please try again.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!token || !searchTerm.trim()) return;
+
+    try {
+      setIsSearching(true);
+      const response = await parentServices.getAllParents(token, { 
+        search: searchTerm.trim(),
+        limit: 100 
+      });
+
+      if (response.status === 'success' && response.data) {
+        setFilteredParents(response.data.parents || []);
+      } else if (response.status === 'error') {
+        setError('Search failed. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error searching parents:', err);
+      setError('Search failed. Please try again.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   const handleLinkParent = () => {
     if (!selectedParentId) {
@@ -63,21 +172,22 @@ export function ParentLinking({ onLinkParent, onCancel }: ParentLinkingProps) {
     setIsLoading(true);
     setError(null);
     
-    // Simulate API call
-    setTimeout(() => {
-      try {
-        onLinkParent(selectedParentId, relationship, isPrimary, accessLevel);
-        setSuccess(true);
-        // Reset success after 2 seconds
-        setTimeout(() => {
-          setSuccess(false);
-        }, 2000);
-      } catch {
-        setError('Failed to link parent. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-    }, 500);
+    try {
+      onLinkParent(selectedParentId, relationship, isPrimary, accessLevel);
+      setSuccess(true);
+      // Reset success after 2 seconds
+      setTimeout(() => {
+        setSuccess(false);
+      }, 2000);
+    } catch (err) {
+      setError('Failed to link parent. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleParentSelect = (parentId: string) => {
+    setSelectedParentId(parentId);
   };
 
   return (
@@ -96,53 +206,97 @@ export function ParentLinking({ onLinkParent, onCancel }: ParentLinkingProps) {
         </Alert>
       )}
       
+      {/* Search Section */}
       <div className="space-y-2">
-        <Label htmlFor="parent-search">Search Parent</Label>
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            id="parent-search"
-            placeholder="Search by name, phone, or email"
-            className="pl-10"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <Label htmlFor="parent-search">Search Parents</Label>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="parent-search"
+              placeholder="Search by name, phone, or email"
+              className="pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            />
+          </div>
+          <Button 
+            onClick={handleSearch}
+            disabled={isSearching || !searchTerm.trim()}
+            variant="outline"
+          >
+            {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
+          </Button>
         </div>
       </div>
       
-      {searchTerm && (
-        <div className="space-y-2">
-          <Label>Select Parent</Label>
-          <Select value={selectedParentId} onValueChange={setSelectedParentId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a parent from search results" />
-            </SelectTrigger>
-            <SelectContent>
-              {filteredParents.map((parent) => (
-                <SelectItem key={parent.id} value={parent.id}>
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    <div>
-                      <div className="font-medium">{parent.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {parent.phone} • {parent.email}
-                      </div>
-                    </div>
-                  </div>
-                </SelectItem>
-              ))}
-              {filteredParents.length === 0 && (
-                <div className="p-2 text-muted-foreground">
-                  No parents found. Try a different search term.
-                </div>
+      {/* Parents Table */}
+      <div className="space-y-2">
+        <Label>Available Parents</Label>
+        <div className="border rounded-md max-h-64 overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Select</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Children</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isSearching ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                    <p>Searching parents...</p>
+                  </TableCell>
+                </TableRow>
+              ) : filteredParents.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    {searchTerm ? 'No parents found matching your search.' : 'No parents available.'}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredParents.map((parent) => (
+                  <TableRow 
+                    key={parent.id}
+                    className={`cursor-pointer hover:bg-muted/50 ${
+                      selectedParentId === parent.id ? 'bg-muted' : ''
+                    }`}
+                    onClick={() => handleParentSelect(parent.id)}
+                  >
+                    <TableCell>
+                      <input
+                        type="radio"
+                        name="selectedParent"
+                        value={parent.id}
+                        checked={selectedParentId === parent.id}
+                        onChange={() => handleParentSelect(parent.id)}
+                        className="h-4 w-4 text-primary focus:ring-primary"
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">{parent.full_name}</TableCell>
+                    <TableCell>{parent.phone_number}</TableCell>
+                    <TableCell>{parent.email || 'Not provided'}</TableCell>
+                                         <TableCell>
+                       <Badge variant="outline">
+                         {parent.children?.length || 0} child{(parent.children?.length || 0) !== 1 ? 'ren' : ''}
+                       </Badge>
+                     </TableCell>
+                  </TableRow>
+                ))
               )}
-            </SelectContent>
-          </Select>
+            </TableBody>
+          </Table>
         </div>
-      )}
+      </div>
       
+      {/* Configuration Section - Only show when a parent is selected */}
       {selectedParentId && (
-        <>
+        <div className="space-y-4 border-t pt-4">
           <div className="space-y-2">
             <Label htmlFor="relationship">Relationship</Label>
             <Select value={relationship} onValueChange={setRelationship}>
@@ -150,43 +304,26 @@ export function ParentLinking({ onLinkParent, onCancel }: ParentLinkingProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="father">Father</SelectItem>
-                <SelectItem value="mother">Mother</SelectItem>
-                <SelectItem value="guardian">Guardian</SelectItem>
-                <SelectItem value="grandparent">Grandparent</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
+                {getAvailableRelationships().map((rel) => (
+                  <SelectItem key={rel.value} value={rel.value}>
+                    {rel.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+            {getAvailableRelationships().length === 0 && (
+              <p className="text-sm text-amber-600 dark:text-amber-400">
+                All relationship types are already assigned to this student.
+              </p>
+            )}
           </div>
           
-          <div className="flex items-center space-x-2">
-            <input
-              id="primary-guardian"
-              type="checkbox"
-              checked={isPrimary}
-              onChange={(e) => setIsPrimary(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-            />
-            <Label htmlFor="primary-guardian">Primary Guardian</Label>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="access-level">Access Level</Label>
-            <Select value={accessLevel} onValueChange={setAccessLevel}>
-              <SelectTrigger id="access-level">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="full">Full Access</SelectItem>
-                <SelectItem value="limited">Limited Access</SelectItem>
-                <SelectItem value="view-only">View Only</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </>
+
+        </div>
       )}
       
-      <div className="flex justify-end gap-2 pt-4">
+      {/* Action Buttons */}
+      <div className="flex justify-end gap-2 pt-4 border-t">
         <Button 
           variant="outline" 
           onClick={onCancel}

@@ -1,4 +1,4 @@
-import { apiClient, ApiResponse } from './client';
+import { apiClient, ApiResponse, ApiErrorResponse } from './client';
 
 // Parent Types based on API documentation
 export interface Parent {
@@ -70,30 +70,32 @@ export interface ParentListResponse {
 }
 
 export interface ParentDetailsResponse {
-  parent: Parent;
-  student_mappings: Array<{
+  // Single parent response from /api/parents/:parent_id
+  id: string;
+  full_name: string;
+  phone_number: string;
+  email: string | null;
+  role: string;
+  is_registered: boolean;
+  created_at: string;
+  updated_at?: string;
+  children: Array<{
     id: string;
-    student: {
-      id: string;
-      full_name: string;
-      admission_number: string;
-      class_division?: {
-        division: string;
-        level: {
-          name: string;
-          sequence_number: number;
-        };
+    full_name: string;
+    admission_number: string;
+    class_division?: {
+      division: string;
+      level: {
+        name: string;
+        sequence_number: number;
       };
     };
-    relationship: string;
-    is_primary_guardian: boolean;
-    access_level: string;
   }>;
 }
 
 export const parentServices = {
   // Create a new parent record
-  createParent: async (data: CreateParentRequest, token: string): Promise<ApiResponse<CreateParentResponse>> => {
+  createParent: async (data: CreateParentRequest, token: string): Promise<ApiResponse<CreateParentResponse> | ApiErrorResponse> => {
     return apiClient.post('/api/auth/create-parent', data, token);
   },
 
@@ -105,7 +107,7 @@ export const parentServices = {
       limit?: number;
       search?: string;
     }
-  ): Promise<ApiResponse<ParentListResponse>> => {
+  ): Promise<ApiResponse<ParentListResponse> | ApiErrorResponse> => {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
@@ -116,7 +118,8 @@ export const parentServices = {
   },
 
   // Get parent details by ID
-  getParentById: async (parentId: string, token: string): Promise<ApiResponse<ParentDetailsResponse>> => {
+  getParentById: async (parentId: string, token: string): Promise<ApiResponse<ParentDetailsResponse> | ApiErrorResponse> => {
+    // Use the correct endpoint: /api/parents/:parent_id
     return apiClient.get(`/api/parents/${parentId}`, token);
   },
 
@@ -129,12 +132,12 @@ export const parentServices = {
       email: string;
     }>,
     token: string
-  ): Promise<ApiResponse<Parent>> => {
+  ): Promise<ApiResponse<Parent> | ApiErrorResponse> => {
     return apiClient.put(`/api/parents/${parentId}`, data, token);
   },
 
   // Delete parent
-  deleteParent: async (parentId: string, token: string): Promise<ApiResponse<{ message: string }>> => {
+  deleteParent: async (parentId: string, token: string): Promise<ApiResponse<{ message: string }> | ApiErrorResponse> => {
     return apiClient.delete(`/api/parents/${parentId}`, token);
   },
 
@@ -148,7 +151,7 @@ export const parentServices = {
       access_level: string;
     },
     token: string
-  ): Promise<ApiResponse<{ message: string; mapping_id: string }>> => {
+  ): Promise<ApiResponse<{ message: string; mapping_id: string }> | ApiErrorResponse> => {
     return apiClient.post(`/api/students/${studentId}/link-parent`, {
       parent_id: parentId,
       ...data
@@ -159,7 +162,7 @@ export const parentServices = {
   unlinkParentFromStudent: async (
     mappingId: string,
     token: string
-  ): Promise<ApiResponse<{ message: string }>> => {
+  ): Promise<ApiResponse<{ message: string }> | ApiErrorResponse> => {
     return apiClient.delete(`/api/parent-student/mappings/${mappingId}`, token);
   },
 
@@ -172,12 +175,12 @@ export const parentServices = {
       access_level?: string;
     },
     token: string
-  ): Promise<ApiResponse<{ message: string; mapping: { id: string; relationship: string; is_primary_guardian: boolean; access_level: string } }>> => {
+  ): Promise<ApiResponse<{ message: string; mapping: { id: string; relationship: string; is_primary_guardian: boolean; access_level: string } }> | ApiErrorResponse> => {
     return apiClient.put(`/api/academic/update-parent-access/${mappingId}`, data, token);
   },
 
   // Get parent-student parent count
-  getParentStudentCount: async (token: string): Promise<ApiResponse<{ count: number }>> => {
+  getParentStudentCount: async (token: string): Promise<ApiResponse<{ count: number }> | ApiErrorResponse> => {
     return apiClient.get('/api/parent-student/parents', token);
   },
 
@@ -192,7 +195,7 @@ export const parentServices = {
       page?: number;
       limit?: number;
     }
-  ): Promise<ApiResponse<ParentListResponse>> => {
+  ): Promise<ApiResponse<ParentListResponse> | ApiErrorResponse> => {
     const queryParams = new URLSearchParams();
     if (params?.class_id) queryParams.append('class_id', params.class_id);
     if (params?.class_division_id) queryParams.append('class_division_id', params.class_division_id);

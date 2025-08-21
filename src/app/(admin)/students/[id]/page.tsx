@@ -94,6 +94,8 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
     }
   }, [token, studentId]);
 
+
+
   // Function to handle linking a new parent
   const handleLinkParent = async (parentId: string, relationship: string, isPrimary: boolean, accessLevel: string) => {
     if (!token || !studentData) return;
@@ -111,11 +113,19 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
       );
       
       if (response.status === 'success') {
+        // Add a small delay to ensure the backend has processed the link
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
         // Refresh student data to show the new parent
         const updatedResponse = await studentServices.getStudentById(studentId, token);
+        
         if (updatedResponse.status === 'success' && updatedResponse.data) {
           setStudentData(updatedResponse.data.student);
+        } else {
+          console.error('Failed to get updated student data:', updatedResponse);
         }
+      } else {
+        console.error('Failed to link parent:', response);
       }
     } catch (err: unknown) {
       console.error('Error linking parent:', err);
@@ -189,28 +199,45 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
               ← Back to Students
             </Button>
             <div className="flex justify-between items-start">
-              <div>
-                <h1 className="text-3xl font-bold mb-2">{studentData.full_name}</h1>
-                <div className="flex items-center gap-2">
-                  <Badge 
-                    variant={studentData.status === 'active' ? 'default' : 'secondary'}
-                    className={studentData.status === 'active' ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}
-                  >
-                    {studentData.status.charAt(0).toUpperCase() + studentData.status.slice(1)}
-                  </Badge>
+              <div className="flex items-start gap-4">
+                {/* Profile Picture */}
+                <div className="flex-shrink-0">
+                  {studentData.profile_photo_url ? (
+                    <img
+                      src={studentData.profile_photo_url}
+                      alt={`${studentData.full_name}'s profile picture`}
+                      className="w-20 h-20 rounded-full object-cover border-2 border-gray-200 shadow-sm"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
+                      <User className="w-10 h-10 text-gray-500" />
+                    </div>
+                  )}
+                </div>
+                
+                {/* Student Info */}
+                <div>
+                  <h1 className="text-3xl font-bold mb-2">{studentData.full_name}</h1>
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      variant={studentData.status === 'active' ? 'default' : 'secondary'}
+                      className={studentData.status === 'active' ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}
+                    >
+                      {studentData.status.charAt(0).toUpperCase() + studentData.status.slice(1)}
+                    </Badge>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" asChild>
-                  <Link href={`/messages?studentId=${studentData.id}`}>
-                    Message Parent
-                  </Link>
-                </Button>
+                {/* Message Parent button removed */}
+                {/* Edit Student button commented out for now */}
+                {/*
                 <Button asChild>
                   <Link href={`/students/${studentData.id}/edit`}>
                     Edit Student
                   </Link>
                 </Button>
+                */}
               </div>
             </div>
           </div>
@@ -253,6 +280,7 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                   </div>
                   <p className="font-medium">{formatDate(studentData.admission_date)}</p>
                 </div>
+
               </CardContent>
             </Card>
 
@@ -338,14 +366,25 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                       Student&apos;s parent/guardian information
                     </CardDescription>
                   </div>
-                  <Button onClick={() => setShowParentLinking(true)}>
+                  <Button 
+                    onClick={() => setShowParentLinking(true)}
+                    disabled={studentData.parent_mappings && studentData.parent_mappings.length >= 5}
+                    title={studentData.parent_mappings && studentData.parent_mappings.length >= 5 ? 'All relationship types are already assigned' : ''}
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     Link Parent
                   </Button>
+                  {studentData.parent_mappings && studentData.parent_mappings.length >= 5 && (
+                    <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">
+                      All relationship types are already assigned to this student.
+                    </p>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="rounded-md border">
+
+                  
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -353,13 +392,10 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                         <TableHead>Relationship</TableHead>
                         <TableHead>Phone</TableHead>
                         <TableHead>Email</TableHead>
-                        <TableHead>Access Level</TableHead>
-                        <TableHead>Primary</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {studentData.parent_student_mappings?.map((mapping) => (
+                      {studentData.parent_mappings?.map((mapping) => (
                         <TableRow key={mapping.id}>
                           <TableCell className="font-medium">{mapping.parent.full_name}</TableCell>
                           <TableCell>{mapping.relationship}</TableCell>
@@ -369,29 +405,7 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                               {mapping.parent.phone_number}
                             </div>
                           </TableCell>
-                          <TableCell>{mapping.parent.email}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {mapping.access_level}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {mapping.is_primary_guardian ? (
-                              <Badge>Primary</Badge>
-                            ) : null}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="outline" size="sm" className="mr-2" asChild>
-                              <Link href={`/messages?parentId=${mapping.parent.id}`}>
-                                Message
-                              </Link>
-                            </Button>
-                            <Button variant="outline" size="sm" asChild>
-                              <Link href={`/parents/${mapping.parent.id}/edit`}>
-                                Edit
-                              </Link>
-                            </Button>
-                          </TableCell>
+                          <TableCell>{mapping.parent.email || 'N/A'}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -401,7 +415,7 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                 {/* Parent Linking Modal */}
                 {showParentLinking && (
                   <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-                    <Card className="w-full max-w-md">
+                    <Card className="w-full max-w-4xl">
                       <CardHeader>
                         <CardTitle>Link Parent</CardTitle>
                         <CardDescription>
@@ -412,6 +426,13 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                         <ParentLinking 
                           onLinkParent={handleLinkParent}
                           onCancel={handleCancelParentLinking}
+                          existingParentMappings={studentData.parent_mappings?.map(mapping => ({
+                            relationship: mapping.relationship,
+                            parent: {
+                              id: mapping.parent.id,
+                              full_name: mapping.parent.full_name
+                            }
+                          })) || []}
                         />
                       </CardContent>
                     </Card>

@@ -13,9 +13,17 @@ export interface ApiResponseWithCache<T> extends ApiResponse<T> {
   statusCode?: number;
 }
 
+export interface ApiErrorResponse {
+  status: 'error';
+  message: string;
+  statusCode: number;
+  error?: string;
+  details?: unknown;
+}
+
 // Create an API client instance
 export const apiClient = {
-  get: async <T>(endpoint: string, token?: string): Promise<ApiResponseWithCache<T>> => {
+  get: async <T>(endpoint: string, token?: string): Promise<ApiResponseWithCache<T> | ApiErrorResponse> => {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'GET',
       headers: {
@@ -50,25 +58,27 @@ export const apiClient = {
         } else if (errorData.detail) {
           errorMessage = errorData.detail;
         }
-        // Include status code for debugging
-        errorMessage = `${errorMessage} (HTTP ${response.status})`;
       } catch (jsonError) {
         // If JSON parsing fails, try to get text content
         try {
           const textContent = await response.text();
           if (textContent && textContent.length < 500) { // Only use if it's a reasonable error message
-            errorMessage = `${textContent} (HTTP ${response.status})`;
-          } else {
-            errorMessage = `${errorMessage} (HTTP ${response.status})`;
+            errorMessage = textContent;
           }
         } catch (textError) {
-          // If both JSON and text parsing fail, use the default error message with status
+          // If both JSON and text parsing fail, use the default error message
           console.warn('Failed to parse error response:', textError);
-          errorMessage = `${errorMessage} (HTTP ${response.status})`;
         }
       }
 
-      throw new Error(errorMessage);
+      // Return error response instead of throwing
+      return {
+        status: 'error',
+        message: errorMessage,
+        statusCode: response.status,
+        error: response.statusText,
+        details: { endpoint, status: response.status }
+      };
     }
 
     // For 304 responses, we need to handle them differently since they don't have a body
@@ -91,7 +101,7 @@ export const apiClient = {
     };
   },
 
-  post: async <T, D = unknown>(endpoint: string, data: D, token?: string): Promise<ApiResponse<T>> => {
+  post: async <T, D = unknown>(endpoint: string, data: D, token?: string): Promise<ApiResponse<T> | ApiErrorResponse> => {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'POST',
       headers: {
@@ -120,17 +130,20 @@ export const apiClient = {
         // If we can't parse the error response, use the status text
       }
       
-      const enhancedError = new Error(errorMessage);
-      (enhancedError as Error & { status: number; statusText: string; details: unknown }).status = response.status;
-      (enhancedError as Error & { status: number; statusText: string; details: unknown }).statusText = response.statusText;
-      (enhancedError as Error & { status: number; statusText: string; details: unknown }).details = errorDetails;
-      throw enhancedError;
+      // Return error response instead of throwing
+      return {
+        status: 'error',
+        message: errorMessage,
+        statusCode: response.status,
+        error: response.statusText,
+        details: errorDetails
+      };
     }
 
     return response.json();
   },
 
-  put: async <T, D = unknown>(endpoint: string, data: D, token?: string): Promise<ApiResponse<T>> => {
+  put: async <T, D = unknown>(endpoint: string, data: D, token?: string): Promise<ApiResponse<T> | ApiErrorResponse> => {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'PUT',
       headers: {
@@ -141,14 +154,34 @@ export const apiClient = {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'An error occurred');
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      
+      try {
+        const errorData = await response.json();
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (errorData.detail) {
+          errorMessage = errorData.detail;
+        }
+      } catch {
+        // If we can't parse the error response, use the status text
+      }
+      
+      // Return error response instead of throwing
+      return {
+        status: 'error',
+        message: errorMessage,
+        statusCode: response.status,
+        error: response.statusText
+      };
     }
 
     return response.json();
   },
 
-  delete: async <T>(endpoint: string, token?: string): Promise<ApiResponse<T>> => {
+  delete: async <T>(endpoint: string, token?: string): Promise<ApiResponse<T> | ApiErrorResponse> => {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'DELETE',
       headers: {
@@ -158,14 +191,34 @@ export const apiClient = {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'An error occurred');
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      
+      try {
+        const errorData = await response.json();
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (errorData.detail) {
+          errorMessage = errorData.detail;
+        }
+      } catch {
+        // If we can't parse the error response, use the status text
+      }
+      
+      // Return error response instead of throwing
+      return {
+        status: 'error',
+        message: errorMessage,
+        statusCode: response.status,
+        error: response.statusText
+      };
     }
 
     return response.json();
   },
 
-  patch: async <T, D = unknown>(endpoint: string, data: D, token?: string): Promise<ApiResponse<T>> => {
+  patch: async <T, D = unknown>(endpoint: string, data: D, token?: string): Promise<ApiResponse<T> | ApiErrorResponse> => {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'PATCH',
       headers: {
@@ -194,11 +247,14 @@ export const apiClient = {
         // If we can't parse the error response, use the status text
       }
 
-      const enhancedError = new Error(errorMessage);
-      (enhancedError as Error & { status: number; statusText: string; details: unknown }).status = response.status;
-      (enhancedError as Error & { status: number; statusText: string; details: unknown }).statusText = response.statusText;
-      (enhancedError as Error & { status: number; statusText: string; details: unknown }).details = errorDetails;
-      throw enhancedError;
+      // Return error response instead of throwing
+      return {
+        status: 'error',
+        message: errorMessage,
+        statusCode: response.status,
+        error: response.statusText,
+        details: errorDetails
+      };
     }
 
     return response.json();
