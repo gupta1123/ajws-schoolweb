@@ -31,7 +31,6 @@ POST /auth/create-parent
   "full_name": "Parent Name",
   "phone_number": "1234567890",
   "email": "parent@example.com",
-  "initial_password": "Temp@1234", // Optional: stored in plaintext for onboarding
   "student_details": [
     {
       "admission_number": "ADM123",
@@ -54,7 +53,6 @@ POST /auth/create-parent
 - Uses existing `/api/academic/link-students` endpoint for parent-student mappings
 - Validates students exist in database
 - Parent can then register using their phone number
-- If `initial_password` is provided, it is stored in `users.initial_password` as plaintext (for operational onboarding). The parent can keep it or set a new password during registration. Consider clearing it after first login.
 
 **Response:**
 
@@ -208,51 +206,6 @@ GET /users/children
 ```
 
 **Response:** List of children with their class details
-
-#### Get Child Details (Parents Only)
-
-```http
-GET /api/parent-student/child/:student_id
-```
-
-**Notes:**
-
-- Only accessible to parents linked to the specified `student_id`
-- Returns student details with current class division, level, academic year, teacher, roll number, and the parent's relationship
-
-**Response:**
-
-```json
-{
-  "status": "success",
-  "data": {
-    "student": {
-      "id": "uuid",
-      "full_name": "Student Name",
-      "admission_number": "ADM2024001",
-      "date_of_birth": "2018-01-01",
-      "admission_date": "2024-01-01",
-      "status": "active",
-      "student_academic_records": [
-        {
-          "id": "uuid",
-          "roll_number": "01",
-          "status": "ongoing",
-          "class_division": {
-            "id": "uuid",
-            "division": "A",
-            "academic_year": { "year_name": "2024-2025" },
-            "class_level": { "name": "Grade 1", "sequence_number": 1 },
-            "teacher": { "id": "uuid", "full_name": "Teacher Name" }
-          }
-        }
-      ]
-    },
-    "relationship": "father",
-    "is_primary_guardian": true
-  }
-}
-```
 
 ### Messages
 
@@ -1013,12 +966,6 @@ GET /leave-requests
 **Query Parameters:**
 
 - `status`: Filter by status (pending, approved, rejected)
-- `from_date`: Start of date window (YYYY-MM-DD). Includes leaves that end on/after this date
-- `to_date`: End of date window (YYYY-MM-DD). Includes leaves that start on/before this date
-
-**Notes:**
-
-- If both `from_date` and `to_date` are provided, results include leave requests that overlap the window: `start_date <= to_date` AND `end_date >= from_date`.
 
 **Response:** List of leave requests
 
@@ -1045,68 +992,6 @@ PUT /leave-requests/:id/status
 **Response:** Updated leave request object
 
 ### Academic Management
-
-#### Subjects
-
-```http
-POST /api/academic/subjects
-```
-
-Body:
-
-```json
-{ "name": "Mathematics", "code": "MATH" }
-```
-
-```http
-GET /api/academic/subjects
-```
-
-Query:
-
-- `include_inactive`: true/false
-
-```http
-PUT /api/academic/subjects/:id
-```
-
-Body: any of `{ name, code, is_active }`
-
-```http
-DELETE /api/academic/subjects/:id
-```
-
-Soft-deactivate subject.
-
-#### Class Division Subjects
-
-```http
-POST /api/academic/class-divisions/:id/subjects
-```
-
-Body:
-
-```json
-{ "subject_ids": ["uuid1", "uuid2"], "mode": "replace" }
-```
-
-- **mode**: `replace` (default) deactivates subjects not in list; `append` only adds/reactivates provided subjects
-
-```http
-GET /api/academic/class-divisions/:id/subjects
-```
-
-Response: active subjects assigned to the class division
-
-```http
-DELETE /api/academic/class-divisions/:id/subjects/:subject_id
-```
-
-Removes a subject from the class division (deactivates mapping).
-
-Notes:
-
-- When assigning a `subject_teacher` via `POST /api/academic/class-divisions/:id/assign-teacher`, if the class division has subjects configured, the subject must be among the assigned subjects.
 
 #### Get Students Eligible for Promotion
 
@@ -1502,7 +1387,7 @@ GET /api/birthdays/class/:class_division_id
 
 - Available for Teachers only
 - Returns birthdays for students in the teacher's assigned class
-- Verifies teacher is assigned via either legacy `class_divisions.teacher_id` or any active assignment in `class_teacher_assignments` (class, subject, assistant, substitute)
+- Verifies teacher is assigned to the specified class
 
 **Response:**
 
@@ -1541,69 +1426,9 @@ GET /api/birthdays/division/:class_division_id
 
 - Available for Admin, Principal, and Teachers
 - Admin/Principal can access any division
-- Teachers can access divisions where they are assigned via either legacy `class_divisions.teacher_id` or any active assignment in `class_teacher_assignments`
+- Teachers can only access their assigned divisions
 - Can check birthdays for any specific date
 - Includes class division information
-
-#### Get My Classes' Birthdays (Teacher Only)
-
-```http
-GET /api/birthdays/my-classes
-```
-
-**Query Parameters:**
-
-- `date` (optional): Specific date to check (YYYY-MM-DD format, defaults to today)
-- `page` (optional): Page number for pagination (default: 1)
-- `limit` (optional): Number of items per page (default: 20)
-
-**Notes:**
-
-- Returns birthdays across all class divisions where the teacher is assigned (legacy `class_divisions.teacher_id` or any active row in `class_teacher_assignments`)
-
-**Response:**
-
-```json
-{
-  "status": "success",
-  "data": {
-    "birthdays": [
-      {
-        "id": "uuid",
-        "full_name": "Student Name",
-        "date_of_birth": "2018-01-15",
-        "admission_number": "2024001",
-        "student_academic_records": [
-          {
-            "class_division": {
-              "id": "uuid",
-              "division": "A",
-              "level": {
-                "name": "Grade 1",
-                "sequence_number": 1
-              }
-            },
-            "class_division_id": "uuid",
-            "roll_number": "01"
-          }
-        ]
-      }
-    ],
-    "count": 10,
-    "total_count": 10,
-    "date": "2024-01-15",
-    "class_division_ids": ["uuid1", "uuid2"],
-    "pagination": {
-      "page": 1,
-      "limit": 20,
-      "total": 10,
-      "total_pages": 1,
-      "has_next": false,
-      "has_prev": false
-    }
-  }
-}
-```
 
 **Response:**
 
@@ -2061,33 +1886,6 @@ GET /api/students/:student_id
 }
 ```
 
-#### Upload Student Profile Photo (Admin/Principal/Teacher)
-
-```http
-POST /api/students/:student_id/profile-photo
-```
-
-**Body:** form-data with field `photo` (JPEG/PNG, max 2MB)
-
-**Storage:**
-
-- Stored in Supabase Storage bucket `profile-pictures` at `students/{student_id}/avatar.jpg`
-- `students_master.profile_photo_path` records `profile-pictures/students/{student_id}/avatar.jpg`
-- Public URL is returned in response and included in student profile as `profile_photo_url`
-
-**Response:**
-
-```json
-{
-  "status": "success",
-  "data": {
-    "student_id": "uuid",
-    "profile_photo_path": "profile-pictures/students/uuid/avatar.jpg",
-    "profile_photo_url": "https://.../profile-pictures/students/uuid/avatar.jpg"
-  }
-}
-```
-
 #### Get Students by Class Division
 
 ```http
@@ -2135,16 +1933,7 @@ GET /api/students/class/:class_division_id
         ]
       }
     ],
-    "count": 20,
-    "total_count": 25,
-    "pagination": {
-      "page": 1,
-      "limit": 20,
-      "total": 25,
-      "total_pages": 2,
-      "has_next": true,
-      "has_prev": false
-    }
+    "count": 25
   }
 }
 ```

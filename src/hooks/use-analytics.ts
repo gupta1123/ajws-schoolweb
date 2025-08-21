@@ -1,6 +1,6 @@
 // src/hooks/use-analytics.ts
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth/context';
 import { analyticsServices } from '@/lib/api';
 
@@ -16,6 +16,10 @@ interface AnalyticsData {
   newMessages: number;
   activeUsers: number;
 }
+
+// Simple in-memory cache
+const cache = new Map<string, { data: AnalyticsData; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export function useAnalytics() {
   const { token } = useAuth();
@@ -33,21 +37,33 @@ export function useAnalytics() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const cacheKey = useRef<string>('');
 
   useEffect(() => {
-    const fetchAnalytics = async () => {
-      if (!token) {
-        setLoading(false);
-        return;
-      }
+    if (!token) {
+      setLoading(false);
+      return;
+    }
 
+    // Create cache key based on token (you might want to use a different key)
+    cacheKey.current = `analytics_${token.substring(0, 10)}`;
+
+    const fetchAnalytics = async () => {
       try {
+        // Check cache first
+        const cached = cache.get(cacheKey.current);
+        if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+          setData(cached.data);
+          setLoading(false);
+          return;
+        }
+
         setLoading(true);
         const response = await analyticsServices.getSummary(token);
 
         if (response.data) {
           const { summary, daily_stats } = response.data;
-          setData({
+          const newData = {
             totalStudents: summary.total_students,
             totalStaff: summary.total_staff,
             activeClasses: summary.active_classes,
@@ -58,7 +74,11 @@ export function useAnalytics() {
             newHomework: daily_stats.new_homework,
             newMessages: daily_stats.new_messages,
             activeUsers: daily_stats.active_users,
-          });
+          };
+
+          // Cache the data
+          cache.set(cacheKey.current, { data: newData, timestamp: Date.now() });
+          setData(newData);
         }
       } catch (err) {
         console.error('Failed to fetch analytics:', err);

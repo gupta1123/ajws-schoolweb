@@ -5,17 +5,12 @@
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
 import { WelcomeBanner } from '@/components/dashboard/welcome-banner';
-import { ClassOverviewCard } from '@/components/dashboard/class-overview-card';
-import { SchoolHealthDashboard } from '@/components/dashboard/school-health-dashboard';
-import { ApprovalPipeline } from '@/components/dashboard/approval-pipeline';
-import { UpcomingEvents } from '@/components/dashboard/upcoming-events';
-import { UpcomingBirthdays } from '@/components/dashboard/upcoming-birthdays';
-import { RecentActivity } from '@/components/dashboard/recent-activity';
-import { PerformanceSummaryCard } from '@/components/dashboard/performance-summary-card';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useAnalytics } from '@/hooks/use-analytics';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
+import { Suspense, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import {
   UserCheck,
   User,
@@ -24,48 +19,64 @@ import {
   Building2
 } from 'lucide-react';
 
-export default function DashboardPage() {
+// Lazy load heavy components to improve initial load performance
+const ClassOverviewCard = dynamic(() => import('@/components/dashboard/class-overview-card').then(mod => mod.ClassOverviewCard), {
+  loading: () => <div className="h-32 bg-muted animate-pulse rounded-lg" />
+});
+
+const ApprovalPipeline = dynamic(() => import('@/components/dashboard/approval-pipeline').then(mod => mod.ApprovalPipeline), {
+  loading: () => <div className="h-48 bg-muted animate-pulse rounded-lg" />
+});
+
+const UpcomingEvents = dynamic(() => import('@/components/dashboard/upcoming-events').then(mod => mod.UpcomingEvents), {
+  loading: () => <div className="h-32 bg-muted animate-pulse rounded-lg" />
+});
+
+const UpcomingBirthdays = dynamic(() => import('@/components/dashboard/upcoming-birthdays').then(mod => mod.UpcomingBirthdays), {
+  loading: () => <div className="h-32 bg-muted animate-pulse rounded-lg" />
+});
+
+const RecentActivity = dynamic(() => import('@/components/dashboard/recent-activity').then(mod => mod.RecentActivity), {
+  loading: () => <div className="h-40 bg-muted animate-pulse rounded-lg" />
+});
+
+
+
+const DashboardPage = () => {
   const { user } = useAuth();
   const { data: analyticsData, loading: analyticsLoading } = useAnalytics();
 
-  const adminQuickAccessCards = [
+  // Memoize admin cards to prevent re-creation on every render
+  const adminQuickAccessCards = useMemo(() => [
     {
       title: 'Students',
       description: 'Manage student records',
       icon: <GraduationCap className="h-6 w-6" />,
       href: '/students',
-      color: 'bg-blue-500',
-      stats: analyticsData?.totalStudents || 0,
-      loading: analyticsLoading
+      stats: analyticsLoading ? null : analyticsData.totalStudents
     },
     {
       title: 'Parents',
       description: 'Parent management',
       icon: <UserCheck className="h-6 w-6" />,
       href: '/parents',
-      color: 'bg-green-500',
-      stats: 'Manage',
-      loading: false
+      stats: 'Manage'
     },
     {
       title: 'Staff',
       description: 'Teacher & staff management',
       icon: <User className="h-6 w-6" />,
       href: '/staff',
-      color: 'bg-purple-500',
-      stats: analyticsData?.totalStaff || 0,
-      loading: analyticsLoading
+      stats: analyticsLoading ? null : analyticsData.totalStaff
     },
     {
       title: 'Academic Structure',
       description: 'Classes & subjects',
       icon: <Building2 className="h-6 w-6" />,
       href: '/academic',
-      color: 'bg-orange-500',
-      stats: analyticsData?.activeClasses || 0,
-      loading: analyticsLoading
+      stats: analyticsLoading ? null : analyticsData.activeClasses
     }
-  ];
+  ], [analyticsData, analyticsLoading]);
 
   return (
     <ProtectedRoute>
@@ -75,10 +86,16 @@ export default function DashboardPage() {
         {user?.role === 'teacher' ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              <ClassOverviewCard />
+              <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
+                <ClassOverviewCard />
+              </Suspense>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <UpcomingEvents />
-                <UpcomingBirthdays />
+                <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
+                  <UpcomingEvents />
+                </Suspense>
+                <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
+                  <UpcomingBirthdays />
+                </Suspense>
               </div>
             </div>
             <div>
@@ -120,7 +137,7 @@ export default function DashboardPage() {
                         {analyticsLoading ? (
                           <Skeleton className="h-8 w-16" />
                         ) : (
-                          analyticsData?.activeClasses || 0
+                          analyticsData.activeClasses || 0
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">Active divisions</p>
@@ -135,7 +152,7 @@ export default function DashboardPage() {
                         {analyticsLoading ? (
                           <Skeleton className="h-8 w-16" />
                         ) : (
-                          analyticsData?.totalStudents || 0
+                          analyticsData.totalStudents || 0
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">Enrolled students</p>
@@ -150,7 +167,7 @@ export default function DashboardPage() {
                         {analyticsLoading ? (
                           <Skeleton className="h-8 w-12" />
                         ) : (
-                          analyticsData?.totalStaff || 0
+                          analyticsData.totalStaff || 0
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">Teaching staff</p>
@@ -178,13 +195,7 @@ export default function DashboardPage() {
                           </div>
                         </CardHeader>
                         <CardContent>
-                          <div className="text-2xl font-bold">
-                            {card.loading ? (
-                              <Skeleton className="h-8 w-12" />
-                            ) : (
-                              card.stats
-                            )}
-                          </div>
+                          <div className="text-2xl font-bold">{card.stats}</div>
                         </CardContent>
                       </Card>
                     </Link>
@@ -192,26 +203,28 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* School Health Dashboard */}
-              <SchoolHealthDashboard />
-              
-              {/* Performance Summary */}
-              <PerformanceSummaryCard />
-              
               {/* Approval Pipeline */}
-              <ApprovalPipeline />
-              
+              <Suspense fallback={<div className="h-48 bg-muted animate-pulse rounded-lg" />}>
+                <ApprovalPipeline />
+              </Suspense>
+
               {/* Recent Activity */}
-              <RecentActivity />
+              <Suspense fallback={<div className="h-40 bg-muted animate-pulse rounded-lg" />}>
+                <RecentActivity />
+              </Suspense>
             </div>
 
             {/* Right Pane - Events and Birthdays */}
             <div className="space-y-6">
               {/* Upcoming Events */}
-              <UpcomingEvents />
-              
+              <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
+                <UpcomingEvents />
+              </Suspense>
+
               {/* Upcoming Birthdays */}
-              <UpcomingBirthdays />
+              <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
+                <UpcomingBirthdays />
+              </Suspense>
               
               {/* Quick Stats */}
               <Card>
@@ -232,7 +245,7 @@ export default function DashboardPage() {
                         {analyticsLoading ? (
                           <Skeleton className="h-8 w-16" />
                         ) : (
-                          analyticsData?.activeUsers || 0
+                          analyticsData.activeUsers || 0
                         )}
                       </div>
                     </div>
@@ -243,12 +256,12 @@ export default function DashboardPage() {
                         <div className="text-sm text-muted-foreground">This week</div>
                       </div>
                                               <div className="text-2xl font-bold">
-                          {analyticsLoading ? (
-                            <Skeleton className="h-8 w-12" />
-                          ) : (
-                            analyticsData?.newMessages || 0
-                          )}
-                        </div>
+                        {analyticsLoading ? (
+                          <Skeleton className="h-8 w-12" />
+                        ) : (
+                          analyticsData.newMessages || 0
+                        )}
+                      </div>
                     </div>
                     
                     <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
@@ -257,12 +270,12 @@ export default function DashboardPage() {
                         <div className="text-sm text-muted-foreground">Awaiting approval</div>
                       </div>
                                               <div className="text-2xl font-bold text-orange-500">
-                          {analyticsLoading ? (
-                            <Skeleton className="h-8 w-12" />
-                          ) : (
-                            analyticsData?.pendingApprovals || 0
-                          )}
-                        </div>
+                        {analyticsLoading ? (
+                          <Skeleton className="h-8 w-12" />
+                        ) : (
+                          analyticsData.pendingApprovals || 0
+                        )}
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -273,4 +286,6 @@ export default function DashboardPage() {
       </div>
     </ProtectedRoute>
   );
-}
+};
+
+export default DashboardPage;
