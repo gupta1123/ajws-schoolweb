@@ -86,7 +86,7 @@ export const useBirthdays = () => {
     return {
       id: student.id,
       name: student.full_name,
-      class: student.academic_records[0]?.class_division 
+      class: student.academic_records && student.academic_records.length > 0 && student.academic_records[0]?.class_division
         ? `${student.academic_records[0].class_division.level.name} - Section ${student.academic_records[0].class_division.division}`
         : undefined,
       date: student.date_of_birth,
@@ -94,7 +94,7 @@ export const useBirthdays = () => {
       avatar: initials,
       type: 'student',
       admissionNumber: student.admission_number,
-      rollNumber: student.academic_records[0]?.roll_number
+      rollNumber: student.academic_records && student.academic_records.length > 0 ? student.academic_records[0]?.roll_number : undefined
     };
   }, []);
 
