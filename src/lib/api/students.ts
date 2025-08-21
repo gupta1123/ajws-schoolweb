@@ -300,7 +300,7 @@ export const studentServices = {
     
     // Note: This would need to be implemented in the apiClient to handle FormData
     // For now, we'll use a direct fetch call
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000'}/api/students/${studentId}/profile-photo`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://ajws-school-ba8ae5e3f955.herokuapp.com'}/api/students/${studentId}/profile-photo`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
