@@ -15,6 +15,7 @@ export function UpcomingEvents() {
   const { user, token } = useAuth();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUpcomingEvents = async () => {
@@ -22,6 +23,7 @@ export function UpcomingEvents() {
 
       try {
         setLoading(true);
+        setError(null);
         
         // Get current date and next 30 days for date range
         const today = new Date();
@@ -33,36 +35,63 @@ export function UpcomingEvents() {
 
         let response;
         
-        if (user?.role === 'teacher') {
-          // For teachers, get events for their classes
-          response = await calendarServices.getTeacherEvents(
-            startDateStr, 
-            endDateStr, 
-            'academic',
-            token,
-            token
-          );
-        } else if (user?.role === 'parent') {
-          // For parents, get events for their children's classes
-          response = await calendarServices.getParentEvents(
-            token,
-            {
-              start_date: startDateStr,
-              end_date: endDateStr,
-              event_category: 'meeting'
-            }
-          );
-        } else {
-          // For admin/principal, get all events
-          response = await calendarServices.getEvents(
-            token,
-            {
-              start_date: startDateStr,
-              end_date: endDateStr,
-              event_category: 'meeting',
-              use_ist: true
-            }
-          );
+        try {
+          if (user?.role === 'teacher') {
+            // For teachers, try to get events for their classes first
+            console.log('Fetching teacher events...');
+            response = await calendarServices.getTeacherEvents(
+              token,
+              startDateStr, 
+              endDateStr, 
+              'academic'
+            );
+            console.log('Teacher events response:', response);
+          } else if (user?.role === 'parent') {
+            // For parents, get events for their children's classes
+            console.log('Fetching parent events...');
+            response = await calendarServices.getParentEvents(
+              token,
+              {
+                start_date: startDateStr,
+                end_date: endDateStr,
+                event_category: 'meeting'
+              }
+            );
+            console.log('Parent events response:', response);
+          } else {
+            // For admin/principal, get all events
+            console.log('Fetching admin events...');
+            response = await calendarServices.getEvents(
+              token,
+              {
+                start_date: startDateStr,
+                end_date: endDateStr,
+                event_category: 'meeting',
+                use_ist: true
+              }
+            );
+            console.log('Admin events response:', response);
+          }
+        } catch (teacherError) {
+          console.error('Error with role-specific events API:', teacherError);
+          
+          // Fallback to general events API for all roles
+          console.log('Falling back to general events API...');
+          try {
+            response = await calendarServices.getEvents(
+              token,
+              {
+                start_date: startDateStr,
+                end_date: endDateStr,
+                event_category: 'academic',
+                use_ist: true
+              }
+            );
+            console.log('Fallback events response:', response);
+          } catch (fallbackError) {
+            console.error('Error with fallback events API:', fallbackError);
+            throw fallbackError;
+          }
         }
 
         if (response.status === 'success' && response.data.events) {
@@ -74,9 +103,14 @@ export function UpcomingEvents() {
             .slice(0, 5); // Show only next 5 events
           
           setEvents(sortedEvents);
+        } else {
+          console.warn('Unexpected response format:', response);
+          setEvents([]);
         }
       } catch (error) {
         console.error('Error fetching upcoming events:', error);
+        setError(error instanceof Error ? error.message : 'Failed to fetch events');
+        setEvents([]);
       } finally {
         setLoading(false);
       }
@@ -147,6 +181,34 @@ export function UpcomingEvents() {
     );
   }
 
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Upcoming Events
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-muted-foreground">
+            <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p className="text-red-500 mb-2">Failed to load events</p>
+            <p className="text-xs">{error}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-3"
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -172,40 +234,40 @@ export function UpcomingEvents() {
                     <div className={`p-1.5 rounded-full ${getEventColor(event.event_category)}`}>
                       {getEventIcon(event.event_category)}
                     </div>
-                                         <div>
-                       <h4 className="font-medium text-sm">{event.title}</h4>
-                       {event.class_info && (
-                         <p className="text-xs text-muted-foreground">
-                           {event.class_info.class_level} - {event.class_info.division}
-                         </p>
-                       )}
-                     </div>
-                   </div>
-                   <div className={`px-2 py-1 rounded-full text-xs font-medium ${getEventColor(event.event_category)}`}>
-                     {event.event_category}
-                   </div>
-                 </div>
-                 
-                 <div className="space-y-1 text-xs text-muted-foreground">
-                   <div className="flex items-center gap-1">
-                     <Clock className="h-3 w-3" />
-                     <span>{formatDate(event.event_date)} at {formatTime(event.event_date)}</span>
-                   </div>
-                   
-                   {event.start_time && event.end_time && (
-                     <div className="flex items-center gap-1">
-                       <MapPin className="h-3 w-3" />
-                       <span>{event.start_time} - {event.end_time}</span>
-                     </div>
-                   )}
-                   
-                   {event.creator_name && (
-                     <div className="flex items-center gap-1">
-                       <Users className="h-3 w-3" />
-                       <span>Created by {event.creator_name}</span>
-                     </div>
-                   )}
-                 </div>
+                    <div>
+                      <h4 className="font-medium text-sm">{event.title}</h4>
+                      {event.class_info && (
+                        <p className="text-xs text-muted-foreground">
+                          {event.class_info.class_level} - {event.class_info.division}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${getEventColor(event.event_category)}`}>
+                    {event.event_category}
+                  </div>
+                </div>
+                
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    <span>{formatDate(event.event_date)} at {formatTime(event.event_date)}</span>
+                  </div>
+                  
+                  {event.start_time && event.end_time && (
+                    <div className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      <span>{event.start_time} - {event.end_time}</span>
+                    </div>
+                  )}
+                  
+                  {event.creator_name && (
+                    <div className="flex items-center gap-1">
+                      <Users className="h-3 w-3" />
+                      <span>Created by {event.creator_name}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>

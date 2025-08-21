@@ -287,8 +287,7 @@ export const calendarServices = {
     token: string,
     startDate: string,
     endDate: string,
-    eventCategory: string,
-    tokenParam: string
+    eventCategory: string
   ): Promise<ApiResponse<EventsResponse>> => {
     const searchParams = new URLSearchParams();
     searchParams.append('start_date', startDate);
@@ -296,6 +295,6 @@ export const calendarServices = {
     searchParams.append('event_category', eventCategory);
     
     const queryString = searchParams.toString();
-    return apiClient.get(`/api/calendar/events/teacher?${queryString}`, tokenParam);
+    return apiClient.get(`/api/calendar/events/teacher?${queryString}`, token);
   }
 };
