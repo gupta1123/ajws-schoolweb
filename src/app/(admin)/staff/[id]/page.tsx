@@ -106,7 +106,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
 
       try {
         setClassAssignmentsLoading(true);
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://school-app-backend-d143b785b631.herokuapp.com'}/api/academic/teachers/${staffId}/classes`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://ajws-school-ba8ae5e3f955.herokuapp.com'}/api/academic/teachers/${staffId}/classes`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

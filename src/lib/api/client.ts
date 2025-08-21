@@ -1,6 +1,6 @@
 // src/lib/api/client.ts
 
-const API_BASE_URL = 'https://school-app-backend-d143b785b631.herokuapp.com';
+const API_BASE_URL = 'https://ajws-school-ba8ae5e3f955.herokuapp.com';
 
 export interface ApiResponse<T> {
   status: string;
