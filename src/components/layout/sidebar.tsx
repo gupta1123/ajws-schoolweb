@@ -34,6 +34,11 @@ const teacherNavItems = [
     category: 'Academics',
     items: [
       {
+        title: 'My Classes',
+        href: '/classes',
+        icon: Users,
+      },
+      {
         title: 'Homework',
         href: '/homework',
         icon: Clipboard,

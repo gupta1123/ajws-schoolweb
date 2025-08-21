@@ -5,8 +5,6 @@
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
 import { WelcomeBanner } from '@/components/dashboard/welcome-banner';
-import { QuickActionsCarousel } from '@/components/dashboard/quick-actions-carousel';
-import { PriorityAlerts } from '@/components/dashboard/priority-alerts';
 import { ClassOverviewCard } from '@/components/dashboard/class-overview-card';
 import { SchoolHealthDashboard } from '@/components/dashboard/school-health-dashboard';
 import { ApprovalPipeline } from '@/components/dashboard/approval-pipeline';
@@ -16,7 +14,6 @@ import { PerformanceSummaryCard } from '@/components/dashboard/performance-summa
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   MessageSquare,
-  TrendingUp,
   Users,
   Calendar
 } from 'lucide-react';
@@ -28,62 +25,16 @@ export default function DashboardPage() {
     <ProtectedRoute>
       <div className="container max-w-6xl mx-auto py-8">
         <WelcomeBanner />
-        <QuickActionsCarousel />
-        <PriorityAlerts />
         
         {user?.role === 'teacher' ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <ClassOverviewCard />
-              <PerformanceSummaryCard />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <UpcomingEvents />
-                <RecentActivity />
               </div>
             </div>
             <div>
-              <Card className="mb-6">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Performance Overview
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="p-4 bg-muted/30 rounded-lg">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium">Overall Class Performance</span>
-                        <span className="text-lg font-bold text-green-500">88%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-green-500 h-2 rounded-full" style={{ width: '88%' }}></div>
-                      </div>
-                    </div>
-                    
-                    <div className="p-4 bg-muted/30 rounded-lg">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium">Homework Submission</span>
-                        <span className="text-lg font-bold text-blue-500">92%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-blue-500 h-2 rounded-full" style={{ width: '92%' }}></div>
-                      </div>
-                    </div>
-                    
-                    <div className="p-4 bg-muted/30 rounded-lg">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium">Parent Engagement</span>
-                        <span className="text-lg font-bold text-purple-500">75%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-purple-500 h-2 rounded-full" style={{ width: '75%' }}></div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -135,7 +86,7 @@ export default function DashboardPage() {
                     <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                       <div>
                         <div className="font-medium">Messages Sent</div>
-                        <div className="text-sm text-muted-foreground">This week</div>
+                        <div className="text-xs text-muted-foreground">This week</div>
                       </div>
                       <div className="text-2xl font-bold">89</div>
                     </div>
@@ -143,7 +94,7 @@ export default function DashboardPage() {
                     <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                       <div>
                         <div className="font-medium">Pending Requests</div>
-                        <div className="text-sm text-muted-foreground">Awaiting approval</div>
+                        <div className="text-xs text-muted-foreground">Awaiting approval</div>
                       </div>
                       <div className="text-2xl font-bold text-orange-500">12</div>
                     </div>
