@@ -61,7 +61,7 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ id: str
             setClassData({
               id: classIdFromParams,
               division: 'A', // This would come from the API
-              level: { id: '1', name: 'Grade 5', sequence_number: 5 },
+              class_level: { id: '1', name: 'Grade 5', sequence_number: 5 },
               teacher: { id: user?.id || '', full_name: user?.full_name || '' },
               student_count: response.data.count
             });
@@ -160,9 +160,9 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ id: str
           </Button>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold mb-2">{classData.level.name} - {classData.division}</h1>
+              <h1 className="text-3xl font-bold mb-2">{classData.class_level.name} - {classData.division}</h1>
               <p className="text-gray-600 dark:text-gray-300">
-                {classData.level.name} • {classData.student_count} students
+                {classData.class_level.name} • {classData.student_count} students
               </p>
             </div>
             <Button asChild>
@@ -360,7 +360,7 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ id: str
                 </div>
                 <div className="text-center p-4 bg-muted/30 rounded-lg">
                   <div className="text-2xl font-bold">
-                    {classData.level.sequence_number}
+                    {classData.class_level.sequence_number}
                   </div>
                   <div className="text-sm text-muted-foreground">Grade Level</div>
                 </div>

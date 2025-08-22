@@ -8,7 +8,7 @@ export interface BirthdayStudent {
   date_of_birth: string;
   admission_number: string;
   status: string;
-  academic_records: Array<{
+  student_academic_records: Array<{
     class_division: {
       division: string;
       level: {

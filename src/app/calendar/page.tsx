@@ -5,7 +5,7 @@
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
 import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Plus, Calendar as CalendarIcon } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { ImprovedCalendarView } from '@/components/calendar/improved-calendar-view';
 import { EventDetailModal } from '@/components/calendar/event-detail-modal';
@@ -147,6 +147,22 @@ export default function CalendarPage() {
     window.location.href = `/calendar/create?date=${date}`;
   };
 
+  const handleCreateEvent = () => {
+    // Prevent action while auth is loading
+    if (authLoading) {
+      toast({
+        title: "Please wait",
+        description: "Authentication is still loading. Please try again in a moment.",
+        variant: "error",
+      });
+      return;
+    }
+
+    // Navigate to create event page with today's date
+    const today = new Date().toISOString().split('T')[0];
+    window.location.href = `/calendar/create?date=${today}`;
+  };
+
   const handleEditEvent = (eventId: string) => {
     // Prevent action while auth is loading
     if (authLoading) {
@@ -243,7 +259,7 @@ export default function CalendarPage() {
 
   return (
     <ProtectedRoute>
-      <div className="container max-w-6xl mx-auto py-8">
+      <div className="container max-w-6xl mx-auto py-6">
         {/* Show loading state while auth is initializing */}
         {authLoading && (
           <div className="flex items-center justify-center py-12">
@@ -257,7 +273,26 @@ export default function CalendarPage() {
         {/* Only show content when auth is ready */}
         {!authLoading && (
           <>
-
+            {/* Header with Create Event Button */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <CalendarIcon className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold">School Calendar</h1>
+                  <p className="text-sm text-muted-foreground">Manage and view all school events</p>
+                </div>
+              </div>
+              <Button 
+                onClick={handleCreateEvent}
+                size="lg"
+                className="h-11 px-4"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create Event
+              </Button>
+            </div>
 
             {/* Error Display */}
             {error && (

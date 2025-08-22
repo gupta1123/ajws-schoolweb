@@ -10,9 +10,8 @@ export interface UICalendarEvent {
   date: string;
   startTime: string;
   endTime: string;
-  type: 'school' | 'meeting' | 'class' | 'room_booking' | 'leave';
+  type: 'school' | 'class';
   class?: string;
-  room?: string;
   teacher?: string;
   requiresApproval?: boolean;
   approved?: boolean;
@@ -49,30 +48,10 @@ export const convertApiEventToUI = (apiEvent: CalendarEvent): UICalendarEvent =>
   const startTime = apiEvent.start_time || '00:00';
   const endTime = apiEvent.end_time || '23:59';
 
-
-
-  // Map event categories to types
-  const categoryTypeMap: Record<string, UICalendarEvent['type']> = {
-    'general': 'school',
-    'academic': 'class',
-    'sports': 'school',
-    'cultural': 'school',
-    'holiday': 'school',
-    'exam': 'class',
-    'meeting': 'meeting',
-    'other': 'school'
-  };
-
-  // Determine the type based on event_type and category
+  // Determine the type based on event_type
   let type: UICalendarEvent['type'] = 'school';
   if (apiEvent.event_type === 'class_specific') {
     type = 'class';
-  } else if (apiEvent.event_category === 'meeting') {
-    type = 'meeting';
-  } else if (apiEvent.event_category === 'exam') {
-    type = 'class';
-  } else {
-    type = categoryTypeMap[apiEvent.event_category] || 'school';
   }
 
   // Build class information
@@ -81,12 +60,11 @@ export const convertApiEventToUI = (apiEvent: CalendarEvent): UICalendarEvent =>
     classInfo = `${apiEvent.class_info.class_level} - Section ${apiEvent.class_info.division}`;
   }
 
-  // Determine approval status (simplified logic)
-  const requiresApproval = apiEvent.event_type === 'class_specific' || 
-                          apiEvent.event_category === 'meeting' ||
-                          apiEvent.event_category === 'cultural';
+  // All events require approval by default
+  const requiresApproval = true;
   
-  const approved = !requiresApproval || apiEvent.creator_role === 'admin' || 
+  // Check if the event is approved (created by admin/principal or explicitly approved)
+  const approved = apiEvent.creator_role === 'admin' || 
                   apiEvent.creator_role === 'principal';
 
   return {
@@ -98,7 +76,6 @@ export const convertApiEventToUI = (apiEvent: CalendarEvent): UICalendarEvent =>
     endTime,
     type,
     class: classInfo || undefined,
-    room: undefined, // API doesn't have room field
     teacher: apiEvent.creator_name || undefined,
     requiresApproval,
     approved,
@@ -109,23 +86,9 @@ export const convertApiEventToUI = (apiEvent: CalendarEvent): UICalendarEvent =>
 // Convert UI format back to API format for creating/updating events
 export const convertUIEventToApi = (uiEvent: UICalendarEvent): CreateEventRequest => {
   // Map UI type back to API event_type
-  const eventTypeMap: Record<string, 'school_wide' | 'class_specific' | 'teacher_specific'> = {
+  const eventTypeMap: Record<string, 'school_wide' | 'class_specific'> = {
     'school': 'school_wide',
-    'meeting': 'class_specific',
-    'class': 'class_specific',
-    'birthday': 'school_wide',
-    'room_booking': 'class_specific',
-    'leave': 'teacher_specific'
-  };
-
-  // Map UI type to event_category
-  const categoryMap: Record<string, 'general' | 'academic' | 'sports' | 'cultural' | 'holiday' | 'exam' | 'meeting' | 'other'> = {
-    'school': 'general',
-    'meeting': 'meeting',
-    'class': 'academic',
-    'birthday': 'general',
-    'room_booking': 'academic',
-    'leave': 'other'
+    'class': 'class_specific'
   };
 
   const eventDate = new Date(`${uiEvent.date}T${uiEvent.startTime}:00`);
@@ -135,7 +98,7 @@ export const convertUIEventToApi = (uiEvent: UICalendarEvent): CreateEventReques
     description: uiEvent.description,
     event_date: eventDate.toISOString(),
     event_type: eventTypeMap[uiEvent.type] || 'school_wide',
-    event_category: categoryMap[uiEvent.type] || 'general',
+    event_category: 'general',
     is_single_day: true,
     start_time: uiEvent.startTime,
     end_time: uiEvent.endTime,
@@ -161,14 +124,6 @@ export const filterEventsByType = (
   type: UICalendarEvent['type']
 ): UICalendarEvent[] => {
   return events.filter(event => event.type === type);
-};
-
-// Filter events by category
-export const filterEventsByCategory = (
-  events: UICalendarEvent[],
-  category: string
-): UICalendarEvent[] => {
-  return events.filter(event => event.category === category);
 };
 
 // Sort events by date and time

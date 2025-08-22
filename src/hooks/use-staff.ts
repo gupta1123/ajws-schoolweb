@@ -3,13 +3,68 @@ import { useAuth } from '@/lib/auth/context';
 import { staffServices } from '@/lib/api';
 import type { Staff, CreateStaffRequest, CreateStaffWithUserRequest, UpdateStaffRequest } from '@/types/staff';
 
+interface TeacherClassesResponse {
+  status: string;
+  data: {
+    teacher: {
+      id: string;
+      full_name: string;
+    };
+    assignments: Array<{
+      assignment_id: string;
+      assignment_type: string;
+      is_primary: boolean;
+      assigned_date: string;
+      class_info: {
+        class_division_id: string;
+        division: string;
+        class_name: string;
+        class_level: string;
+        sequence_number: number;
+        academic_year: string;
+      };
+      subject?: string;
+    }>;
+    primary_classes: Array<{
+      assignment_id: string;
+      assignment_type: string;
+      is_primary: boolean;
+      assigned_date: string;
+      class_info: {
+        class_division_id: string;
+        division: string;
+        class_name: string;
+        class_level: string;
+        sequence_number: number;
+        academic_year: string;
+      };
+    }>;
+    total_assignments: number;
+    has_assignments: boolean;
+  };
+}
+
+interface TeacherDivisionSummaryResponse {
+  status: string;
+  data: {
+    summary: {
+      total_students: number;
+      total_classes: number;
+      subjects_taught: string[];
+      class_assignments: Array<{
+        class_name: string;
+        student_count: number;
+        subjects: string[];
+      }>;
+    };
+  };
+}
+
 interface UseStaffReturn {
-  // Data states
+  // Data
   staff: Staff[];
   loading: boolean;
   error: string | null;
-  
-  // Pagination
   pagination: {
     page: number;
     limit: number;
@@ -18,7 +73,6 @@ interface UseStaffReturn {
   } | null;
   
   // Actions
-  clearError: () => void;
   fetchStaff: (params?: {
     department?: string;
     role?: string;
@@ -32,7 +86,12 @@ interface UseStaffReturn {
   deleteStaff: (id: string) => Promise<boolean>;
   syncTeachersToStaff: () => Promise<boolean>;
   
+  // Teacher-specific data
+  getTeacherClasses: (teacherId: string) => Promise<TeacherClassesResponse | null>;
+  getTeacherDivisionSummary: (teacherId: string) => Promise<TeacherDivisionSummaryResponse | null>;
+  
   // Utility functions
+  clearError: () => void;
   refreshStaff: () => Promise<void>;
 }
 
@@ -64,11 +123,47 @@ export const useStaff = (): UseStaffReturn => {
       setLoading(true);
       setError(null);
       
-      const response = await staffServices.getStaff(token, params);
+      // Fetch staff list
+      const staffResponse = await staffServices.getStaff(token, params);
       
-      if (response.status === 'success') {
-        setStaff(response.data.staff);
-        setPagination(response.data.pagination);
+      if (staffResponse.status === 'success') {
+        // Fetch teachers mapping to get teacher_id for each staff member
+        try {
+          const teachersResponse = await staffServices.getTeachersMapping(token);
+          
+          if (teachersResponse.status === 'success') {
+            // Create a map of staff_id/user_id to teacher_id
+            const teacherMap = new Map<string, string>();
+            
+            teachersResponse.data.teachers.forEach(teacher => {
+              // Map by staff_id (preferred) or user_id
+              if (teacher.staff_id) {
+                teacherMap.set(teacher.staff_id, teacher.teacher_id);
+              }
+              if (teacher.user_id) {
+                teacherMap.set(teacher.user_id, teacher.teacher_id);
+              }
+            });
+            
+            // Enrich staff data with teacher_id
+            const enrichedStaff = staffResponse.data.staff.map(staffMember => ({
+              ...staffMember,
+              teacher_id: teacherMap.get(staffMember.id) || teacherMap.get(staffMember.user_id || '') || undefined
+            }));
+            
+            setStaff(enrichedStaff);
+            setPagination(staffResponse.data.pagination);
+          } else {
+            // If teachers mapping fails, still show staff data without teacher_id
+            setStaff(staffResponse.data.staff);
+            setPagination(staffResponse.data.pagination);
+          }
+        } catch (teachersErr) {
+          console.warn('Failed to fetch teachers mapping, showing staff without teacher_id:', teachersErr);
+          // Still show staff data without teacher_id
+          setStaff(staffResponse.data.staff);
+          setPagination(staffResponse.data.pagination);
+        }
       } else {
         setError('Failed to fetch staff');
       }
@@ -216,9 +311,37 @@ export const useStaff = (): UseStaffReturn => {
   }, []);
 
   // Refresh staff list
+
+  // Refresh staff list
   const refreshStaff = useCallback(async () => {
     await fetchStaff();
   }, [fetchStaff]);
+
+  // Get teacher's classes
+  const getTeacherClasses = useCallback(async (teacherId: string) => {
+    if (!token) return null;
+    
+    try {
+      const response = await staffServices.getTeacherClasses(teacherId, token);
+      return response;
+    } catch (err) {
+      console.error('Get teacher classes error:', err);
+      return null;
+    }
+  }, [token]);
+
+  // Get teacher's division summary
+  const getTeacherDivisionSummary = useCallback(async (teacherId: string) => {
+    if (!token) return null;
+    
+    try {
+      const response = await staffServices.getTeacherDivisionSummary(teacherId, token);
+      return response;
+    } catch (err) {
+      console.error('Get teacher division summary error:', err);
+      return null;
+    }
+  }, [token]);
 
   // Initial fetch
   useEffect(() => {
@@ -239,6 +362,8 @@ export const useStaff = (): UseStaffReturn => {
     updateStaff,
     deleteStaff,
     syncTeachersToStaff,
+    getTeacherClasses,
+    getTeacherDivisionSummary,
     refreshStaff
   };
 };

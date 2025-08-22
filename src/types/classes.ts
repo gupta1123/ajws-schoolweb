@@ -14,9 +14,22 @@ export interface Teacher {
 export interface ClassDivision {
   id: string;
   division: string;
-  level: ClassLevel;
+  class_level: ClassLevel;
   teacher: Teacher | null;
   student_count: number;
+}
+
+export interface AcademicYear {
+  id: string;
+  year_name: string;
+}
+
+export interface ClassDivisionReference {
+  id: string;
+  division: string;
+  class_level: ClassLevel;
+  teacher: Teacher | null;
+  academic_year: AcademicYear;
 }
 
 export interface StudentAcademicRecord {
@@ -24,6 +37,7 @@ export interface StudentAcademicRecord {
   status: string;
   roll_number: string;
   class_division_id: string;
+  class_division?: ClassDivisionReference;
 }
 
 export interface Student {

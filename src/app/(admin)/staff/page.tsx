@@ -30,10 +30,6 @@ interface StaffFormData extends Partial<Staff> {
   password?: string;
 }
 
-// Available roles and departments for filtering
-const availableRoles = ['All', 'Admin', 'Principal', 'Teacher'];
-const availableStatuses = ['All', 'Active', 'Inactive'];
-
 export default function StaffPage() {
   const { user } = useAuth();
   const {
@@ -51,25 +47,17 @@ export default function StaffPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [currentStaff, setCurrentStaff] = useState<StaffFormData>({});
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState('All');
   const [localError, setLocalError] = useState<string | null>(null);
 
-  // Filter staff based on search and filters
+  // Filter staff based on search only (removed role and status filters)
   const filteredStaff = useMemo(() => {
     return staff
       .filter(staffMember => 
         searchTerm === '' || 
         staffMember.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (staffMember.phone_number && staffMember.phone_number.toLowerCase().includes(searchTerm.toLowerCase()))
-      )
-      .filter(staffMember => roleFilter === 'All' || staffMember.role.toLowerCase() === roleFilter.toLowerCase())
-      .filter(staffMember => {
-        if (statusFilter === 'All') return true;
-        const isActive = staffMember.is_active !== false; // Default to active if not specified
-        return statusFilter === 'Active' ? isActive : !isActive;
-      });
-  }, [staff, searchTerm, roleFilter, statusFilter]);
+      );
+  }, [staff, searchTerm]);
 
   const handleAddNew = () => {
     setIsEditing(false);
@@ -83,8 +71,6 @@ export default function StaffPage() {
     setLocalError(null);
     setIsDialogOpen(true);
   };
-
-
 
   const handleDelete = async (staffId: string) => {
     const success = await deleteStaff(staffId);
@@ -164,6 +150,38 @@ export default function StaffPage() {
     );
   }
 
+  // Format class teacher information
+  const formatClassTeacherInfo = (classTeacherOf: Array<{
+    class_division_id: string;
+    class_name: string;
+    academic_year: string;
+    is_primary?: boolean;
+    is_legacy?: boolean;
+  }>) => {
+    if (!classTeacherOf || classTeacherOf.length === 0) return 'None';
+    return classTeacherOf.map((cls) => cls.class_name).join(', ');
+  };
+
+  // Format subjects taught with class details
+  const formatSubjectsTaught = (subjectsTaught: string[], subjectTeacherOf?: Array<{
+    class_division_id: string;
+    class_name: string;
+    academic_year: string;
+    subject: string;
+  }>) => {
+    if (!subjectsTaught || subjectsTaught.length === 0) return 'None';
+    
+    // If we have detailed subject teaching info, show it
+    if (subjectTeacherOf && subjectTeacherOf.length > 0) {
+      return subjectTeacherOf.map((teaching) => 
+        `${teaching.subject} (${teaching.class_name})`
+      ).join(', ');
+    }
+    
+    // Fallback to just subjects
+    return subjectsTaught.join(', ');
+  };
+
   return (
     <ProtectedRoute>
       <div className="space-y-6">
@@ -179,25 +197,6 @@ export default function StaffPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <select 
-              className="border rounded-md px-3 py-2 text-sm"
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-            >
-              <option value="">All Roles</option>
-              <option value="teacher">Teacher</option>
-              <option value="admin">Admin</option>
-              <option value="principal">Principal</option>
-            </select>
-            <select 
-              className="border rounded-md px-3 py-2 text-sm"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
           </div>
           <Button onClick={handleAddNew}>
             <Plus className="mr-2 h-4 w-4" />
@@ -232,9 +231,9 @@ export default function StaffPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Role</TableHead>
                     <TableHead>Phone</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Class Teacher Of</TableHead>
+                    <TableHead>Subjects Taught</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -252,28 +251,25 @@ export default function StaffPage() {
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-8">
                         <span className="text-muted-foreground">
-                          {searchTerm || roleFilter !== 'All' || statusFilter !== 'All'
-                            ? 'No staff found matching the filters'
-                            : 'No staff members found'
-                          }
+                          {searchTerm ? 'No staff found matching the search term' : 'No staff members found'}
                         </span>
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredStaff.map((staff) => (
-                      <TableRow key={staff.id}>
-                        <TableCell className="font-medium">{staff.full_name}</TableCell>
-                        <TableCell className="capitalize">{staff.role}</TableCell>
-                        <TableCell>{staff.phone_number}</TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            staff.is_active 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {staff.is_active ? 'Active' : 'Inactive'}
-                          </span>
-                        </TableCell>
+                        <TableRow key={staff.id}>
+                          <TableCell className="font-medium">{staff.full_name}</TableCell>
+                          <TableCell>{staff.phone_number}</TableCell>
+                          <TableCell>
+                            {staff.teaching_details?.class_teacher_of && staff.teaching_details.class_teacher_of.length > 0
+                              ? formatClassTeacherInfo(staff.teaching_details.class_teacher_of)
+                              : 'None'}
+                          </TableCell>
+                          <TableCell>
+                            {staff.teaching_details?.subjects_taught && staff.teaching_details.subjects_taught.length > 0
+                              ? formatSubjectsTaught(staff.teaching_details.subjects_taught)
+                              : 'None'}
+                          </TableCell>
                         <TableCell className="text-right">
                           <Button variant="outline" size="sm" className="mr-2" asChild>
                             <Link href={`/staff/${staff.id}`}>
@@ -407,14 +403,24 @@ export default function StaffPage() {
                             <SelectValue placeholder="Select a role" />
                           </SelectTrigger>
                           <SelectContent>
-                            {availableRoles.filter(role => role !== 'All').map(role =>
-                              <SelectItem key={role} value={role}>
-                                <div className="flex items-center gap-2">
-                                  <Shield className="h-4 w-4" />
-                                  {role}
-                                </div>
-                              </SelectItem>
-                            )}
+                            <SelectItem value="teacher">
+                              <div className="flex items-center gap-2">
+                                <Shield className="h-4 w-4" />
+                                Teacher
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="admin">
+                              <div className="flex items-center gap-2">
+                                <Shield className="h-4 w-4" />
+                                Admin
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="principal">
+                              <div className="flex items-center gap-2">
+                                <Shield className="h-4 w-4" />
+                                Principal
+                              </div>
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -431,18 +437,18 @@ export default function StaffPage() {
                           <SelectValue placeholder="Select status" />
                         </SelectTrigger>
                         <SelectContent>
-                          {availableStatuses.filter(status => status !== 'All').map(status =>
-                            <SelectItem key={status} value={status}>
-                              <div className="flex items-center gap-2">
-                                {status === 'Active' ? (
-                                  <div className="w-2 h-2 bg-green-500 rounded-full" />
-                                ) : (
-                                  <div className="w-2 h-2 bg-gray-400 rounded-full" />
-                                )}
-                                {status}
-                              </div>
-                            </SelectItem>
-                          )}
+                          <SelectItem value="Active">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-green-500 rounded-full" />
+                              Active
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="Inactive">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-gray-400 rounded-full" />
+                              Inactive
+                            </div>
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

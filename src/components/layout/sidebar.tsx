@@ -4,7 +4,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { BookOpen, Home, Users, Clipboard, FileText, MessageSquare, User, School, Calendar, Cake, LogOut, UserCheck } from 'lucide-react';
+import { BookOpen, Home, Users, Clipboard, FileText, User, School, Calendar, Cake, LogOut, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
 import { useRouter } from 'next/navigation';
@@ -18,8 +18,19 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+interface NavItem {
+  title: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+interface NavCategory {
+  category: string;
+  items: NavItem[];
+}
+
 // Categorized navigation items for teachers
-const teacherNavItems = [
+const teacherNavItems: NavCategory[] = [
   {
     category: 'Dashboard',
     items: [
@@ -42,21 +53,6 @@ const teacherNavItems = [
         title: 'Homework',
         href: '/homework',
         icon: Clipboard,
-      },
-      {
-        title: 'Classwork',
-        href: '/classwork',
-        icon: FileText,
-      }
-    ]
-  },
-  {
-    category: 'Communication',
-    items: [
-      {
-        title: 'Messages',
-        href: '/messages',
-        icon: MessageSquare,
       }
     ]
   },
@@ -98,36 +94,21 @@ const adminNavItems = [
     category: 'Academics',
     items: [
       {
+        title: 'Academic Setup',
+        href: '/academic/setup',
+        icon: School,
+      },
+      {
         title: 'Students',
         href: '/students',
         icon: Users,
-      },
-      {
-        title: 'Parents',
-        href: '/parents',
-        icon: UserCheck,
       },
       {
         title: 'Staff',
         href: '/staff',
         icon: User,
       },
-      {
-        title: 'Academic Structure',
-        href: '/academic',
-        icon: School,
-      },
 
-    ]
-  },
-  {
-    category: 'Communication',
-    items: [
-      {
-        title: 'Messages',
-        href: '/messages',
-        icon: MessageSquare,
-      }
     ]
   },
   {
@@ -152,6 +133,15 @@ const adminNavItems = [
   }
 ];
 
+// Additional items for principals only
+const principalNavItems = [
+  {
+    title: 'Approvals',
+    href: '/approvals',
+    icon: CheckCircle,
+  }
+];
+
 export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
@@ -164,8 +154,26 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
   }
 
   // Determine which navigation items to show based on user role
-  const navConfig = user?.role === 'teacher' ? teacherNavItems : 
-                   (user?.role === 'admin' || user?.role === 'principal') ? adminNavItems : [];
+  let navConfig: NavCategory[];
+  if (user?.role === 'teacher') {
+    navConfig = teacherNavItems;
+  } else if (user?.role === 'admin') {
+    navConfig = adminNavItems;
+  } else if (user?.role === 'principal') {
+    // Create a new config for principals by copying adminNavItems
+    navConfig = adminNavItems.map(category => ({
+      ...category,
+      items: [...category.items]
+    }));
+    
+    // Add approvals to the Management category
+    const managementCategory = navConfig.find(category => category.category === 'Management');
+    if (managementCategory) {
+      managementCategory.items = [...managementCategory.items, ...principalNavItems];
+    }
+  } else {
+    navConfig = [];
+  }
 
   const handleLogout = () => {
     logout();
@@ -199,6 +207,10 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                   <div className="space-y-1">
                     {category.items.map((item) => {
                       const Icon = item.icon;
+                      // Skip items without a valid icon
+                      if (!Icon) {
+                        return null;
+                      }
                       return (
                         <Link
                           key={item.href}

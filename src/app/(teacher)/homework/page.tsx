@@ -142,8 +142,7 @@ export default function HomeworkPage() {
     const filtered = filteredByTeacher.filter((assignment: Homework) =>
       (assignment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       assignment.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      `${assignment.class_division.level.name} - Section ${assignment.class_division.division}`.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (selectedSubject === 'all' || assignment.subject === selectedSubject) &&
+              `${assignment.class_division.level.name} - Section ${assignment.class_division.division}`.toLowerCase().includes(searchTerm.toLowerCase())) &&
       (selectedClass === 'all' || `${assignment.class_division.level.name} - Section ${assignment.class_division.division}` === selectedClass)
     );
 

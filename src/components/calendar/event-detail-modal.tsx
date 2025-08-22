@@ -5,12 +5,7 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
-  School, 
-  Users, 
   Calendar as CalendarIcon, 
-  Cake, 
-  MapPin, 
-  User,
   BookOpen,
   CheckCircle,
   XCircle,
@@ -25,52 +20,20 @@ import { formatDate } from '@/lib/utils';
 // Event type configuration
 const eventTypeConfig = {
   school: { 
-    label: 'School Events', 
+    label: 'Event', 
     color: 'event-school', 
     textColor: 'text-blue-800',
     darkColor: 'dark:bg-blue-900/50',
     borderColor: 'border-school',
-    icon: School
-  },
-  meeting: { 
-    label: 'Meetings', 
-    color: 'event-meeting', 
-    textColor: 'text-purple-800',
-    darkColor: 'dark:bg-purple-900/50',
-    borderColor: 'border-meeting',
-    icon: Users
+    icon: CalendarIcon
   },
   class: { 
-    label: 'Class Events', 
+    label: 'Class Event', 
     color: 'event-class', 
     textColor: 'text-green-800',
     darkColor: 'dark:bg-green-900/50',
     borderColor: 'border-class',
     icon: BookOpen
-  },
-  birthday: { 
-    label: 'Birthdays', 
-    color: 'event-birthday', 
-    textColor: 'text-pink-800',
-    darkColor: 'dark:bg-pink-900/50',
-    borderColor: 'border-birthday',
-    icon: Cake
-  },
-  room_booking: { 
-    label: 'Room Booking', 
-    color: 'event-room-booking', 
-    textColor: 'text-yellow-800',
-    darkColor: 'dark:bg-yellow-900/50',
-    borderColor: 'border-room-booking',
-    icon: MapPin
-  },
-  leave: { 
-    label: 'Leave', 
-    color: 'event-leave', 
-    textColor: 'text-red-800',
-    darkColor: 'dark:bg-red-900/50',
-    borderColor: 'border-leave',
-    icon: User
   },
   pending_approval: { 
     label: 'Pending Approval', 
@@ -91,7 +54,6 @@ interface CalendarEvent {
   endTime: string;
   type: keyof typeof eventTypeConfig;
   class?: string;
-  room?: string;
   teacher?: string;
   requiresApproval?: boolean;
   approved?: boolean;
@@ -144,7 +106,7 @@ export function EventDetailModal({
                 <CardTitle>{event.title}</CardTitle>
               </div>
               <CardDescription>
-                {config.label} • {event.category}
+                {config.label}
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" onClick={onClose}>
@@ -177,35 +139,26 @@ export function EventDetailModal({
             </div>
           )}
           
-          {event.room && (
-            <div className="flex items-center gap-2 text-sm">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <span>{event.room}</span>
-            </div>
-          )}
-          
           {event.teacher && (
             <div className="flex items-center gap-2 text-sm">
-              <User className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Created by:</span>
               <span>{event.teacher}</span>
             </div>
           )}
           
-          {event.requiresApproval && (
-            <div className="flex items-center gap-2 text-sm">
-              {event.approved ? (
-                <>
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-green-600">Approved</span>
-                </>
-              ) : (
-                <>
-                  <XCircle className="h-4 w-4 text-orange-500" />
-                  <span className="text-orange-600">Pending Approval</span>
-                </>
-              )}
-            </div>
-          )}
+          <div className="flex items-center gap-2 text-sm">
+            {event.approved ? (
+              <>
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <span className="text-green-600">Approved</span>
+              </>
+            ) : (
+              <>
+                <XCircle className="h-4 w-4 text-orange-500" />
+                <span className="text-orange-600">Pending Approval</span>
+              </>
+            )}
+          </div>
         </CardContent>
         <CardFooter className="flex flex-wrap gap-2">
           {canApprove && (

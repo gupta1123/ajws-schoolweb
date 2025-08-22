@@ -31,7 +31,8 @@ export default function CreateStudentPage() {
   const [classDivisions, setClassDivisions] = useState<Array<{
     id: string;
     division: string;
-    level: { name: string; sequence_number: number };
+    level?: { name: string; sequence_number: number };
+    class_level?: { name: string; sequence_number: number };
   }>>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
 
@@ -45,7 +46,18 @@ export default function CreateStudentPage() {
         const response = await academicServices.getClassDivisionsSummary(token);
         
         if (response.status === 'success' && response.data) {
-          setClassDivisions(response.data.divisions);
+          // Transform the data to match our expected structure
+          const transformedDivisions = response.data.divisions.map((division: {
+            id: string;
+            division: string;
+            level: { name: string; sequence_number: number };
+          }) => ({
+            id: division.id,
+            division: division.division,
+            level: division.level,
+            class_level: division.level
+          }));
+          setClassDivisions(transformedDivisions);
         }
       } catch (err: unknown) {
         console.error('Error fetching class divisions:', err);
@@ -224,7 +236,7 @@ export default function CreateStudentPage() {
                       <option value="">Select a class</option>
                       {classDivisions.map(division => (
                         <option key={division.id} value={division.id}>
-                          {division.level.name} - Section {division.division}
+                          {division.level?.name || division.class_level?.name} - Section {division.division}
                         </option>
                       ))}
                     </select>

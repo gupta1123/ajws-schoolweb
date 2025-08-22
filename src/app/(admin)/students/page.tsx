@@ -28,7 +28,7 @@ export default function StudentsPage() {
   const [filters, setFilters] = useState({
     search: '',
     class_division_id: '',
-    status: 'active',
+    class_level_id: '',
     page: 1,
     limit: 20
   });
@@ -132,7 +132,7 @@ export default function StudentsPage() {
       <div className="space-y-6">
         {/* Action Bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="relative w-64">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input 
@@ -144,23 +144,15 @@ export default function StudentsPage() {
             </div>
             <select 
               className="border rounded-md px-3 py-2 text-sm"
-              value={filters.class_division_id}
-              onChange={(e) => handleFilterChange('class_division_id', e.target.value)}
+              value={filters.class_level_id}
+              onChange={(e) => handleFilterChange('class_level_id', e.target.value)}
             >
               <option value="">All Classes</option>
-              {availableFilters.class_divisions?.map(division => (
-                <option key={division.id} value={division.id}>
-                  {division.level.name} - Section {division.division}
+              {availableFilters.class_levels?.map(level => (
+                <option key={level.id} value={level.id}>
+                  {level.name}
                 </option>
               ))}
-            </select>
-            <select 
-              className="border rounded-md px-3 py-2 text-sm"
-              value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
             </select>
           </div>
           <Button asChild>
@@ -193,7 +185,6 @@ export default function StudentsPage() {
                     <TableHead>Roll No.</TableHead>
                     <TableHead>Student Name</TableHead>
                     <TableHead>Class</TableHead>
-                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -208,19 +199,10 @@ export default function StudentsPage() {
                         </TableCell>
                         <TableCell>{student.full_name}</TableCell>
                         <TableCell>
-                          {currentRecord ? 
-                            `${currentRecord.class_division.level.name} - Section ${currentRecord.class_division.division}` : 
+                          {currentRecord?.class_division ? 
+                            `${currentRecord.class_division.class_level.name} - Section ${currentRecord.class_division.division}` : 
                             'N/A'
                           }
-                        </TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            student.status === 'active' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {student.status.charAt(0).toUpperCase() + student.status.slice(1)}
-                          </span>
                         </TableCell>
                         <TableCell className="text-right">
                           <Button variant="outline" size="sm" className="mr-2" asChild>

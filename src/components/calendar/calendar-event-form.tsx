@@ -16,6 +16,8 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
+import { DatePicker } from '@/components/ui/date-picker';
+import { TimePicker } from '@/components/ui/date-picker';
 
 // This component should receive real data as props instead of using mock data
 // The parent component should fetch and pass the required data
@@ -103,6 +105,39 @@ export function CalendarEventForm({
     }));
   };
 
+  const handleDateChange = (date: Date | undefined) => {
+    if (date) {
+      // Format date as YYYY-MM-DD
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const formattedDate = `${year}-${month}-${day}`;
+      setFormData(prev => ({
+        ...prev,
+        eventDate: formattedDate
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        eventDate: ''
+      }));
+    }
+  };
+
+  const handleStartTimeChange = (time: string) => {
+    setFormData(prev => ({
+      ...prev,
+      startTime: time
+    }));
+  };
+
+  const handleEndTimeChange = (time: string) => {
+    setFormData(prev => ({
+      ...prev,
+      endTime: time
+    }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
@@ -110,6 +145,9 @@ export function CalendarEventForm({
       type: eventType
     });
   };
+
+  // Convert string date to Date object for DatePicker
+  const selectedDate = formData.eventDate ? new Date(formData.eventDate) : undefined;
 
   return (
     <form onSubmit={handleSubmit}>
@@ -194,14 +232,10 @@ export function CalendarEventForm({
               <Label htmlFor="eventDate">Event Date</Label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="eventDate"
-                  name="eventDate"
-                  type="date"
-                  value={formData.eventDate}
-                  onChange={handleInputChange}
-                  className="pl-10"
-                  required
+                <DatePicker 
+                  date={selectedDate} 
+                  onDateChange={handleDateChange} 
+                  placeholder="Pick a date"
                 />
               </div>
             </div>
@@ -213,7 +247,7 @@ export function CalendarEventForm({
                 name="eventCategory"
                 value={formData.eventCategory}
                 onChange={handleInputChange}
-                className="border rounded-md px-3 py-2 w-full"
+                className="border rounded-md px-3 py-2 w-full dark:bg-background dark:border-gray-700 dark:text-foreground"
                 required
               >
                 <option value="general">General</option>
@@ -233,14 +267,10 @@ export function CalendarEventForm({
               <Label htmlFor="startTime">Start Time</Label>
               <div className="relative">
                 <Clock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="startTime"
-                  name="startTime"
-                  type="time"
-                  value={formData.startTime}
-                  onChange={handleInputChange}
-                  className="pl-10"
-                  required
+                <TimePicker 
+                  time={formData.startTime} 
+                  onTimeChange={handleStartTimeChange} 
+                  placeholder="Select start time"
                 />
               </div>
             </div>
@@ -249,14 +279,10 @@ export function CalendarEventForm({
               <Label htmlFor="endTime">End Time</Label>
               <div className="relative">
                 <Clock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="endTime"
-                  name="endTime"
-                  type="time"
-                  value={formData.endTime}
-                  onChange={handleInputChange}
-                  className="pl-10"
-                  required
+                <TimePicker 
+                  time={formData.endTime} 
+                  onTimeChange={handleEndTimeChange} 
+                  placeholder="Select end time"
                 />
               </div>
             </div>
@@ -334,7 +360,7 @@ export function CalendarEventForm({
               type="checkbox"
               checked={formData.requiredApproval}
               onChange={(e) => setFormData(prev => ({ ...prev, requiredApproval: e.target.checked }))}
-              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-600"
             />
             <Label htmlFor="requiredApproval">Requires Approval</Label>
           </div>

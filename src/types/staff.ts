@@ -11,6 +11,24 @@ export interface Staff {
   is_active?: boolean;
   created_at: string;
   updated_at?: string;
+  user_id?: string;
+  teacher_id?: string; // Added teacher_id for teacher-specific API calls
+  teaching_details: {
+    class_teacher_of: Array<{
+      class_division_id: string;
+      class_name: string;
+      academic_year: string;
+      is_primary?: boolean;
+      is_legacy?: boolean;
+    }>;
+    subject_teacher_of: Array<{
+      class_division_id: string;
+      class_name: string;
+      academic_year: string;
+      subject: string;
+    }>;
+    subjects_taught: string[];
+  };
 }
 
 export interface CreateStaffRequest {

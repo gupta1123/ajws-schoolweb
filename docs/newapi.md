@@ -3,6 +3,9 @@ SCHOOL API CALLS
 URL:
 https://school-app-backend-d143b785b631.herokuapp.com/
 
+https://ajws-school-ba8ae5e3f955.herokuapp.com
+
+
 Principal Login:
  {
      "phone_number":1234567891,
@@ -209,6 +212,8 @@ Response:
 Get All Students
 Get Call
 http://school-app-backend-d143b785b631.herokuapp.com/api/students?page=1&limit=20
+https://ajws-school-ba8ae5e3f955.herokuapp.com/api/students?class_division_id=91d1cd06-a896-4409-81a5-8fcd2b64e4b0
+https://ajws-school-ba8ae5e3f955.herokuapp.com/api/students?class_division_id=91d1cd06-a896-4409-81a5-8fcd2b64e4b0&academic_year=f6905bae-23b4-45fc-bcf2-4bb19beee945
 Response:
 {
     "status": "success",
@@ -375,7 +380,15 @@ Response:
 Get All Parent
 Get Call
 https://school-app-backend-d143b785b631.herokuapp.com/api/parent-student/parents
-REsponse:
+https://school-app-backend-d143b785b631.herokuapp.com/api/parent-student/parents?class_id=123e4567-e89b-12d3-a456-426614174000&page=2&limit=10
+https://school-app-backend-d143b785b631.herokuapp.com/api/parent-student/parents?class_division_id=456e7890-e89b-12d3-a456-426614174000
+https://school-app-backend-d143b785b631.herokuapp.com/api/parent-student/parents?student_id=789e0123-e89b-12d3-a456-426614174000
+https://school-app-backend-d143b785b631.herokuapp.com/api/parent-student/parents?class_id=123e4567-e89b-12d3-a456-426614174000&search=john
+https://ajws-school-ba8ae5e3f955.herokuapp.com/api/parent-student/parents?search=jyoti@gmail.com
+https://ajws-school-ba8ae5e3f955.herokuapp.com/api/parent-student/parents?search=2222222289
+
+
+Response:
 {
     "status": "success",
     "data": {
@@ -692,6 +705,65 @@ Response:
 }
 
 
+Get parent by id
+Get Call
+https://ajws-school-ba8ae5e3f955.herokuapp.com/api/parent-student/parents/7eb86e9a-d173-4d36-8b34-71ef2b124dfb
+Response:
+{
+    "status": "success",
+    "data": {
+        "parent": {
+            "id": "7eb86e9a-d173-4d36-8b34-71ef2b124dfb",
+            "full_name": "Vishu",
+            "phone_number": "8748060201",
+            "email": null,
+            "role": "parent",
+            "created_at": "2025-08-05T14:39:36.374902+00:00",
+            "children": [
+                {
+                    "id": "76845e54-b90e-448c-a9eb-8b8140aa3106",
+                    "full_name": "Student 10",
+                    "admission_number": "2025010",
+                    "date_of_birth": "2018-05-15",
+                    "relationship": "mother",
+                    "is_primary_guardian": false
+                },
+                {
+                    "id": "20280813-e987-49b0-841a-3c916001f116",
+                    "full_name": "Student 11",
+                    "admission_number": "2025011",
+                    "date_of_birth": "2018-05-15",
+                    "relationship": "mother",
+                    "is_primary_guardian": false
+                },
+                {
+                    "id": "5866ce2b-4522-400b-9e58-9bdfd6238297",
+                    "full_name": "Student 12",
+                    "admission_number": "2025012",
+                    "date_of_birth": "2018-05-17",
+                    "relationship": "father",
+                    "is_primary_guardian": false
+                },
+                {
+                    "id": "7c094fc9-b74a-4de9-8b48-407957e8737f",
+                    "full_name": "Kushal kumar Gupta",
+                    "admission_number": "12345",
+                    "date_of_birth": "2003-02-05",
+                    "relationship": "father",
+                    "is_primary_guardian": false
+                }
+            ]
+        }
+    }
+}
+
+
+
+
+
+
+
+
 
 
 Academic Year And Classes Setup
@@ -853,6 +925,8 @@ Response:
 Get Class Division Summary (Admin/ Principal)
 Get Call
 http://localhost:3000/api/students/divisions/summary
+https://school-app-backend-d143b785b631.herokuapp.com/api/students/divisions/summary?academic_year_id=f6905bae-23b4-45fc-bcf2-4bb19beee945
+
 Response:
 {
     "status": "success",
@@ -866,11 +940,37 @@ Response:
                     "name": "Grade 1",
                     "sequence_number": 1
                 },
-                "teacher": {
-                    "id": "df07bb9f-4ffe-47f7-9a0d-5fc0e3896a51",
-                    "full_name": "Teacher 1"
+                "academic_year": {
+                    "id": "f6905bae-23b4-45fc-bcf2-4bb19beee945",
+                    "is_active": false,
+                    "year_name": "2025-2026"
                 },
-                "student_count": 3
+                "class_teacher": {
+                    "id": "df07bb9f-4ffe-47f7-9a0d-5fc0e3896a51",
+                    "name": "Teacher 1",
+                    "is_class_teacher": true
+                },
+                "subject_teachers": [
+                    {
+                        "id": "df07bb9f-4ffe-47f7-9a0d-5fc0e3896a51",
+                        "name": "Teacher 1",
+                        "subject": "Mathematics",
+                        "is_class_teacher": true
+                    }
+                ],
+                "subjects": [
+                    {
+                        "id": "b45465e3-016d-4131-8ad8-33b0adb3c0ff",
+                        "name": "English",
+                        "code": "12345"
+                    },
+                    {
+                        "id": "8d91dfcc-97e1-4c98-b5f7-3ce9915092a2",
+                        "name": "Mathematics",
+                        "code": "MATH"
+                    }
+                ],
+                "student_count": 7
             },
             {
                 "id": "d5e2c45b-bce9-45c2-bb4e-caa6add083e1",
@@ -880,16 +980,228 @@ Response:
                     "name": "Grade 1",
                     "sequence_number": 1
                 },
-                "teacher": null,
-                "student_count": 0
+                "academic_year": {
+                    "id": "f6905bae-23b4-45fc-bcf2-4bb19beee945",
+                    "is_active": false,
+                    "year_name": "2025-2026"
+                },
+                "class_teacher": {
+                    "id": "af68c9d4-7825-476f-9f3d-7863339442dd",
+                    "name": "Vaishnavi",
+                    "is_class_teacher": true
+                },
+                "subject_teachers": [
+                    {
+                        "id": "af68c9d4-7825-476f-9f3d-7863339442dd",
+                        "name": "Vaishnavi",
+                        "subject": null,
+                        "is_class_teacher": true
+                    },
+                    {
+                        "id": "af68c9d4-7825-476f-9f3d-7863339442dd",
+                        "name": "Vaishnavi",
+                        "subject": "English",
+                        "is_class_teacher": true
+                    }
+                ],
+                "subjects": [
+                    {
+                        "id": "b45465e3-016d-4131-8ad8-33b0adb3c0ff",
+                        "name": "English",
+                        "code": "12345"
+                    }
+                ],
+                "student_count": 5
+            },
+            {
+                "id": "91d1cd06-a896-4409-81a5-8fcd2b64e4b0",
+                "division": "C",
+                "level": {
+                    "id": "81921218-7c6d-471b-b0ce-5aaa70bba12c",
+                    "name": "Grade 4",
+                    "sequence_number": 4
+                },
+                "academic_year": {
+                    "id": "f6905bae-23b4-45fc-bcf2-4bb19beee945",
+                    "is_active": false,
+                    "year_name": "2025-2026"
+                },
+                "class_teacher": {
+                    "id": "af68c9d4-7825-476f-9f3d-7863339442dd",
+                    "name": "Vaishnavi",
+                    "is_class_teacher": true
+                },
+                "subject_teachers": [
+                    {
+                        "id": "af68c9d4-7825-476f-9f3d-7863339442dd",
+                        "name": "Vaishnavi",
+                        "subject": null,
+                        "is_class_teacher": true
+                    },
+                    {
+                        "id": "53780607-1a69-487b-9c70-709b16c999bc",
+                        "name": "Shubham",
+                        "subject": "English",
+                        "is_class_teacher": false
+                    }
+                ],
+                "subjects": [
+                    {
+                        "id": "8d91dfcc-97e1-4c98-b5f7-3ce9915092a2",
+                        "name": "Mathematics",
+                        "code": "MATH"
+                    },
+                    {
+                        "id": "b45465e3-016d-4131-8ad8-33b0adb3c0ff",
+                        "name": "English",
+                        "code": "12345"
+                    }
+                ],
+                "student_count": 1
             }
         ],
-        "total_divisions": 2,
-        "total_students": 3
+        "total_divisions": 3,
+        "total_students": 13,
+        "academic_year": {
+            "id": "f6905bae-23b4-45fc-bcf2-4bb19beee945",
+            "name": "2025-2026"
+        },
+        "summary": {
+            "total_subject_teachers": 5,
+            "total_subjects": 5,
+            "divisions_with_class_teachers": 3,
+            "divisions_with_subject_teachers": 3
+        }
     }
 }
 
 
+Get Class Division Summary of a Teacher (Admin)
+Get Call
+https://school-app-backend-d143b785b631.herokuapp.com/api/students/divisions/teacher/df07bb9f-4ffe-47f7-9a0d-5fc0e3896a51/summary
+Response:
+{
+    "status": "success",
+    "data": {
+        "teacher": {
+            "id": "df07bb9f-4ffe-47f7-9a0d-5fc0e3896a51",
+            "name": "Teacher 1",
+            "role": "teacher"
+        },
+        "divisions": [
+            {
+                "id": "4ded8472-fe26-4cf3-ad25-23f601960a0b",
+                "division": "A",
+                "level": {
+                    "id": "36bb861b-eed6-4038-8ad4-524441cde543",
+                    "name": "Grade 1",
+                    "sequence_number": 1
+                },
+                "academic_year": {
+                    "id": "f6905bae-23b4-45fc-bcf2-4bb19beee945",
+                    "is_active": false,
+                    "year_name": "2025-2026"
+                },
+                "class_teacher": {
+                    "id": "df07bb9f-4ffe-47f7-9a0d-5fc0e3896a51",
+                    "name": "Teacher 1",
+                    "is_class_teacher": true
+                },
+                "subject_teachers": [
+                    {
+                        "id": "df07bb9f-4ffe-47f7-9a0d-5fc0e3896a51",
+                        "name": "Teacher 1",
+                        "subject": "Mathematics",
+                        "assignment_type": "class_teacher",
+                        "is_class_teacher": true
+                    }
+                ],
+                "subjects": [
+                    {
+                        "id": "b45465e3-016d-4131-8ad8-33b0adb3c0ff",
+                        "name": "English",
+                        "code": "12345"
+                    },
+                    {
+                        "id": "8d91dfcc-97e1-4c98-b5f7-3ce9915092a2",
+                        "name": "Mathematics",
+                        "code": "MATH"
+                    }
+                ],
+                "student_count": 7,
+                "teacher_assignment": {
+                    "type": "class_teacher",
+                    "is_primary": true,
+                    "subject": null
+                }
+            }
+        ],
+        "primary_assignments": [
+            {
+                "id": "4ded8472-fe26-4cf3-ad25-23f601960a0b",
+                "division": "A",
+                "level": {
+                    "id": "36bb861b-eed6-4038-8ad4-524441cde543",
+                    "name": "Grade 1",
+                    "sequence_number": 1
+                },
+                "academic_year": {
+                    "id": "f6905bae-23b4-45fc-bcf2-4bb19beee945",
+                    "is_active": false,
+                    "year_name": "2025-2026"
+                },
+                "class_teacher": {
+                    "id": "df07bb9f-4ffe-47f7-9a0d-5fc0e3896a51",
+                    "name": "Teacher 1",
+                    "is_class_teacher": true
+                },
+                "subject_teachers": [
+                    {
+                        "id": "df07bb9f-4ffe-47f7-9a0d-5fc0e3896a51",
+                        "name": "Teacher 1",
+                        "subject": "Mathematics",
+                        "assignment_type": "class_teacher",
+                        "is_class_teacher": true
+                    }
+                ],
+                "subjects": [
+                    {
+                        "id": "b45465e3-016d-4131-8ad8-33b0adb3c0ff",
+                        "name": "English",
+                        "code": "12345"
+                    },
+                    {
+                        "id": "8d91dfcc-97e1-4c98-b5f7-3ce9915092a2",
+                        "name": "Mathematics",
+                        "code": "MATH"
+                    }
+                ],
+                "student_count": 7,
+                "teacher_assignment": {
+                    "type": "class_teacher",
+                    "is_primary": true,
+                    "subject": null
+                }
+            }
+        ],
+        "secondary_assignments": [],
+        "total_divisions": 1,
+        "total_students": 7,
+        "academic_year": {
+            "id": null,
+            "name": "All Years"
+        },
+        "summary": {
+            "total_subject_teachers": 1,
+            "total_subjects": 2,
+            "divisions_with_class_teachers": 1,
+            "divisions_with_subject_teachers": 1,
+            "primary_assignments_count": 1,
+            "secondary_assignments_count": 0,
+            "subjects_taught": []
+        }
+    }
+}
 
 Subject
 Add Subject
@@ -1001,6 +1313,110 @@ https://school-app-backend-d143b785b631.herokuapp.com/api/academic/class-divisio
 
 
 
+Student parent Link
+Create student
+Post Call
+https://ajws-school-ba8ae5e3f955.herokuapp.com/api/students
+Payload:
+{
+    "admission_number": "20250176",
+    "full_name": "Student 7",
+    "date_of_birth": "2018-08-25",
+    "admission_date": "2025-08-04",
+    "class_division_id": "91d1cd06-a896-4409-81a5-8fcd2b64e4b0",
+    "roll_number": "08"
+}
+Response:
+{
+    "status": "success",
+    "data": {
+        "student": {
+            "id": "7693e43f-5164-4118-a454-8337426e2e43",
+            "admission_number": "20250176",
+            "full_name": "Student 7",
+            "date_of_birth": "2018-08-25",
+            "admission_date": "2025-08-04",
+            "status": "active",
+            "created_at": "2025-08-22T04:09:44.709054+00:00",
+            "profile_photo_path": null
+        },
+        "academic_record": {
+            "id": "9e0e4d62-6d98-4bdc-9d23-48fd6cbecd15",
+            "student_id": "7693e43f-5164-4118-a454-8337426e2e43",
+            "academic_year_id": null,
+            "class_division_id": "91d1cd06-a896-4409-81a5-8fcd2b64e4b0",
+            "roll_number": "08",
+            "status": "ongoing",
+            "created_at": "2025-08-22T04:09:45.063368+00:00"
+        }
+    }
+}
+
+Create Parent
+Post Call
+https://ajws-school-ba8ae5e3f955.herokuapp.com/api/parents
+Response:
+{
+    "status": "success",
+    "data": {
+        "parent": {
+            "id": "9845e25e-00bd-4c6e-a041-af338b6905d0",
+            "full_name": "Parent 7",
+            "phone_number": "1234567888",
+            "email": "parent7@example.com",
+            "role": "parent",
+            "is_registered": false
+        },
+        "registration_instructions": {
+            "message": "Parent can now register using their phone number",
+            "endpoint": "POST /api/auth/register",
+            "required_fields": [
+                "phone_number",
+                "password",
+                "role: \"parent\""
+            ]
+        },
+        "initial_password": "Temp@1234",
+        "note": "Use /api/parents/:parent_id/link-students to link this parent to students"
+    },
+    "message": "Parent created successfully. Parent can now register using their phone number."
+}
+
+Link parent to student
+Post Call
+https://ajws-school-ba8ae5e3f955.herokuapp.com/api/academic/link-students
+Payload:
+{
+  "parent_id": "9845e25e-00bd-4c6e-a041-af338b6905d0",
+  "students": [
+    {
+      "student_id": "7693e43f-5164-4118-a454-8337426e2e43",
+      "relationship": "father",
+      "is_primary_guardian": true,
+      "access_level": "full"
+    }
+  ]
+}
+Response:
+{
+    "status": "success",
+    "data": {
+        "mappings": [
+            {
+                "id": "5730c399-3a2f-4292-8992-f1852e5f7501",
+                "parent_id": "9845e25e-00bd-4c6e-a041-af338b6905d0",
+                "student_id": "7693e43f-5164-4118-a454-8337426e2e43",
+                "relationship": "father",
+                "is_primary_guardian": true,
+                "access_level": "full",
+                "created_at": "2025-08-22T04:13:07.149608+00:00",
+                "updated_at": "2025-08-22T04:13:07.149608+00:00"
+            }
+        ]
+    }
+}
+
+
 Student
 Add Student
 Post Call
@@ -1038,6 +1454,35 @@ Response:
         }
     }
 }
+
+Edit student
+Put Call
+https://ajws-school-ba8ae5e3f955.herokuapp.com/api/students/efe24e05-db0b-47b6-9a63-4cc3df0ce546
+Payload:
+{
+    "gender": "female",  // Can be "male", "female", or "other"
+    "blood_group": "O+"  // Can be "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"
+}
+
+Response:
+{
+    "status": "success",
+    "data": {
+        "student": {
+            "id": "efe24e05-db0b-47b6-9a63-4cc3df0ce546",
+            "admission_number": "2025002",
+            "full_name": "Student 2",
+            "date_of_birth": "2018-07-29",
+            "admission_date": "2025-07-29",
+            "status": "active",
+            "created_at": "2025-07-29T10:02:23.542702+00:00",
+            "profile_photo_path": null,
+            "blood_group": "O+",
+            "gender": "female"
+        }
+    }
+}
+
 
 Link Student to parent(Principal/ Admin access)
 Post call
@@ -2207,7 +2652,7 @@ PayLoad (School wide events):
   "timezone": "Asia/Kolkata"
 }
 
-Payload (Class specific):
+Payload (Class specific): teacher access
 {
   "title": "Event title 1",
   "description": "Event description",
@@ -2383,6 +2828,19 @@ Response:
         "child_classes": []
     }
 }
+
+Approve
+POST https://ajws-school-ba8ae5e3f955.herokuapp.com/api/calendar/events/{event_id}/approve
+
+Reject
+Post
+https://ajws-school-ba8ae5e3f955.herokuapp.com/api/calendar/events/{event_id}/reject
+Payload:
+{
+    "rejection_reason": "Event conflicts with existing schedule"
+}
+
+
 
 Leave Request
 Create Leave Request

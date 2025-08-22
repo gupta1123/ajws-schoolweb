@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -394,34 +394,9 @@ export function AcademicStructureManager() {
   
 
 
-  // Helper functions for UI
-  interface DivisionData {
-    id: string;
-    division: string;
-    level: { name: string; sequence_number: number };
-    student_count: number;
-    class_teacher: { id: string; name: string } | null;
-    subject_teachers: Array<{ id: string; name: string; subject: string | null }>;
-    subjects: Array<{ id: string; name: string; code: string }>;
-  }
 
-  const countAssignedSubjects = (division: DivisionData) => {
-    const set = new Set(division.subject_teachers?.map((st) => st.subject).filter(Boolean) || []);
-    return set.size;
-  };
 
-  // const getAvailableLevels = () => {
-  //   if (!divisionsSummary?.divisions) return [];
-  //   const names = Array.from(new Set(divisionsSummary.divisions.map((d: DivisionData) => d.level.name)));
-  //   return names.sort();
-  // };
 
-  const filteredDivisions = useMemo(() => {
-    if (!divisionsSummary?.divisions) return [];
-
-    // For now, return all divisions since search/filter is disabled
-    return divisionsSummary.divisions;
-  }, [divisionsSummary]);
 
   // const summaryMetrics = useMemo(() => {
   //   if (!divisionsSummary?.divisions) return { totalDivisions: 0, totalStudents: 0, avgStudents: 0, totalSubjectsAssigned: 0, totalSubjectsAvailable: 0 };

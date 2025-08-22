@@ -41,7 +41,9 @@ export const useCalendarEvents = (): UseCalendarEventsReturn => {
     try {
       const response = await calendarServices.getEvents(token, { use_ist: true });
       if (response.status === 'success') {
-        setEvents(response.data.events);
+        // Filter to show only events where status is approved
+        const filteredEvents = response.data.events.filter(event => event.status === 'approved');
+        setEvents(filteredEvents);
       }
     } catch (error) {
       handleApiError(error);
@@ -59,7 +61,9 @@ export const useCalendarEvents = (): UseCalendarEventsReturn => {
     try {
       const response = await calendarServices.getEventsByDateRange(token, startDate, endDate, { use_ist: true });
       if (response.status === 'success') {
-        setEvents(response.data.events);
+        // Filter to show only events where status is approved
+        const filteredEvents = response.data.events.filter(event => event.status === 'approved');
+        setEvents(filteredEvents);
       }
     } catch (error) {
       handleApiError(error);
@@ -77,7 +81,9 @@ export const useCalendarEvents = (): UseCalendarEventsReturn => {
     try {
       const response = await calendarServices.getTodayEvents(token, { use_ist: true });
       if (response.status === 'success') {
-        setEvents(response.data.events);
+        // Filter to show only events where status is approved
+        const filteredEvents = response.data.events.filter(event => event.status === 'approved');
+        setEvents(filteredEvents);
       }
     } catch (error) {
       handleApiError(error);
@@ -95,7 +101,9 @@ export const useCalendarEvents = (): UseCalendarEventsReturn => {
     try {
       const response = await calendarServices.getUpcomingEvents(token, { use_ist: true });
       if (response.status === 'success') {
-        setEvents(response.data.events);
+        // Filter to show only events where status is approved
+        const filteredEvents = response.data.events.filter(event => event.status === 'approved');
+        setEvents(filteredEvents);
       }
     } catch (error) {
       handleApiError(error);
@@ -113,7 +121,9 @@ export const useCalendarEvents = (): UseCalendarEventsReturn => {
     try {
       const response = await calendarServices.getClassEvents(token, classDivisionId);
       if (response.status === 'success') {
-        setEvents(response.data.events);
+        // Filter to show only events where status is approved
+        const filteredEvents = response.data.events.filter(event => event.status === 'approved');
+        setEvents(filteredEvents);
       }
     } catch (error) {
       handleApiError(error);
@@ -131,7 +141,9 @@ export const useCalendarEvents = (): UseCalendarEventsReturn => {
     try {
       const response = await calendarServices.getParentEvents(token, { use_ist: true });
       if (response.status === 'success') {
-        setEvents(response.data.events);
+        // Filter to show only events where status is approved
+        const filteredEvents = response.data.events.filter(event => event.status === 'approved');
+        setEvents(filteredEvents);
       }
     } catch (error) {
       handleApiError(error);

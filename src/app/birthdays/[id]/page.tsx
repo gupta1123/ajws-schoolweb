@@ -43,7 +43,7 @@ export default function BirthdayDetailsPage({ params }: { params: Promise<{ id: 
             date_of_birth: '2015-03-15',
             admission_number: '2025001',
             status: 'active',
-            academic_records: [
+            student_academic_records: [
               {
                 class_division: {
                   division: 'A',
@@ -148,9 +148,9 @@ export default function BirthdayDetailsPage({ params }: { params: Promise<{ id: 
   };
 
   const age = calculateAge(studentData.date_of_birth);
-  const classInfo = studentData.academic_records[0]?.class_division;
+  const classInfo = studentData.student_academic_records[0]?.class_division;
   const className = classInfo ? `${classInfo.level.name} - Section ${classInfo.division}` : 'Not Assigned';
-  const rollNumber = studentData.academic_records[0]?.roll_number || 'Not Assigned';
+  const rollNumber = studentData.student_academic_records[0]?.roll_number || 'Not Assigned';
 
   return (
     <ProtectedRoute>

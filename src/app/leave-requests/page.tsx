@@ -15,7 +15,7 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Search, Check, X, Calendar, User, Filter, AlertTriangle, Loader2 } from 'lucide-react';
+import { Search, Check, X, Calendar, User, Filter, AlertTriangle, Loader2, BookOpen } from 'lucide-react';
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useTheme } from '@/lib/theme/context';
@@ -93,8 +93,6 @@ function LeaveRequestsContent() {
   
   // Get student ID from URL params if filtering by student
   const studentId = searchParams.get('studentId');
-  
-
   
   // Use the leave requests hook
   const {
@@ -227,7 +225,8 @@ function LeaveRequestsContent() {
     .filter(request => 
       (searchTerm === '' || 
        (request.student?.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-       (request.student?.admission_number || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+               (request.student?.class_division?.level?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (request.student?.class_division?.division || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
        request.reason.toLowerCase().includes(searchTerm.toLowerCase())) &&
       (classFilter === 'all' || true) // Since we don't have class info, always show all
     );
@@ -473,104 +472,109 @@ function LeaveRequestsContent() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Student</TableHead>
-                        <TableHead>Student Info</TableHead>
+                        <TableHead>Class Info</TableHead>
                         <TableHead>Dates</TableHead>
                         <TableHead>Reason</TableHead>
-
                         <TableHead>Requested Date</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                                      {filteredLeaveRequests.length > 0 ? (
-                  filteredLeaveRequests.map((request) => {
-                    // Ensure we have valid student data before rendering
-                    if (!request.student) {
-                      console.warn('Leave request missing student data:', request);
-                      return null;
-                    }
-                    
-                    return (
-                          <TableRow 
-                            key={request.id}
-                            className={(() => {
-                              const startDate = new Date(request.start_date);
-                              const endDate = new Date(request.end_date);
-                              const today = new Date();
-                              const isUrgent = startDate <= today && endDate >= today;
-                              return isUrgent ? 'bg-red-50 dark:bg-red-900/10 border-l-4 border-l-red-500' : '';
-                            })()}
-                          >
-                            <TableCell className="font-medium">
-                              <div className="flex items-center gap-2">
-                                {(() => {
-                                  const startDate = new Date(request.start_date);
-                                  const endDate = new Date(request.end_date);
-                                  const today = new Date();
-                                  const isUrgent = startDate <= today && endDate >= today;
-                                  return isUrgent ? (
-                                    <div className="relative group">
-                                      <AlertTriangle className="h-4 w-4 text-red-500" />
-                                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                                        Currently on leave
+                      {filteredLeaveRequests.length > 0 ? (
+                        filteredLeaveRequests.map((request) => {
+                          // Ensure we have valid student data before rendering
+                          if (!request.student) {
+                            console.warn('Leave request missing student data:', request);
+                            return null;
+                          }
+                          
+                          return (
+                            <TableRow 
+                              key={request.id}
+                              className={(() => {
+                                const startDate = new Date(request.start_date);
+                                const endDate = new Date(request.end_date);
+                                const today = new Date();
+                                const isUrgent = startDate <= today && endDate >= today;
+                                return isUrgent ? 'bg-red-50 dark:bg-red-900/10 border-l-4 border-l-red-500' : '';
+                              })()}
+                            >
+                              <TableCell className="font-medium">
+                                <div className="flex items-center gap-2">
+                                  {(() => {
+                                    const startDate = new Date(request.start_date);
+                                    const endDate = new Date(request.end_date);
+                                    const today = new Date();
+                                    const isUrgent = startDate <= today && endDate >= today;
+                                    return isUrgent ? (
+                                      <div className="relative group">
+                                        <AlertTriangle className="h-4 w-4 text-red-500" />
+                                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                          Currently on leave
+                                        </div>
                                       </div>
-                                    </div>
-                                  ) : null;
-                                })()}
-                                <span>{request.student?.full_name || 'Unknown Student'}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-sm">
-                                <div className="font-medium">{request.student?.admission_number || 'N/A'}</div>
-                                <div className="text-gray-500">Class info not available</div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-4 w-4 text-muted-foreground" />
-                                <span>{formatDate(request.start_date)} to {formatDate(request.end_date)}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-gray-500 dark:text-gray-400">
-                              {request.reason}
-                            </TableCell>
-
-                            <TableCell>{formatDate(request.created_at)}</TableCell>
-                            <TableCell>
-                              <StatusBadge status={request.status} />
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {request.status === 'pending' && (user?.role === 'admin' || user?.role === 'principal') && (
-                                <>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="mr-2 hover:bg-green-50 dark:hover:bg-green-900/20"
-                                    onClick={() => handleApproveRequest(request.id)}
-                                  >
-                                    <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="hover:bg-red-50 dark:hover:bg-red-900/20"
-                                    onClick={() => handleRejectRequest(request.id)}
-                                  >
-                                    <X className="h-4 w-4 text-red-600 dark:text-red-400" />
-                                  </Button>
-                                </>
-                              )}
-                              {user?.role === 'teacher' && (
-                                <span className="text-sm text-muted-foreground italic">View only</span>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                      .filter(Boolean) // Remove any null entries
-                    ) : (
+                                    ) : null;
+                                  })()}
+                                  <span>{request.student?.full_name || 'Unknown Student'}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="text-sm">
+                                  <div className="flex items-center gap-1">
+                                    <BookOpen className="h-4 w-4 text-muted-foreground" />
+                                    <span className="font-medium">
+                                      {request.student?.class_division?.level?.name || 'N/A'}
+                                    </span>
+                                  </div>
+                                  <div className="text-gray-500 ml-5">
+                                    Section {request.student?.class_division?.division || 'N/A'}
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                                  <span>{formatDate(request.start_date)} to {formatDate(request.end_date)}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-gray-500 dark:text-gray-400">
+                                {request.reason}
+                              </TableCell>
+                              <TableCell>{formatDate(request.created_at)}</TableCell>
+                              <TableCell>
+                                <StatusBadge status={request.status} />
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {request.status === 'pending' && (user?.role === 'admin' || user?.role === 'principal') && (
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="mr-2 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                      onClick={() => handleApproveRequest(request.id)}
+                                    >
+                                      <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="hover:bg-red-50 dark:hover:bg-red-900/20"
+                                      onClick={() => handleRejectRequest(request.id)}
+                                    >
+                                      <X className="h-4 w-4 text-red-600 dark:text-red-400" />
+                                    </Button>
+                                  </>
+                                )}
+                                {user?.role === 'teacher' && (
+                                  <span className="text-sm text-muted-foreground italic">View only</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                        .filter(Boolean) // Remove any null entries
+                      ) : (
                         <TableRow>
                           <TableCell colSpan={7} className="text-center py-12">
                             <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />

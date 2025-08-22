@@ -64,7 +64,8 @@ export default function EditStudentPage({ params }: { params: Promise<{ id: stri
             setFormData({
               fullName: student.full_name,
               rollNumber: currentRecord?.roll_number || '',
-              class: currentRecord ? `${currentRecord.class_division.level.name} - Section ${currentRecord.class_division.division}` : '',
+              class: currentRecord && currentRecord.class_division ? 
+                `${currentRecord.class_division.class_level?.name || 'Unknown'} - Section ${currentRecord.class_division.division || 'Unknown'}` : '',
               dateOfBirth: student.date_of_birth,
               gender: '', // Not available in current API
               bloodGroup: '', // Not available in current API

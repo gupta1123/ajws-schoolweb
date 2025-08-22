@@ -171,9 +171,89 @@ export const academicServices = {
     return response as { status: string; data: { assignments: TeacherAssignment[] } };
   },
 
-  getTeacherClasses: async (teacherId: string, token: string): Promise<{ status: string; data: { classes: TeacherAssignment[] } }> => {
+  getTeacherClasses: async (teacherId: string, token: string): Promise<{ 
+    status: string; 
+    data: { 
+      teacher: {
+        id: string;
+        full_name: string;
+      };
+      assignments: Array<{ 
+        assignment_id: string;
+        assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
+        is_primary: boolean;
+        assigned_date: string;
+        class_info: {
+          class_division_id: string;
+          division: string;
+          class_name: string;
+          class_level: string;
+          sequence_number: number;
+          academic_year: string;
+        };
+        subject?: string;
+      }>;
+      primary_classes: Array<{ 
+        assignment_id: string;
+        assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
+        is_primary: boolean;
+        assigned_date: string;
+        class_info: {
+          class_division_id: string;
+          division: string;
+          class_name: string;
+          class_level: string;
+          sequence_number: number;
+          academic_year: string;
+        };
+        subject?: string;
+      }>;
+      total_assignments: number;
+      has_assignments: boolean;
+    } 
+  } | { status: 'error'; message: string; statusCode: number }> => {
     const response = await apiClient.get(`/api/academic/teachers/${teacherId}/classes`, token);
-    return response as { status: string; data: { classes: TeacherAssignment[] } };
+    return response as { 
+      status: string; 
+      data: { 
+        teacher: {
+          id: string;
+          full_name: string;
+        };
+        assignments: Array<{ 
+          assignment_id: string;
+          assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
+          is_primary: boolean;
+          assigned_date: string;
+          class_info: {
+            class_division_id: string;
+            division: string;
+            class_name: string;
+            class_level: string;
+            sequence_number: number;
+            academic_year: string;
+          };
+          subject?: string;
+        }>;
+        primary_classes: Array<{ 
+          assignment_id: string;
+          assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
+          is_primary: boolean;
+          assigned_date: string;
+          class_info: {
+            class_division_id: string;
+            division: string;
+            class_name: string;
+            class_level: string;
+            sequence_number: number;
+            academic_year: string;
+          };
+          subject?: string;
+        }>;
+        total_assignments: number;
+        has_assignments: boolean;
+      } 
+    } | { status: 'error'; message: string; statusCode: number };
   },
 
   // Get assigned teachers for a class division

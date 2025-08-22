@@ -15,6 +15,16 @@ export interface BirthdayData {
   type: 'student' | 'teacher' | 'staff';
   admissionNumber?: string;
   rollNumber?: string;
+  academicRecords?: Array<{
+    roll_number: string;
+    class_division: {
+      division: string;
+      level: {
+        name: string;
+        sequence_number: number;
+      };
+    };
+  }>;
 }
 
 export interface BirthdayStats {
@@ -25,32 +35,11 @@ export interface BirthdayStats {
 }
 
 // Fallback mock data for when API is not available
-const fallbackBirthdays: BirthdayData[] = [
-  {
-    id: '1',
-    name: 'Aarav Patel',
-    class: 'Grade 5 - Section A',
-    date: '2025-08-15',
-    daysUntil: 0,
-    avatar: 'AP',
-    type: 'student'
-  },
-  {
-    id: '2',
-    name: 'Diya Nair',
-    class: 'Grade 6 - Section B',
-    date: '2025-08-22',
-    daysUntil: 7,
-    avatar: 'DN',
-    type: 'student'
-  }
-];
-
 const fallbackStats: BirthdayStats = {
-  today: 1,
-  thisWeek: 2,
-  thisMonth: 5,
-  nextMonth: 8
+  today: 0,
+  thisWeek: 0,
+  thisMonth: 0,
+  nextMonth: 0
 };
 
 export const useBirthdays = () => {
@@ -64,6 +53,9 @@ export const useBirthdays = () => {
 
   // Convert API student data to UI format
   const convertStudentToBirthdayData = useCallback((student: BirthdayStudent): BirthdayData => {
+    console.log('Converting student:', student);
+    console.log('Academic records:', student.student_academic_records);
+    
     const today = new Date();
     const birthDate = new Date(student.date_of_birth);
     const nextBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
@@ -83,19 +75,23 @@ export const useBirthdays = () => {
       .toUpperCase()
       .slice(0, 2);
 
-    return {
+    const result = {
       id: student.id,
       name: student.full_name,
-      class: student.academic_records && student.academic_records.length > 0 && student.academic_records[0]?.class_division
-        ? `${student.academic_records[0].class_division.level.name} - Section ${student.academic_records[0].class_division.division}`
+      class: student.student_academic_records && student.student_academic_records.length > 0 && student.student_academic_records[0]?.class_division
+        ? `${student.student_academic_records[0].class_division.level.name} - Section ${student.student_academic_records[0].class_division.division}`
         : undefined,
       date: student.date_of_birth,
       daysUntil,
       avatar: initials,
-      type: 'student',
+      type: 'student' as const,
       admissionNumber: student.admission_number,
-      rollNumber: student.academic_records && student.academic_records.length > 0 ? student.academic_records[0]?.roll_number : undefined
+      rollNumber: student.student_academic_records && student.student_academic_records.length > 0 ? student.student_academic_records[0]?.roll_number : undefined,
+      academicRecords: student.student_academic_records
     };
+    
+    console.log('Converted result:', result);
+    return result;
   }, []);
 
   // Calculate stats from actual birthday data
@@ -126,14 +122,10 @@ export const useBirthdays = () => {
     } catch (err: unknown) {
       console.error('Error fetching today\'s birthdays:', err);
       
-      // If it's a network error or API unavailable, use fallback data
-      if (err instanceof Error && (err.message.includes('Failed to fetch') || err.message.includes('Network'))) {
-        setUseFallback(true);
-        setTodayBirthdays(fallbackBirthdays.filter(b => b.daysUntil === 0));
-      } else {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch today\'s birthdays';
-        setError(errorMessage);
-      }
+      // Set error state but don't use fallback data
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch today\'s birthdays';
+      setError(errorMessage);
+      setUseFallback(true);
     } finally {
       setLoading(false);
     }
@@ -149,54 +141,51 @@ export const useBirthdays = () => {
       
       let response;
       
+      // Set date range for next 30 days
+      const today = new Date();
+      const endDate = new Date();
+      endDate.setDate(today.getDate() + 30); // Get next 30 days
+      
+      const startDateStr = today.toISOString().split('T')[0];
+      const endDateStr = endDate.toISOString().split('T')[0];
+      
       if (user?.role === 'teacher') {
         // For teachers, get birthdays for their classes
-        const today = new Date();
-        const endDate = new Date();
-        endDate.setDate(today.getDate() + 60); // Get next 60 days
-        
-        const startDateStr = today.toISOString().split('T')[0];
-        const endDateStr = endDate.toISOString().split('T')[0];
-        
         response = await birthdayServices.getMyClassBirthdays(startDateStr, endDateStr, token);
       } else {
-        // For admin/principal, get all upcoming birthdays
-        response = await birthdayServices.getUpcomingBirthdays(token);
+        // For admin/principal, get all upcoming birthdays with date range
+        response = await birthdayServices.getUpcomingBirthdays(token, {
+          start_date: startDateStr,
+          end_date: endDateStr
+        });
       }
       
       if (response.status === 'success') {
+        console.log('API Response:', response.data);
         const allUpcoming: BirthdayData[] = [];
         
-        if (user?.role === 'teacher' && response.data.upcoming_birthdays) {
-          // For teachers, process class birthdays
+        if (response.data.upcoming_birthdays) {
+          // Process upcoming birthdays
           response.data.upcoming_birthdays.forEach((monthData: { students: BirthdayStudent[] }) => {
+            console.log('Month data:', monthData);
             monthData.students.forEach((student: BirthdayStudent) => {
-              allUpcoming.push(convertStudentToBirthdayData(student));
-            });
-          });
-        } else if (response.data.upcoming_birthdays) {
-          // For admin/principal, process upcoming birthdays
-          response.data.upcoming_birthdays.forEach((monthData: { students: BirthdayStudent[] }) => {
-            monthData.students.forEach((student: BirthdayStudent) => {
+              console.log('Processing student:', student);
               allUpcoming.push(convertStudentToBirthdayData(student));
             });
           });
         }
         
+        console.log('Final upcoming birthdays:', allUpcoming);
         setUpcomingBirthdays(allUpcoming);
         setUseFallback(false);
       }
     } catch (err: unknown) {
       console.error('Error fetching upcoming birthdays:', err);
 
-      // If it's a network error or API unavailable, use fallback data
-      if (err instanceof Error && (err.message.includes('Failed to fetch') || err.message.includes('Network'))) {
-        setUseFallback(true);
-        setUpcomingBirthdays(fallbackBirthdays.filter(b => b.daysUntil > 0));
-      } else {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch upcoming birthdays';
-        setError(errorMessage);
-      }
+      // Set error state but don't use fallback data
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch upcoming birthdays';
+      setError(errorMessage);
+      setUseFallback(true);
     } finally {
       setLoading(false);
     }
@@ -245,6 +234,12 @@ export const useBirthdays = () => {
     }
   }, [getAllBirthdays]);
 
+  // Filter birthdays for tomorrow
+  const getBirthdaysForTomorrow = useCallback((): BirthdayData[] => {
+    const all = getAllBirthdays();
+    return all.filter(birthday => birthday.daysUntil === 1);
+  }, [getAllBirthdays]);
+
   // Initialize data on mount
   useEffect(() => {
     if (token) {
@@ -265,6 +260,7 @@ export const useBirthdays = () => {
     getAllBirthdays,
     getBirthdaysByType,
     getBirthdaysByDateRange,
+    getBirthdaysForTomorrow,
     refresh: () => Promise.all([fetchTodayBirthdays(), fetchUpcomingBirthdays()]),
     clearError: () => setError(null)
   };

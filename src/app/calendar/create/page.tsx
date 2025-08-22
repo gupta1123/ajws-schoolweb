@@ -9,7 +9,7 @@ import { useState, Suspense } from 'react';
 import { EventCreationWizard } from '@/components/calendar/event-creation-wizard';
 import { calendarServices, CreateEventRequest } from '@/lib/api/calendar';
 import { toast } from '@/hooks/use-toast';
-import { formatDate } from '@/lib/utils';
+
 
 // Component that uses useSearchParams - must be wrapped in Suspense
 function CreateEventContent() {
@@ -30,9 +30,9 @@ function CreateEventContent() {
     date: string;
     startTime: string;
     endTime: string;
-    eventType: 'school_wide' | 'class_specific' | 'teacher_specific';
-    category: string;
-    classDivisionId?: string;
+    isFullDay: boolean;
+    eventType: 'school_wide' | 'class_specific';
+    classDivisionIds: string[];
   }) => {
     if (!user) {
       toast({
@@ -46,19 +46,7 @@ function CreateEventContent() {
     setIsLoading(true);
     
     try {
-      // Map UI categories to API-supported categories
-      // API only supports: general, academic, sports, cultural, holiday, exam, meeting, other
-      const getApiCategory = (uiCategory: string) => {
-        switch (uiCategory) {
-          case 'uniform': return 'general';      // Uniform events -> general category
-          case 'birthday': return 'cultural';    // Birthday events -> cultural category
-          case 'leave': return 'other';          // Leave events -> other category
-          case 'meeting': return 'meeting';      // Meeting events -> meeting category
-          default: return 'general';
-        }
-      };
-
-      // Ensure time format is HH:MM:SS (API expects this format)
+      // Format time for full day events
       const formatTime = (time: string) => {
         if (time.includes(':')) {
           // If time already has colons, ensure it has seconds
@@ -86,6 +74,10 @@ function CreateEventContent() {
         throw new Error('Invalid date format. Please check the date and time.');
       }
 
+      // For full day events, set default times
+      const startTime = data.isFullDay ? '00:00:00' : formatTime(data.startTime);
+      const endTime = data.isFullDay ? '23:59:59' : formatTime(data.endTime);
+
       // The API expects the date in UTC format, but we need to ensure it represents the correct local date
       // Create a date string that represents the local date at midnight in UTC
       // This ensures the API interprets the date correctly regardless of timezone
@@ -99,19 +91,11 @@ function CreateEventContent() {
         event_date: utcDateString, // Use UTC date string to ensure correct date interpretation
         event_type: data.eventType,
         is_single_day: true,
-        start_time: formatTime(data.startTime),
-        end_time: formatTime(data.endTime),
-        event_category: getApiCategory(data.category),
+        start_time: startTime,
+        end_time: endTime,
+        event_category: 'general', // Default to general category
         timezone: 'Asia/Kolkata'
       };
-
-      // Add class_division_id for class_specific events
-      if (data.eventType === 'class_specific' && data.classDivisionId) {
-        apiPayload.class_division_id = data.classDivisionId;
-        console.log('Adding class_division_id:', data.classDivisionId);
-      } else if (data.eventType === 'class_specific' && !data.classDivisionId) {
-        throw new Error('Class division is required for class-specific events');
-      }
 
       // Validate required fields before sending
       if (!apiPayload.title || !apiPayload.description || !apiPayload.event_date) {
@@ -121,38 +105,46 @@ function CreateEventContent() {
       // Debug: log the payload being sent
       console.log('API Payload being sent:', apiPayload);
       console.log('Original form data:', data);
-      console.log('Date conversion details:', {
-        originalDate: data.date,
-        originalStartTime: data.startTime,
-        parsedYear: year,
-        parsedMonth: month,
-        parsedDay: day,
-        parsedStartHour: startHour,
-        parsedStartMinute: startMinute,
-        eventDateObject: eventDate,
-        eventDateISO: eventDate.toISOString(),
-        eventDateLocal: formatDate(eventDate),
-        eventDateLocalTime: eventDate.toLocaleTimeString(),
-        utcDateObject: utcDate,
-        utcDateString: utcDateString,
-        timezoneOffset: eventDate.getTimezoneOffset(),
-        timezoneOffsetHours: eventDate.getTimezoneOffset() / 60,
-        finalEventDate: utcDateString,
-        eventType: data.eventType,
-        classDivisionId: data.classDivisionId,
-        isClassSpecific: data.eventType === 'class_specific'
-      });
 
-      const response = await calendarServices.createEvent(token!, apiPayload);
-      
-      if (response.status === 'success') {
-        toast({
-          title: "Success",
-          description: "Event created successfully",
+      // Create events for each selected class division if class_specific
+      if (data.eventType === 'class_specific' && data.classDivisionIds.length > 0) {
+        // Create events for each class division
+        const promises = data.classDivisionIds.map(classDivisionId => {
+          const payloadWithClass = {
+            ...apiPayload,
+            class_division_id: classDivisionId
+          };
+          return calendarServices.createEvent(token!, payloadWithClass);
         });
-        router.push('/calendar');
+
+        const responses = await Promise.all(promises);
+        
+        // Check if all responses are successful
+        const allSuccessful = responses.every(response => response.status === 'success');
+        
+        if (allSuccessful) {
+          toast({
+            title: "Success",
+            description: `${data.classDivisionIds.length} event(s) created successfully`,
+          });
+          router.push('/calendar');
+        } else {
+          const errorResponse = responses.find(response => response.status !== 'success');
+          throw new Error(errorResponse?.message || 'Failed to create one or more events');
+        }
       } else {
-        throw new Error(response.message || 'Failed to create event');
+        // Create a single event
+        const response = await calendarServices.createEvent(token!, apiPayload);
+        
+        if (response.status === 'success') {
+          toast({
+            title: "Success",
+            description: "Event created successfully",
+          });
+          router.push('/calendar');
+        } else {
+          throw new Error(response.message || 'Failed to create event');
+        }
       }
     } catch (error: unknown) {
       console.error('Error creating event:', error);
@@ -176,15 +168,8 @@ function CreateEventContent() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen p-4 md:p-8">
-        <main className="max-w-2xl mx-auto pt-16">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold mb-2">Create Event</h1>
-            <p className="text-gray-600 dark:text-gray-300">
-              Add a new event to the school calendar
-            </p>
-          </div>
-
+      <div className="min-h-screen p-4 md:p-6">
+        <main className="max-w-7xl mx-auto pt-6">
           <EventCreationWizard 
             initialDate={initialDate}
             onSubmit={handleSubmit}

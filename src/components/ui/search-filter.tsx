@@ -10,6 +10,7 @@ import {
   X
 } from 'lucide-react';
 import { useState } from 'react';
+import { DatePicker } from '@/components/ui/date-picker';
 
 interface SearchFilterProps {
   onSearch: (query: string) => void;
@@ -47,6 +48,20 @@ export function SearchFilter({
     }
   };
 
+  // Handle date filter change
+  const handleDateFilterChange = (key: string, date: Date | undefined) => {
+    if (date) {
+      // Format date as YYYY-MM-DD
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const formattedDate = `${year}-${month}-${day}`;
+      handleFilterChange(key, formattedDate);
+    } else {
+      handleFilterChange(key, '');
+    }
+  };
+
   const clearFilters = () => {
     setActiveFilters({});
     if (onFilter) {
@@ -55,6 +70,15 @@ export function SearchFilter({
   };
 
   const hasActiveFilters = Object.keys(activeFilters).length > 0;
+
+  // Convert string date to Date object for DatePicker
+  const getDateValue = (key: string): Date | undefined => {
+    const value = activeFilters[key];
+    if (typeof value === 'string' && value) {
+      return new Date(value);
+    }
+    return undefined;
+  };
 
   return (
     <div className={className}>
@@ -109,7 +133,7 @@ export function SearchFilter({
                 <label className="text-sm font-medium">{filter.label}</label>
                 {filter.type === 'select' && filter.options && (
                   <select
-                    className="border rounded-md px-3 py-2 w-full text-sm"
+                    className="border rounded-md px-3 py-2 w-full text-sm dark:bg-background dark:border-gray-700"
                     value={typeof activeFilters[filter.key] === 'string' ? activeFilters[filter.key] as string : ''}
                     onChange={(e) => handleFilterChange(filter.key, e.target.value)}
                   >
@@ -127,7 +151,7 @@ export function SearchFilter({
                     <input
                       type="checkbox"
                       id={filter.key}
-                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-600"
                       checked={!!activeFilters[filter.key]}
                       onChange={(e) => handleFilterChange(filter.key, e.target.checked)}
                     />
@@ -138,11 +162,10 @@ export function SearchFilter({
                 )}
                 
                 {filter.type === 'date' && (
-                  <input
-                    type="date"
-                    className="border rounded-md px-3 py-2 w-full text-sm"
-                    value={typeof activeFilters[filter.key] === 'string' ? activeFilters[filter.key] as string : ''}
-                    onChange={(e) => handleFilterChange(filter.key, e.target.value)}
+                  <DatePicker 
+                    date={getDateValue(filter.key)} 
+                    onDateChange={(date) => handleDateFilterChange(filter.key, date)} 
+                    placeholder="Pick a date"
                   />
                 )}
               </div>

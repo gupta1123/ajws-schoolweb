@@ -25,6 +25,10 @@ export interface CalendarEvent {
     academic_year: string;
     class_level: string;
   };
+  status?: 'pending' | 'approved' | 'rejected';
+  approved_by?: string | null;
+  approved_at?: string | null;
+  rejection_reason?: string | null;
 }
 
 export interface CreateEventRequest {

@@ -54,6 +54,18 @@ const pageHeaders: Record<string, PageHeader> = {
     title: 'Calendar',
     subtitle: 'Manage school events, holidays, and important dates.'
   },
+  '/calendar/create': {
+    title: 'Create Event',
+    subtitle: 'Add a new event to the school calendar.'
+  },
+  '/calendar/[id]/edit': {
+    title: 'Edit Event',
+    subtitle: 'Modify event details and settings.'
+  },
+  '/approvals': {
+    title: 'Event Approvals',
+    subtitle: 'Review and manage event approvals.'
+  },
   '/attendance': {
     title: 'Attendance',
     subtitle: 'Track student and staff attendance records.'
@@ -81,6 +93,10 @@ const pageHeaders: Record<string, PageHeader> = {
   '/students/create': {
     title: 'Add New Student',
     subtitle: 'Add a new student to the school system.'
+  },
+  '/academic/setup': {
+    title: 'Academic Setup',
+    subtitle: 'Manage academic years, classes, divisions, and subjects.'
   }
 };
 
@@ -97,6 +113,15 @@ export function EnhancedTopbar({ onMenuClick }: { onMenuClick?: () => void }) {
     if (!header) {
       // Try to find partial matches for dynamic routes
       for (const [route, pageHeader] of Object.entries(pageHeaders)) {
+        // Handle dynamic routes like /calendar/[id]/edit
+        const regexPattern = route.replace(/\[.*?\]/g, '[^/]+');
+        const regex = new RegExp(`^${regexPattern}$`);
+        if (regex.test(pathname)) {
+          header = pageHeader;
+          break;
+        }
+        
+        // Handle partial matches for nested routes
         if (pathname.startsWith(route)) {
           header = pageHeader;
           break;

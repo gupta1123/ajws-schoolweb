@@ -34,6 +34,34 @@ export const staffServices = {
     return response as StaffListResponse;
   },
 
+  // Get teachers mapping
+  getTeachersMapping: async (token: string): Promise<{
+    status: string;
+    data: {
+      teachers: Array<{
+        teacher_id: string;
+        staff_id: string;
+        user_id: string;
+        full_name: string;
+        role: string;
+      }>;
+    };
+  }> => {
+    const response = await apiClient.get('/api/academic/teachers', token);
+    return response as {
+      status: string;
+      data: {
+        teachers: Array<{
+          teacher_id: string;
+          staff_id: string;
+          user_id: string;
+          full_name: string;
+          role: string;
+        }>;
+      };
+    };
+  },
+
   // Sync teachers to staff table
   syncTeachersToStaff: async (token: string): Promise<StaffSyncResponse> => {
     const response = await apiClient.post('/api/lists/staff/sync', {}, token);
@@ -62,5 +90,123 @@ export const staffServices = {
   deleteStaff: async (id: string, token: string): Promise<DeleteStaffResponse> => {
     const response = await apiClient.delete(`/api/lists/staff/${id}`, token);
     return response as DeleteStaffResponse;
+  },
+
+  // Get teacher's classes
+  getTeacherClasses: async (teacherId: string, token: string): Promise<{
+    status: string;
+    data: {
+      teacher: {
+        id: string;
+        full_name: string;
+      };
+      assignments: Array<{
+        assignment_id: string;
+        assignment_type: string;
+        is_primary: boolean;
+        assigned_date: string;
+        class_info: {
+          class_division_id: string;
+          division: string;
+          class_name: string;
+          class_level: string;
+          sequence_number: number;
+          academic_year: string;
+        };
+        subject?: string;
+      }>;
+      primary_classes: Array<{
+        assignment_id: string;
+        assignment_type: string;
+        is_primary: boolean;
+        assigned_date: string;
+        class_info: {
+          class_division_id: string;
+          division: string;
+          class_name: string;
+          class_level: string;
+          sequence_number: number;
+          academic_year: string;
+        };
+      }>;
+      total_assignments: number;
+      has_assignments: boolean;
+    };
+  }> => {
+    const response = await apiClient.get(`/api/academic/teachers/${teacherId}/classes`, token);
+    return response as {
+      status: string;
+      data: {
+        teacher: {
+          id: string;
+          full_name: string;
+        };
+        assignments: Array<{
+          assignment_id: string;
+          assignment_type: string;
+          is_primary: boolean;
+          assigned_date: string;
+          class_info: {
+            class_division_id: string;
+            division: string;
+            class_name: string;
+            class_level: string;
+            sequence_number: number;
+            academic_year: string;
+          };
+          subject?: string;
+        }>;
+        primary_classes: Array<{
+          assignment_id: string;
+          assignment_type: string;
+          is_primary: boolean;
+          assigned_date: string;
+          class_info: {
+            class_division_id: string;
+            division: string;
+            class_name: string;
+            class_level: string;
+            sequence_number: number;
+            academic_year: string;
+          };
+        }>;
+        total_assignments: number;
+        has_assignments: boolean;
+      };
+    };
+  },
+
+  // Get teacher's division summary
+  getTeacherDivisionSummary: async (teacherId: string, token: string): Promise<{
+    status: string;
+    data: {
+      summary: {
+        total_students: number;
+        total_classes: number;
+        subjects_taught: string[];
+        class_assignments: Array<{
+          class_name: string;
+          student_count: number;
+          subjects: string[];
+        }>;
+      };
+    };
+  }> => {
+    const response = await apiClient.get(`/api/students/divisions/teacher/${teacherId}/summary`, token);
+    return response as {
+      status: string;
+      data: {
+        summary: {
+          total_students: number;
+          total_classes: number;
+          subjects_taught: string[];
+          class_assignments: Array<{
+            class_name: string;
+            student_count: number;
+            subjects: string[];
+          }>;
+        };
+      };
+    };
   }
 };

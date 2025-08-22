@@ -4,72 +4,39 @@
 
 import { useState } from 'react';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
   ChevronLeft, 
   ChevronRight, 
-  School, 
-  Users, 
   Calendar as CalendarIcon, 
-  MapPin, 
-  User,
   BookOpen,
   Plus,
-  Filter,
   List,
   Grid3X3,
   Clock
 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/context';
 
-// Event type configuration with enhanced styling
+// Simplified event type configuration
 const eventTypeConfig = {
   school: { 
-    label: 'School Events', 
-    color: 'event-school', 
+    label: 'Event', 
+    color: 'bg-blue-500', 
     textColor: 'text-white',
-    darkColor: '',
-    icon: School,
-    borderColor: 'border-school',
+    darkColor: 'dark:bg-blue-600',
+    icon: CalendarIcon,
+    borderColor: 'border-l-blue-500',
     gradient: 'from-blue-500 to-blue-600'
   },
-  meeting: { 
-    label: 'Meetings', 
-    color: 'event-meeting', 
-    textColor: 'text-white',
-    darkColor: '',
-    icon: Users,
-    borderColor: 'border-meeting',
-    gradient: 'from-purple-500 to-purple-600'
-  },
   class: { 
-    label: 'Class Events', 
-    color: 'event-class', 
+    label: 'Class Event', 
+    color: 'bg-green-500', 
     textColor: 'text-white',
-    darkColor: '',
+    darkColor: 'dark:bg-green-600',
     icon: BookOpen,
-    borderColor: 'border-class',
+    borderColor: 'border-l-green-500',
     gradient: 'from-green-500 to-green-600'
-  },
-
-  room_booking: { 
-    label: 'Room Booking', 
-    color: 'event-room-booking', 
-    textColor: 'text-gray-800 dark:text-white',
-    darkColor: '',
-    icon: MapPin,
-    borderColor: 'border-room-booking',
-    gradient: 'from-yellow-500 to-yellow-600'
-  },
-  leave: { 
-    label: 'Leave', 
-    color: 'event-leave', 
-    textColor: 'text-white',
-    darkColor: '',
-    icon: User,
-    borderColor: 'border-leave',
-    gradient: 'from-red-500 to-red-600'
   }
 };
 
@@ -82,7 +49,6 @@ interface CalendarEvent {
   endTime: string;
   type: keyof typeof eventTypeConfig;
   class?: string;
-  room?: string;
   teacher?: string;
   requiresApproval?: boolean;
   approved?: boolean;
@@ -95,22 +61,12 @@ interface ImprovedCalendarViewProps {
   onAddEvent: (date: string) => void;
 }
 
-// No more mock data - everything comes from API
-
 type ViewMode = 'monthly' | 'weekly' | 'daily';
-type FilterType = 'all' | keyof typeof eventTypeConfig;
-
-interface ImprovedCalendarViewProps {
-  onViewEvent: (eventId: string) => void;
-  onAddEvent: (date: string) => void;
-}
 
 export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: ImprovedCalendarViewProps) {
   const { colorScheme } = useTheme();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('monthly');
-  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
-  const [showFilters, setShowFilters] = useState(false);
   
   // Generate calendar days for monthly view
   const getDaysInMonth = (year: number, month: number) => {
@@ -156,14 +112,8 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
   };
   
   const getFilteredEventsForDate = (date: Date) => {
-    const events = getEventsForDate(date);
-    
-    // Filter by active filter
-    if (activeFilter === 'all') {
-      return events;
-    }
-    
-    return events.filter(event => event.type === activeFilter);
+    // No filtering - show all events
+    return getEventsForDate(date);
   };
   
   const navigateMonth = (direction: 'prev' | 'next') => {
@@ -225,8 +175,8 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
         };
       default:
         return {
-          primary: 'bg-pink-500 hover:bg-pink-600',
-          secondary: 'bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-300'
+          primary: 'bg-indigo-500 hover:bg-indigo-600',
+          secondary: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300'
         };
     }
   };
@@ -238,9 +188,9 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
   const today = new Date();
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
+    <div className="flex flex-col gap-6">
       {/* Main Calendar Area */}
-      <div className="flex-grow">
+      <div>
         {/* Calendar Header */}
         <Card className="mb-6 shadow-sm border-0">
           <CardHeader className="pb-4">
@@ -248,17 +198,17 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
               <div className="flex items-center gap-3">
                 <Button 
                   variant="outline" 
-                  size="sm" 
-                  className="rounded-full"
+                  size="icon"
+                  className="rounded-full h-10 w-10"
                   onClick={() => {
                     if (viewMode === 'monthly') navigateMonth('prev');
                     else if (viewMode === 'weekly') navigateWeek('prev');
                     else navigateDay('prev');
                   }}
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-5 w-5" />
                 </Button>
-                <h2 className="text-xl font-bold min-w-[200px] text-center text-gray-800 dark:text-white">
+                <h2 className="text-xl font-bold min-w-[180px] text-center text-gray-800 dark:text-white">
                   {viewMode === 'monthly'
                     ? monthYear
                     : viewMode === 'weekly'
@@ -268,20 +218,20 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
                 </h2>
                 <Button 
                   variant="outline" 
-                  size="sm" 
-                  className="rounded-full"
+                  size="icon"
+                  className="rounded-full h-10 w-10"
                   onClick={() => {
                     if (viewMode === 'monthly') navigateMonth('next');
                     else if (viewMode === 'weekly') navigateWeek('next');
                     else navigateDay('next');
                   }}
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-5 w-5" />
                 </Button>
                 <Button 
                   variant="outline" 
-                  size="sm" 
-                  className="ml-2 rounded-full"
+                  size="sm"
+                  className="ml-2 rounded-full px-4"
                   onClick={goToToday}
                 >
                   Today
@@ -289,7 +239,7 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
               </div>
               
               <div className="flex flex-wrap gap-2">
-                <div className="flex rounded-full overflow-hidden border shadow-sm">
+                <div className="flex rounded-lg overflow-hidden border shadow-sm">
                   <Button
                     variant={viewMode === 'monthly' ? 'default' : 'outline'}
                     size="sm"
@@ -318,16 +268,6 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
                     <span className="hidden sm:inline">Day</span>
                   </Button>
                 </div>
-                
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full"
-                  onClick={() => setShowFilters(!showFilters)}
-                >
-                  <Filter className="h-4 w-4 mr-1" />
-                  <span className="hidden sm:inline">Filters</span>
-                </Button>
               </div>
             </div>
           </CardHeader>
@@ -341,7 +281,7 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
                 {/* Day Headers */}
                 <div className="grid grid-cols-7 gap-0 border-b">
                   {dayNames.map(day => (
-                    <div key={day} className="text-center p-3 font-semibold text-sm text-gray-700 dark:text-gray-300">
+                    <div key={day} className="text-center p-2 font-semibold text-sm text-gray-700 dark:text-gray-300">
                       {day}
                     </div>
                   ))}
@@ -355,50 +295,49 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
                     
                     return (
                       <div 
-                      key={index} 
-                      className={`min-h-24 p-1 border ${
-                        day ? 'bg-card' : 'bg-muted'
-                      } ${index % 7 === 0 ? 'border-l' : ''} ${
-                        Math.floor(index / 7) === 0 ? 'border-t' : ''
-                      } ${isToday ? `border-2 border-primary` : 'border-border'}`}
-                      onClick={() => day && onAddEvent(formatDate(day))}
-                    >
+                        key={index} 
+                        className={`min-h-24 p-1 border ${
+                          day ? 'bg-card' : 'bg-muted'
+                        } ${index % 7 === 0 ? 'border-l' : ''} ${
+                          Math.floor(index / 7) === 0 ? 'border-t' : ''
+                        } ${isToday ? `border-2 border-primary` : 'border-border'}`}
+                        onClick={() => day && onAddEvent(formatDate(day))}
+                      >
                         {day && (
-                      <>
-                        <div className={`font-medium text-sm mb-1 p-1 rounded-full w-7 h-7 flex items-center justify-center mx-auto ${
-                          isToday ? 'bg-primary text-primary-foreground' : ''
-                        }`}>
-                          {day.getDate()}
-                        </div>
-                        <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
-                          {dayEvents.slice(0, 3).map(event => {
-                            const config = eventTypeConfig[event.type];
-                            const Icon = config.icon;
-                            return (
-                              <div 
-                                key={event.id} 
-                                className={`text-xs p-1.5 rounded-lg truncate flex items-center gap-1.5 ${config.color} text-white dark:text-white ${config.darkColor} cursor-pointer hover:opacity-90 hover:scale-105 transform transition-all duration-150 shadow-sm`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onViewEvent(event.id.replace('b-', ''));
-                                }}
-                              >
-                                <Icon className="h-3 w-3 flex-shrink-0" />
-                                <div className="flex-grow truncate">
-                                  <div className="font-medium truncate text-xs">{event.title}</div>
-                                  <div className="opacity-90 text-xs truncate">{event.startTime}</div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                          {dayEvents.length > 3 && (
-                            <div className="text-xs text-gray-600 dark:text-gray-300 p-1 font-medium">
-                              +{dayEvents.length - 3} more
+                          <>
+                            <div className={`font-medium text-sm mb-1 p-1 rounded-full w-6 h-6 flex items-center justify-center mx-auto ${
+                              isToday ? 'bg-primary text-primary-foreground' : ''
+                            }`}>
+                              {day.getDate()}
                             </div>
-                          )}
-                        </div>
-                      </>
-                    )}
+                            <div className="space-y-1 max-h-20 overflow-y-auto pr-1">
+                              {dayEvents.slice(0, 2).map(event => {
+                                const config = eventTypeConfig[event.type] || eventTypeConfig.school;
+                                const Icon = config.icon;
+                                return (
+                                  <div 
+                                    key={event.id} 
+                                    className={`text-xs p-1.5 rounded truncate flex items-center gap-1 ${config.color} text-white dark:text-white cursor-pointer hover:opacity-90 transition-all duration-150 shadow-sm`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onViewEvent(event.id.replace('b-', ''));
+                                    }}
+                                  >
+                                    <Icon className="h-3 w-3 flex-shrink-0" />
+                                    <div className="flex-grow truncate">
+                                      <div className="font-medium truncate text-xs">{event.title}</div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              {dayEvents.length > 2 && (
+                                <div className="text-xs text-gray-600 dark:text-gray-300 p-1 font-medium">
+                                  +{dayEvents.length - 2} more
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </div>
                     );
                   })}
@@ -428,14 +367,14 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
                         return (
                           <div 
                             key={index} 
-                            className={`text-center p-3 font-semibold text-sm ${
+                            className={`text-center p-2 font-semibold text-sm ${
                               isToday 
                                 ? `${themeClasses.primary} text-white rounded-t-lg` 
                                 : 'text-gray-700 dark:text-gray-300'
                             }`}
                           >
                             <div>{dayNames[day.getDay()]}</div>
-                            <div className={`text-lg font-bold ${isToday ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+                            <div className={`text-base font-bold ${isToday ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
                               {day.getDate()}
                             </div>
                           </div>
@@ -452,7 +391,7 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
                         return (
                           <div 
                             key={dayIndex} 
-                            className={`min-h-96 p-2 border rounded-b-lg ${
+                            className={`min-h-80 p-2 border rounded-b-lg ${
                               day ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-900/20'
                             } ${dayIndex === 0 ? 'border-l' : ''} border-t ${
                               isToday ? `border-2 ${themeClasses.primary.replace(' ', '').replace('hover:bg-', 'border-')}` : 'border-gray-200 dark:border-gray-700'
@@ -461,20 +400,20 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
                           >
                             <div className="space-y-1.5">
                               {dayEvents.map(event => {
-                                const config = eventTypeConfig[event.type];
+                                const config = eventTypeConfig[event.type] || eventTypeConfig.school;
                                 const Icon = config.icon;
                                 return (
                                   <div 
                                     key={event.id} 
-                                    className={`text-xs p-2 rounded-lg truncate flex items-center gap-2 ${config.color} text-white dark:text-white ${config.darkColor} cursor-pointer hover:opacity-90 hover:scale-105 transform transition-all duration-150 shadow-sm`}
+                                    className={`text-sm p-2 rounded truncate flex items-center gap-2 ${config.color} text-white dark:text-white cursor-pointer hover:opacity-90 transition-all duration-150 shadow-sm`}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       onViewEvent(event.id.replace('b-', ''));
                                     }}
                                   >
-                                    <Icon className="h-3 w-3 flex-shrink-0" />
+                                    <Icon className="h-3.5 w-3.5 flex-shrink-0" />
                                     <div className="flex-grow truncate">
-                                      <div className="font-medium truncate">{event.title}</div>
+                                      <div className="font-medium truncate text-sm">{event.title}</div>
                                       <div className="opacity-90 text-xs truncate">{event.startTime}</div>
                                     </div>
                                   </div>
@@ -496,7 +435,7 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
                 return (
                   <div className="p-4 min-h-96">
                     <div className="mb-4">
-                      <h3 className="text-lg font-semibold">
+                      <h3 className="text-xl font-bold">
                         {currentDate.toLocaleDateString('default', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                       </h3>
                     </div>
@@ -504,65 +443,50 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
                     {dayEvents.length > 0 ? (
                       <div className="space-y-3">
                         {dayEvents.map(event => {
-                          const config = eventTypeConfig[event.type];
+                          const config = eventTypeConfig[event.type] || eventTypeConfig.school;
                           const Icon = config.icon;
                           return (
                             <div 
                               key={event.id} 
-                              className={`p-4 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-[1.02] hover:shadow-xl border-l-4 ${config.borderColor} bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 relative overflow-hidden`}
+                              className={`p-4 rounded-xl shadow-md transition-all duration-200 hover:shadow-lg border-l-4 ${config.borderColor} bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 relative overflow-hidden`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onViewEvent(event.id.replace('b-', ''));
                               }}
                             >
-                              {/* Gradient accent */}
-                              <div className={`absolute top-0 left-0 h-1 w-full bg-gradient-to-r ${config.gradient}`}></div>
-                              
                               <div className="flex items-start gap-3">
-                                <div className={`flex-shrink-0 mt-1 p-2 rounded-lg ${config.color} text-white`}>
-                                  <Icon className="h-5 w-5" />
+                                <div className={`flex-shrink-0 mt-0.5 p-2 rounded-lg ${config.color} text-white`}>
+                                  <Icon className="h-4 w-4" />
                                 </div>
                                 <div className="flex-grow">
                                   <div className="flex justify-between items-start">
-                                    <h3 className="font-bold text-lg">{event.title}</h3>
-                                    <span className="text-sm font-medium bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">
+                                    <h3 className="font-semibold text-base">{event.title}</h3>
+                                    <span className="text-xs font-medium bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">
                                       {event.startTime}
                                     </span>
                                   </div>
                                   
-                                  <div className="flex items-center gap-2 mt-2 text-sm">
-                                    <Clock className="h-4 w-4 text-gray-500" />
+                                  <div className="flex items-center gap-2 mt-2 text-xs">
+                                    <Clock className="h-3.5 w-3.5 text-gray-500" />
                                     <span className="text-gray-600 dark:text-gray-300">
                                       {event.startTime} - {event.endTime}
                                     </span>
                                   </div>
                                   
                                   {event.description && (
-                                    <p className="mt-2 text-gray-600 dark:text-gray-300">
+                                    <p className="mt-2 text-gray-600 dark:text-gray-300 text-sm line-clamp-2">
                                       {event.description}
                                     </p>
                                   )}
                                   
-                                  <div className="flex flex-wrap gap-2 mt-3">
-                                    {event.class && (
+                                  {event.class && (
+                                    <div className="flex flex-wrap gap-1 mt-2">
                                       <span className="inline-flex items-center gap-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full">
                                         <BookOpen className="h-3 w-3" />
                                         {event.class}
                                       </span>
-                                    )}
-                                    {'room' in event && event.room && (
-                                      <span className="inline-flex items-center gap-1 text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
-                                        <MapPin className="h-3 w-3" />
-                                        {event.room}
-                                      </span>
-                                    )}
-                                    {'teacher' in event && event.teacher && (
-                                      <span className="inline-flex items-center gap-1 text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-blue-200 px-2 py-1 rounded-full">
-                                        <User className="h-3 w-3" />
-                                        {event.teacher}
-                                      </span>
-                                    )}
-                                  </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -571,11 +495,12 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
                       </div>
                     ) : (
                       <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                        <CalendarIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                        <p>No events scheduled for today</p>
+                        <CalendarIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                        <p className="text-base mb-2">No events scheduled for today</p>
                         <Button 
                           variant="outline" 
-                          className="mt-2"
+                          size="sm"
+                          className="h-8 px-3 text-sm"
                           onClick={(e) => {
                             e.stopPropagation();
                             onAddEvent(formatDate(currentDate));
@@ -593,72 +518,6 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
           </CardContent>
         </Card>
       </div>
-      
-      {/* Sidebar with Filters */}
-      {showFilters && (
-        <Card className="lg:w-64 flex-shrink-0">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5" />
-              Filters
-            </CardTitle>
-            <CardDescription>
-              Filter events by type
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Button
-                variant={activeFilter === 'all' ? 'default' : 'outline'}
-                size="sm"
-                className={`w-full justify-start ${activeFilter === 'all' ? themeClasses.primary : ''}`}
-                onClick={() => setActiveFilter('all')}
-              >
-                <CalendarIcon className="h-4 w-4 mr-2" />
-                All Events
-              </Button>
-              
-              {Object.entries(eventTypeConfig).map(([type, config]) => {
-                const Icon = config.icon;
-                return (
-                  <Button
-                    key={type}
-                    variant={activeFilter === type ? 'default' : 'outline'}
-                    size="sm"
-                    className={`w-full justify-start ${
-                      activeFilter === type ? themeClasses.primary : ''
-                    }`}
-                    onClick={() => setActiveFilter(type as FilterType)}
-                  >
-                    <Icon className={`h-4 w-4 mr-2 ${config.color.replace('bg-', 'text-')}`} />
-                    {config.label}
-                  </Button>
-                );
-              })}
-            </div>
-            
-            <div className="mt-6">
-              <h3 className="font-medium mb-2">Quick Stats</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Total Events:</span>
-                  <span className="font-medium">{events.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Events Today:</span>
-                  <span className="font-medium">{getEventsForDate(today).length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Pending Approval:</span>
-                  <span className="font-medium">
-                    {events.filter(e => e.requiresApproval && !e.approved).length}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
