@@ -8,12 +8,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { studentServices, Student } from '@/lib/api/students';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export default function EditStudentPage({ params }: { params: Promise<{ id: string }> }) {
   const { user, token } = useAuth();
@@ -26,9 +24,6 @@ export default function EditStudentPage({ params }: { params: Promise<{ id: stri
     rollNumber: '',
     class: '',
     dateOfBirth: '',
-    gender: '',
-    bloodGroup: '',
-    address: '',
     fatherName: '',
     motherName: '',
     parentPhone: '',
@@ -65,11 +60,8 @@ export default function EditStudentPage({ params }: { params: Promise<{ id: stri
               fullName: student.full_name,
               rollNumber: currentRecord?.roll_number || '',
               class: currentRecord && currentRecord.class_division ? 
-                `${currentRecord.class_division.class_level?.name || 'Unknown'} - Section ${currentRecord.class_division.division || 'Unknown'}` : '',
+                `${currentRecord.class_division.level?.name || 'Unknown'} - Section ${currentRecord.class_division.division || 'Unknown'}` : '',
               dateOfBirth: student.date_of_birth,
-              gender: '', // Not available in current API
-              bloodGroup: '', // Not available in current API
-              address: '', // Not available in current API
               fatherName: primaryParent?.parent.full_name || '',
               motherName: '', // Not available in current API
               parentPhone: primaryParent?.parent.phone_number || '',
@@ -109,11 +101,39 @@ export default function EditStudentPage({ params }: { params: Promise<{ id: stri
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Note: Student update functionality is not yet available in the API
-    // This form is currently read-only for demonstration purposes
-    console.log('Student update functionality not yet implemented in API');
+    
+    if (!token || !studentData) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Prepare update payload with only the edited field
+      const updatePayload = {
+        full_name: formData.fullName
+      };
+      
+      const response = await studentServices.updateStudent(studentData.id, updatePayload, token);
+      
+      if (response.status === 'success') {
+        // Update local state with new data
+        setStudentData(response.data.student);
+        
+        // Show success message and redirect back
+        alert('Student updated successfully!');
+        router.back();
+      } else {
+        setError('Failed to update student');
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update student';
+      setError(errorMessage);
+      console.error('Error updating student:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
@@ -161,20 +181,9 @@ export default function EditStudentPage({ params }: { params: Promise<{ id: stri
             >
               ← Back to Student Details
             </Button>
-            <h1 className="text-3xl font-bold mb-2">Edit Student</h1>
-            <p className="text-gray-600 dark:text-gray-300">
-              Update student information
-            </p>
           </div>
 
-          <Alert className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              <strong>Note:</strong> Student update functionality is not yet available in the API. 
-              This form is currently read-only for demonstration purposes. 
-              To modify student information, please contact your system administrator.
-            </AlertDescription>
-          </Alert>
+
 
           <Card>
             <form onSubmit={handleSubmit}>
@@ -195,7 +204,7 @@ export default function EditStudentPage({ params }: { params: Promise<{ id: stri
                       onChange={handleChange}
                       placeholder="Enter full name"
                       required
-                      disabled
+                      disabled={loading}
                     />
                   </div>
                   
@@ -237,45 +246,9 @@ export default function EditStudentPage({ params }: { params: Promise<{ id: stri
                       disabled
                     />
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="gender">Gender *</Label>
-                    <Input
-                      id="gender"
-                      name="gender"
-                      value={formData.gender}
-                      onChange={handleChange}
-                      placeholder="Enter gender"
-                      required
-                      disabled
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="bloodGroup">Blood Group</Label>
-                    <Input
-                      id="bloodGroup"
-                      name="bloodGroup"
-                      value={formData.bloodGroup}
-                      onChange={handleChange}
-                      placeholder="Enter blood group"
-                      disabled
-                    />
-                  </div>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Textarea
-                    id="address"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    placeholder="Enter full address"
-                    rows={3}
-                    disabled
-                  />
-                </div>
+
                 
                 <div className="border-t pt-6">
                   <h3 className="text-lg font-medium mb-4">Parent/Guardian Information</h3>
@@ -348,8 +321,8 @@ export default function EditStudentPage({ params }: { params: Promise<{ id: stri
                 <Button variant="outline" type="button" onClick={() => router.back()}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled>
-                  Update Student (Not Available)
+                <Button type="submit" disabled={loading}>
+                  {loading ? 'Updating...' : 'Update Student'}
                 </Button>
               </CardFooter>
             </form>

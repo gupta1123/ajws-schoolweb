@@ -225,14 +225,19 @@ function LeaveRequestsContent() {
     .filter(request => 
       (searchTerm === '' || 
        (request.student?.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-               (request.student?.class_division?.level?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (request.student?.class_division?.division || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+       `Class ${request.student?.student_academic_records?.[0]?.class_division?.level?.sequence_number || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       `Division ${request.student?.student_academic_records?.[0]?.class_division?.division || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
        request.reason.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (classFilter === 'all' || true) // Since we don't have class info, always show all
+      (classFilter === 'all' || 
+       classFilter === `Class ${request.student?.student_academic_records?.[0]?.class_division?.level?.sequence_number} Division ${request.student?.student_academic_records?.[0]?.class_division?.division}`)
     );
 
-  // Get unique class names for filters (not available in current API response)
-  const availableClasses: string[] = [];
+  // Get unique class names for filters
+  const availableClasses = Array.from(new Set(
+    leaveRequests
+      .filter(request => request.student?.student_academic_records?.[0]?.class_division?.level?.sequence_number && request.student?.student_academic_records?.[0]?.class_division?.division)
+      .map(request => `Class ${request.student?.student_academic_records?.[0]?.class_division?.level?.sequence_number} Division ${request.student?.student_academic_records?.[0]?.class_division?.division}`)
+  )).sort();
 
   // Calculate summary metrics
   const pendingCount = leaveRequests.filter(r => r.status === 'pending').length;
@@ -524,11 +529,11 @@ function LeaveRequestsContent() {
                                   <div className="flex items-center gap-1">
                                     <BookOpen className="h-4 w-4 text-muted-foreground" />
                                     <span className="font-medium">
-                                      {request.student?.class_division?.level?.name || 'N/A'}
+                                      Class {request.student?.student_academic_records?.[0]?.class_division?.level?.sequence_number || 'N/A'}
                                     </span>
                                   </div>
                                   <div className="text-gray-500 ml-5">
-                                    Section {request.student?.class_division?.division || 'N/A'}
+                                    Division {request.student?.student_academic_records?.[0]?.class_division?.division || 'N/A'}
                                   </div>
                                 </div>
                               </TableCell>

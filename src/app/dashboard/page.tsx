@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
 import { WelcomeBanner } from '@/components/dashboard/welcome-banner';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { ErrorBoundary, ApiErrorFallback } from '@/components/ui/error-boundary';
 import Link from 'next/link';
 import { Suspense, useMemo } from 'react';
@@ -14,7 +14,6 @@ import dynamic from 'next/dynamic';
 import {
   UserCheck,
   User,
-  MessageSquare,
   GraduationCap,
   Building2
 } from 'lucide-react';
@@ -67,8 +66,8 @@ const DashboardPage = () => {
         <WelcomeBanner />
         
         {user?.role === 'teacher' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 gap-6">
+            <div className="space-y-6">
               <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
                 <ClassOverviewCard />
               </Suspense>
@@ -84,28 +83,6 @@ const DashboardPage = () => {
                   </Suspense>
                 </ErrorBoundary>
               </div>
-            </div>
-            <div>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5" />
-                    Quick Messages
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <button className="w-full text-left p-3 rounded-lg border hover:bg-muted/50 transition-colors">
-                      <div className="font-medium text-sm">Message all parents</div>
-                      <div className="text-xs text-muted-foreground">Send announcement to Grade 5A parents</div>
-                    </button>
-                    <button className="w-full text-left p-3 rounded-lg border hover:bg-muted/50 transition-colors">
-                      <div className="font-medium text-sm">Send homework reminder</div>
-                      <div className="text-xs text-muted-foreground">Remind about pending assignments</div>
-                    </button>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </div>
         ) : user?.role === 'admin' || user?.role === 'principal' ? (

@@ -10,6 +10,9 @@ export interface Student {
   status: string;
   profile_photo_path?: string;
   profile_photo_url?: string;
+  gender?: string;
+  blood_group?: string;
+  address?: string;
   student_academic_records: StudentAcademicRecord[];
   parent_mappings?: ParentStudentMapping[];
 }
@@ -21,14 +24,14 @@ export interface StudentAcademicRecord {
   class_division: {
     id: string;
     division: string;
-    class_level: {
+    level: {
       id: string;
       name: string;
       sequence_number: number;
     };
-    academic_year: {
+    teacher?: {
       id: string;
-      year_name: string;
+      full_name: string;
     };
   };
 }
@@ -55,6 +58,10 @@ export interface CreateStudentRequest {
   roll_number: string;
   phone_number?: string;
   email?: string;
+}
+
+export interface UpdateStudentRequest {
+  full_name?: string;
 }
 
 export interface LinkParentRequest {
@@ -231,6 +238,15 @@ export const studentServices = {
   // Create a new student
   createStudent: async (data: CreateStudentRequest, token: string): Promise<ApiResponse<Student> | ApiErrorResponse> => {
     return apiClient.post('/api/students', data, token);
+  },
+
+  // Update student information (sends complete payload)
+  updateStudent: async (
+    studentId: string,
+    data: UpdateStudentRequest,
+    token: string
+  ): Promise<ApiResponse<StudentDetailsResponse> | ApiErrorResponse> => {
+    return apiClient.put(`/api/students/${studentId}`, data, token);
   },
 
   // Get student details by ID

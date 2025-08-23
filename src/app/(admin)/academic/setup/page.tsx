@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Edit, Trash2, Loader2 } from 'lucide-react';
 import { academicServices } from '@/lib/api/academic';
 import type { ClassLevel } from '@/types/academic';
+import { useToast } from '@/hooks/use-toast';
 
 // Interfaces
 interface AcademicYear {
@@ -40,7 +41,7 @@ interface Division {
   teacherName: string | null;
   academicYear: string;
   studentCount: number;
-  subjects: string[];
+  subjects: Array<{ id: string; name: string; code: string }>;
   subjectTeachers: Array<{ subject: string; teacher: string; assignmentId?: string }>;
 }
 
@@ -88,6 +89,7 @@ const mockAcademicYears: AcademicYear[] = [
 
 export default function AcademicSystemSetupPage() {
   const { token } = useAuth();
+  const { toast } = useToast();
   
   // Academic Years State
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>(mockAcademicYears);
@@ -133,6 +135,9 @@ export default function AcademicSystemSetupPage() {
   const [editingSubject, setEditingSubject] = useState<string>('');
   const [selectedTeacher, setSelectedTeacher] = useState<string>('');
 
+  // Subject Assignment Loading State
+  const [isAssigningSubject, setIsAssigningSubject] = useState(false);
+
   // Fetch class divisions summary
   useEffect(() => {
     const fetchClassDivisions = async () => {
@@ -153,7 +158,7 @@ export default function AcademicSystemSetupPage() {
             teacherName: division.class_teacher?.name || null,
             academicYear: division.academic_year.year_name,
             studentCount: division.student_count,
-            subjects: [...new Set(division.subjects.map(s => s.name))], // Remove duplicates
+            subjects: division.subjects, // Keep full subject objects
             subjectTeachers: division.subject_teachers.map(st => ({ 
               subject: st.subject || '', 
               teacher: st.name,
@@ -356,9 +361,9 @@ export default function AcademicSystemSetupPage() {
     setIsDivisionDialogOpen(true);
   };
 
-  const handleDeleteDivision = (id: string) => {
-    setDivisions(divisions.filter(division => division.id !== id));
-  };
+  // const handleDeleteDivision = (id: string) => {
+  //   setDivisions(divisions.filter(division => division.id !== id));
+  // };
 
   const handleSaveDivision = async () => {
     if (!token || !currentDivision) return;
@@ -388,8 +393,8 @@ export default function AcademicSystemSetupPage() {
               teacherName: division.class_teacher?.name || null,
               academicYear: division.academic_year.year_name,
               studentCount: division.student_count,
-              subjects: [...new Set(division.subjects.map(s => s.name))], // Remove duplicates
-              subjectTeachers: division.subject_teachers.map(st => ({ subject: st.subject || '', teacher: st.name }))
+              subjects: division.subjects, // Keep full subject objects
+              subjectTeachers: division.subject_teachers.map(st => ({ subject: st.subject || '', teacher: st.name, assignmentId: st.id }))
             }));
             setDivisions(transformedDivisions);
           }
@@ -435,8 +440,8 @@ export default function AcademicSystemSetupPage() {
               teacherName: division.class_teacher?.name || null,
               academicYear: division.academic_year.year_name,
               studentCount: division.student_count,
-              subjects: [...new Set(division.subjects.map(s => s.name))], // Remove duplicates
-              subjectTeachers: division.subject_teachers.map(st => ({ subject: st.subject || '', teacher: st.name }))
+              subjects: division.subjects, // Keep full subject objects
+              subjectTeachers: division.subject_teachers.map(st => ({ subject: st.subject || '', teacher: st.name, assignmentId: st.id }))
             }));
             setDivisions(transformedDivisions);
           }
@@ -611,17 +616,76 @@ export default function AcademicSystemSetupPage() {
   const handleSaveClassSubject = async () => {
     if (!token || !selectedClassDivision || !selectedSubject) return;
     
+    setIsAssigningSubject(true);
+    
     try {
-      // Assign subject to class division using the direct division ID
-      const response = await academicServices.assignSubjectsToClass(
+      // Step 1: Assign subject to class division
+      const subjectResponse = await academicServices.assignSubjectsToClass(
         selectedClassDivision,
         [selectedSubject],
-        'replace', // or 'append' based on requirement
+        'append', // Use append to add the subject without removing existing ones
         token
       );
       
-      if (response.status === 'success') {
-        // Refresh the divisions data to show updated assignments
+      if (subjectResponse.status === 'success') {
+        // Step 2: If a teacher is selected, assign teacher to the subject
+        if (selectedSubjectTeacher) {
+          try {
+            // Find the teacher object from the selected teacher ID
+            const teacher = teachers.find(t => t.id === selectedSubjectTeacher);
+            if (teacher) {
+              // Find the subject name from the subjects array
+              const subject = subjects.find(s => s.id === selectedSubject);
+              if (subject) {
+                const teacherResponse = await academicServices.assignTeacherToClass(
+                  selectedClassDivision,
+                  {
+                    class_division_id: selectedClassDivision,
+                    teacher_id: teacher.id,
+                    assignment_type: 'subject_teacher',
+                    subject: subject.name,
+                    is_primary: false
+                  },
+                  token
+                );
+                
+                if (teacherResponse.status === 'success') {
+                  toast({
+                    title: "Success!",
+                    description: `Subject "${subject.name}" assigned to class division with teacher "${teacher.name}"`,
+                    variant: "default",
+                  });
+                } else {
+                  console.error('Error assigning teacher to subject:', teacherResponse);
+                  toast({
+                    title: "Warning",
+                    description: `Subject assigned but failed to assign teacher. Please try assigning teacher separately.`,
+                    variant: "warning",
+                  });
+                }
+              }
+            }
+          } catch (teacherError) {
+            console.error('Error assigning teacher to subject:', teacherError);
+            toast({
+              title: "Warning",
+              description: `Subject assigned but failed to assign teacher. Please try assigning teacher separately.`,
+              variant: "warning",
+            });
+          }
+        } else {
+          // No teacher selected, just show success for subject assignment
+          const subject = subjects.find(s => s.id === selectedSubject);
+          if (subject) {
+            toast({
+              title: "Success!",
+              description: `Subject "${subject.name}" assigned to class division successfully`,
+              variant: "default",
+            });
+          }
+        }
+        
+        // Step 3: Refresh the divisions data to show updated assignments
         const refreshResponse = await academicServices.getClassDivisionsSummary(token);
         if (refreshResponse.status === 'success') {
           const transformedDivisions: Division[] = refreshResponse.data.divisions.map((division: ApiDivision) => ({
@@ -633,29 +697,37 @@ export default function AcademicSystemSetupPage() {
             teacherName: division.class_teacher?.name || null,
             academicYear: division.academic_year.year_name,
             studentCount: division.student_count,
-            subjects: [...new Set(division.subjects.map(s => s.name))], // Remove duplicates
-            subjectTeachers: division.subject_teachers.map(st => ({ subject: st.subject || '', teacher: st.name }))
+            subjects: division.subjects, // Keep full subject objects
+            subjectTeachers: division.subject_teachers.map(st => ({ subject: st.subject || '', teacher: st.name, assignmentId: st.id }))
           }));
           setDivisions(transformedDivisions);
         }
+      } else {
+        console.error('Error assigning subject to class:', subjectResponse);
+        toast({
+          title: "Error",
+          description: "Failed to assign subject to class division. Please try again.",
+          variant: "error",
+        });
       }
     } catch (error) {
-      console.error('Error assigning subject to class:', error);
+      console.error('Error in subject assignment process:', error);
+    } finally {
+      setIsAssigningSubject(false);
+      setIsClassSubjectDialogOpen(false);
+      setSelectedClassDivision('');
+      setSelectedSubject('');
+      setSelectedSubjectTeacher('');
     }
-    
-    setIsClassSubjectDialogOpen(false);
-    setSelectedClassDivision('');
-    setSelectedSubject('');
-    setSelectedSubjectTeacher('');
   };
 
   // Subject Teacher Assignment Functions
-  const handleEditSubjectTeacher = (division: Division, subject: string) => {
+  const handleEditSubjectTeacher = (division: Division, subject: { id: string; name: string; code: string }) => {
     setSelectedDivision(division);
-    setEditingSubject(subject);
+    setEditingSubject(subject.name);
     
     // Find the current teacher for this subject
-    const subjectTeacher = division.subjectTeachers?.find((st) => st.subject === subject);
+    const subjectTeacher = division.subjectTeachers?.find((st) => st.subject === subject.name);
     setSelectedTeacher(subjectTeacher ? subjectTeacher.teacher : '');
     
     setIsSubjectTeacherDialogOpen(true);
@@ -705,29 +777,29 @@ export default function AcademicSystemSetupPage() {
         );
       }
       
-      if (response.status === 'success') {
-        // Refresh the divisions data to show updated assignments
-        const refreshResponse = await academicServices.getClassDivisionsSummary(token);
-        if (refreshResponse.status === 'success') {
-          const transformedDivisions: Division[] = refreshResponse.data.divisions.map((division: ApiDivision) => ({
-            id: division.id,
-            name: division.division,
-            classId: division.level.sequence_number.toString(),
-            className: division.level.name,
-            teacherId: division.class_teacher?.id || null,
-            teacherName: division.class_teacher?.name || null,
-            academicYear: division.academic_year.year_name,
-            studentCount: division.student_count,
-            subjects: [...new Set(division.subjects.map(s => s.name))], // Remove duplicates
-            subjectTeachers: division.subject_teachers.map(st => ({ 
-              subject: st.subject || '', 
-              teacher: st.name,
-              assignmentId: st.id
-            }))
-          }));
-          setDivisions(transformedDivisions);
+              if (response.status === 'success') {
+          // Refresh the divisions data to show updated assignments
+          const refreshResponse = await academicServices.getClassDivisionsSummary(token);
+          if (refreshResponse.status === 'success') {
+            const transformedDivisions: Division[] = refreshResponse.data.divisions.map((division: ApiDivision) => ({
+              id: division.id,
+              name: division.division,
+              classId: division.level.sequence_number.toString(),
+              className: division.level.name,
+              teacherId: division.class_teacher?.id || null,
+              teacherName: division.class_teacher?.name || null,
+              academicYear: division.academic_year.year_name,
+              studentCount: division.student_count,
+              subjects: division.subjects, // Keep full subject objects
+              subjectTeachers: division.subject_teachers.map(st => ({ 
+                subject: st.subject || '', 
+                teacher: st.name,
+                assignmentId: st.id
+              }))
+            }));
+            setDivisions(transformedDivisions);
+          }
         }
-      }
     } catch (error) {
       console.error('Error assigning subject teacher:', error);
     }
@@ -760,18 +832,63 @@ export default function AcademicSystemSetupPage() {
       setCurrentSubject({ ...currentSubject!, [field]: value });
     };
 
-  // Get unique class levels from divisions
-  const getClassLevels = () => {
-    return classLevels.map(level => ({
-      id: level.id,
-      name: level.name
-    }));
+
+
+  // Grade filter state
+  const [gradeFilter, setGradeFilter] = useState('all');
+
+  // Division filter state for subjects tab
+  const [subjectGradeFilter, setSubjectGradeFilter] = useState('all');
+  const [subjectDivisionFilter, setSubjectDivisionFilter] = useState('all');
+
+  // Filtered divisions based on grade filter
+  const filteredDivisions = gradeFilter === 'all' 
+    ? divisions 
+    : divisions.filter(division => division.className === gradeFilter);
+
+  // Get unique grades for the filter dropdown (only those with subject assignments)
+  const uniqueGradesWithAssignments = Array.from(new Set(
+    divisions
+      .filter(d => d.subjects && d.subjects.length > 0) // Only divisions with subjects
+      .map(d => d.className)
+  )).filter(Boolean).sort();
+
+  // Get unique divisions for the subject filter dropdown (only those with subject assignments)
+  const uniqueDivisionsWithAssignments = Array.from(new Set(
+    divisions
+      .filter(d => d.subjects && d.subjects.length > 0) // Only divisions with subjects
+      .map(d => d.name)
+  )).filter(Boolean).sort();
+
+  // Get all unique grades for the Classes & Divisions tab (not filtered by subjects)
+  const allUniqueGrades = Array.from(new Set(divisions.map(d => d.className))).filter(Boolean).sort();
+
+  // Get divisions available for the selected grade in subject filters (only those with subject assignments)
+  const getDivisionsForGrade = (grade: string) => {
+    if (grade === 'all') return uniqueDivisionsWithAssignments;
+    return Array.from(new Set(
+      divisions
+        .filter(d => d.className === grade && d.subjects && d.subjects.length > 0)
+        .map(d => d.name)
+    )).filter(Boolean).sort();
   };
 
-  // Get divisions for a specific class
-  const getDivisionsForClass = (classId: string) => {
-    return divisions.filter(d => d.classId === classId);
-  };
+  // Reset division filter when grade filter changes
+  useEffect(() => {
+    if (subjectGradeFilter !== 'all') {
+      const availableDivisions = getDivisionsForGrade(subjectGradeFilter);
+      if (!availableDivisions.includes(subjectDivisionFilter)) {
+        setSubjectDivisionFilter('all');
+      }
+    }
+  }, [subjectGradeFilter, subjectDivisionFilter, divisions, getDivisionsForGrade]);
+
+  // Filtered divisions for subjects tab based on both grade and division filters
+  const filteredDivisionsForSubjects = divisions.filter(division => {
+    const gradeMatch = subjectGradeFilter === 'all' || division.className === subjectGradeFilter;
+    const divisionMatch = subjectDivisionFilter === 'all' || division.name === subjectDivisionFilter;
+    return gradeMatch && divisionMatch;
+  });
 
 
 
@@ -890,6 +1007,28 @@ export default function AcademicSystemSetupPage() {
                 </Button>
               </CardHeader>
               <CardContent>
+                {/* Grade Filter */}
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="gradeFilter" className="text-sm font-medium mb-2 block">Filter by Grade:</Label>
+                    <Select value={gradeFilter} onValueChange={setGradeFilter}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="All Grades" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Grades</SelectItem>
+                        {allUniqueGrades.map((grade) => (
+                          <SelectItem key={grade} value={grade}>
+                            {grade}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    Showing {filteredDivisions.length} of {divisions.length} divisions
+                  </div>
+                </div>
                 {loadingDivisions || loadingTeachers || loadingClassLevels ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin mr-2" />
@@ -907,7 +1046,8 @@ export default function AcademicSystemSetupPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {divisions.map((division) => (
+                      {filteredDivisions.length > 0 ? (
+                        filteredDivisions.map((division) => (
                           <TableRow key={division.id}>
                             <TableCell className="font-medium">{division.className || 'N/A'}</TableCell>
                             <TableCell>{division.name}</TableCell>
@@ -920,15 +1060,24 @@ export default function AcademicSystemSetupPage() {
                             </TableCell>
                             <TableCell>{division.studentCount || 0}</TableCell>
                             <TableCell className="text-right">
-                              <Button variant="outline" size="sm" className="mr-2" onClick={() => handleEditDivision(division)}>
+                              <Button variant="outline" size="sm" onClick={() => handleEditDivision(division)}>
                                 <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button variant="destructive" size="sm" onClick={() => handleDeleteDivision(division.id)}>
-                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </TableCell>
                           </TableRow>
-                        ))}
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8">
+                            <div className="text-gray-500">
+                              {gradeFilter === 'all' 
+                                ? 'No divisions found' 
+                                : `No divisions found for ${gradeFilter}`
+                              }
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 )}
@@ -998,6 +1147,65 @@ export default function AcademicSystemSetupPage() {
                 </Button>
               </CardHeader>
               <CardContent>
+                {/* Grade and Division Filters */}
+                <div className="mb-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex-1">
+                      <Label htmlFor="subjectGradeFilter" className="text-sm font-medium mb-2 block">Filter by Grade:</Label>
+                      <Select value={subjectGradeFilter} onValueChange={setSubjectGradeFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All Grades" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Grades</SelectItem>
+                          {uniqueGradesWithAssignments.map((grade) => (
+                            <SelectItem key={grade} value={grade}>
+                              {grade}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex-1">
+                      <Label htmlFor="subjectDivisionFilter" className="text-sm font-medium mb-2 block">Filter by Division:</Label>
+                      <Select 
+                        value={subjectDivisionFilter} 
+                        onValueChange={setSubjectDivisionFilter}
+                        disabled={subjectGradeFilter !== 'all' && getDivisionsForGrade(subjectGradeFilter).length === 0}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All Divisions" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Divisions</SelectItem>
+                          {getDivisionsForGrade(subjectGradeFilter).map((division) => (
+                            <SelectItem key={division} value={division}>
+                              {division}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-500">
+                      Showing assignments for {filteredDivisionsForSubjects.length} divisions
+                    </div>
+                    {(subjectGradeFilter !== 'all' || subjectDivisionFilter !== 'all') && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => {
+                          setSubjectGradeFilter('all');
+                          setSubjectDivisionFilter('all');
+                        }}
+                        className="text-xs"
+                      >
+                        Clear Filters
+                      </Button>
+                    )}
+                  </div>
+                </div>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1008,40 +1216,53 @@ export default function AcademicSystemSetupPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                                        {divisions.flatMap((division) => 
-                      division.subjects.map((subject: string, index: number) => {
-                        // Find the teacher for this subject
-                        const subjectTeacher = division.subjectTeachers?.find((st) => 
-                          st.subject === subject
-                        );
-                        
-                        return (
-                          <TableRow key={`${division.id}-${subject}-${index}`}>
-                            <TableCell>{division.className || 'N/A'}</TableCell>
-                            <TableCell>{division.name}</TableCell>
-                            <TableCell>{subject}</TableCell>
-                            <TableCell>
-                              {subjectTeacher ? (
-                                <Badge 
-                                  variant="default" 
-                                  className="cursor-pointer hover:opacity-80"
-                                  onClick={() => handleEditSubjectTeacher(division, subject)}
-                                >
-                                  {subjectTeacher.teacher}
-                                </Badge>
-                              ) : (
-                                <Badge 
-                                  variant="secondary" 
-                                  className="cursor-pointer hover:opacity-80"
-                                  onClick={() => handleEditSubjectTeacher(division, subject)}
-                                >
-                                  Assign Teacher
-                                </Badge>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
+                    {filteredDivisionsForSubjects.length > 0 ? (
+                      filteredDivisionsForSubjects.flatMap((division) => 
+                        division.subjects.map((subject: { id: string; name: string; code: string }, index: number) => {
+                          // Find the teacher for this subject
+                          const subjectTeacher = division.subjectTeachers?.find((st) => 
+                            st.subject === subject.name
+                          );
+                          
+                          return (
+                            <TableRow key={`${division.id}-${subject.id}-${index}`}>
+                              <TableCell>{division.className || 'N/A'}</TableCell>
+                              <TableCell>{division.name}</TableCell>
+                              <TableCell>{subject.name}</TableCell>
+                              <TableCell>
+                                {subjectTeacher ? (
+                                  <Badge 
+                                    variant="default" 
+                                    className="cursor-pointer hover:opacity-80"
+                                    onClick={() => handleEditSubjectTeacher(division, subject)}
+                                  >
+                                    {subjectTeacher.teacher}
+                                  </Badge>
+                                ) : (
+                                  <Badge 
+                                    variant="secondary" 
+                                    className="cursor-pointer hover:opacity-80"
+                                    onClick={() => handleEditSubjectTeacher(division, subject)}
+                                  >
+                                    Assign Teacher
+                                  </Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8">
+                          <div className="text-gray-500">
+                            {subjectGradeFilter === 'all' && subjectDivisionFilter === 'all'
+                              ? 'No subject assignments found'
+                              : `No subject assignments found for the selected filters`
+                            }
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -1247,15 +1468,13 @@ export default function AcademicSystemSetupPage() {
                   <SelectValue placeholder="Select a class division" />
                 </SelectTrigger>
                 <SelectContent>
-                  {getClassLevels().map((classLevel) => (
-                    getDivisionsForClass(classLevel.id).map((division) => (
-                      <SelectItem 
-                        key={division.id} 
-                        value={division.id}
-                      >
-                        {classLevel.name} - {division.name}
-                      </SelectItem>
-                    ))
+                  {divisions.map((division) => (
+                    <SelectItem 
+                      key={division.id} 
+                      value={division.id}
+                    >
+                      {division.className} - {division.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -1276,8 +1495,8 @@ export default function AcademicSystemSetupPage() {
                       // Find the selected division
                       const selectedDivision = divisions.find(d => d.id === selectedClassDivision);
                       // Check if this subject is already assigned to the division
-                      return !selectedDivision?.subjects?.some((assignedSubject: string) => 
-                        assignedSubject === subject.name
+                      return !selectedDivision?.subjects?.some((assignedSubject: { id: string; name: string; code: string }) => 
+                        assignedSubject.name === subject.name || assignedSubject.id === subject.id
                       );
                     })
                     .map((subject) => (
@@ -1309,8 +1528,17 @@ export default function AcademicSystemSetupPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsClassSubjectDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveClassSubject}>Assign</Button>
+            <Button variant="ghost" onClick={() => setIsClassSubjectDialogOpen(false)} disabled={isAssigningSubject}>Cancel</Button>
+            <Button onClick={handleSaveClassSubject} disabled={isAssigningSubject}>
+              {isAssigningSubject ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Assigning...
+                </>
+              ) : (
+                'Assign'
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

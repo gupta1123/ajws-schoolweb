@@ -22,22 +22,17 @@ import { studentServices, Student } from '@/lib/api/students';
 
 export default function StudentsPage() {
   const { user, token } = useAuth();
-  const [students, setStudents] = useState<Student[]>([]);
+  const [students] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     search: '',
-    class_division_id: '',
     class_level_id: '',
     page: 1,
-    limit: 20
+    limit: 50
   });
-  const [pagination, setPagination] = useState({
-    total: 0,
-    total_pages: 0,
-    has_next: false,
-    has_prev: false
-  });
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
+  const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [availableFilters, setAvailableFilters] = useState({
     academic_years: [] as Array<{ id: string; year_name: string }>,
     class_levels: [] as Array<{ id: string; name: string; sequence_number: number }>,
@@ -50,7 +45,7 @@ export default function StudentsPage() {
     }>
   });
 
-  // Fetch students data
+  // Fetch all students data once
   const fetchStudents = useCallback(async () => {
     if (!token) return;
     
@@ -58,16 +53,12 @@ export default function StudentsPage() {
       setLoading(true);
       setError(null);
       
-      const response = await studentServices.getAllStudents(token, filters);
+      // Fetch all students without pagination
+      const response = await studentServices.getAllStudents(token, { limit: 1000 });
       
       if (response.status === 'success' && response.data) {
-        setStudents(response.data.students);
-        setPagination({
-          total: response.data.pagination.total,
-          total_pages: response.data.pagination.total_pages,
-          has_next: response.data.pagination.has_next,
-          has_prev: response.data.pagination.has_prev
-        });
+        setAllStudents(response.data.students);
+        setFilteredStudents(response.data.students);
         
         if (response.data.available_filters) {
           setAvailableFilters(response.data.available_filters);
@@ -80,12 +71,38 @@ export default function StudentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, filters]);
+  }, [token]);
 
-  // Fetch students on component mount and when filters change
+  // Fetch students on component mount only
   useEffect(() => {
     fetchStudents();
   }, [fetchStudents]);
+
+  // Apply frontend filtering when filters change
+  useEffect(() => {
+    let filtered = allStudents;
+
+    // Apply search filter
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      filtered = filtered.filter(student => 
+        student.full_name.toLowerCase().includes(searchLower) ||
+        student.admission_number.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Apply class level filter
+    if (filters.class_level_id) {
+      filtered = filtered.filter(student => {
+        const currentRecord = student.student_academic_records.find(record => record.status === 'ongoing');
+        return currentRecord?.class_division?.level?.id === filters.class_level_id;
+      });
+    }
+
+    setFilteredStudents(filtered);
+    // Reset to first page when filters change
+    setFilters(prev => ({ ...prev, page: 1 }));
+  }, [allStudents, filters.search, filters.class_level_id]);
 
   // Handle search input change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,6 +171,7 @@ export default function StudentsPage() {
                 </option>
               ))}
             </select>
+
           </div>
           <Button asChild>
             <Link href="/students/create">
@@ -189,63 +207,76 @@ export default function StudentsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {students.map((student) => {
-                    const currentRecord = student.student_academic_records.find(record => record.status === 'ongoing');
-                    
-                    return (
-                      <TableRow key={student.id}>
-                        <TableCell className="font-medium">
-                          {currentRecord?.roll_number || 'N/A'}
-                        </TableCell>
-                        <TableCell>{student.full_name}</TableCell>
-                        <TableCell>
-                          {currentRecord?.class_division ? 
-                            `${currentRecord.class_division.class_level.name} - Section ${currentRecord.class_division.division}` : 
-                            'N/A'
-                          }
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="outline" size="sm" className="mr-2" asChild>
-                            <Link href={`/students/${student.id}`}>
-                              View
-                            </Link>
-                          </Button>
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href={`/students/${student.id}/edit`}>
-                              Edit
-                            </Link>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {filteredStudents.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                        {filters.search || filters.class_level_id 
+                          ? 'No students found matching the selected filters.'
+                          : 'No students available.'
+                        }
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredStudents
+                      .slice((filters.page - 1) * filters.limit, filters.page * filters.limit)
+                      .map((student) => {
+                      const currentRecord = student.student_academic_records.find(record => record.status === 'ongoing');
+                      
+                      return (
+                        <TableRow key={student.id}>
+                          <TableCell className="font-medium">
+                            {currentRecord?.roll_number || 'N/A'}
+                          </TableCell>
+                          <TableCell>{student.full_name}</TableCell>
+                          <TableCell>
+                            {currentRecord?.class_division ? 
+                              `${currentRecord.class_division.level.name} - Section ${currentRecord.class_division.division}` : 
+                              'N/A'
+                            }
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="outline" size="sm" className="mr-2" asChild>
+                              <Link href={`/students/${student.id}`}>
+                                View
+                              </Link>
+                            </Button>
+                            <Button variant="outline" size="sm" asChild>
+                              <Link href={`/students/${student.id}/edit`}>
+                                Edit
+                              </Link>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
                 </TableBody>
               </Table>
             </div>
 
             {/* Pagination */}
-            {pagination.total_pages > 1 && (
+            {Math.ceil(filteredStudents.length / filters.limit) > 1 && (
               <div className="flex items-center justify-between mt-4">
                 <div className="text-sm text-gray-700">
-                  Showing {((filters.page - 1) * filters.limit) + 1} to {Math.min(filters.page * filters.limit, pagination.total)} of {pagination.total} results
+                  Showing {((filters.page - 1) * filters.limit) + 1} to {Math.min(filters.page * filters.limit, filteredStudents.length)} of {filteredStudents.length} results
                 </div>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handlePageChange(filters.page - 1)}
-                    disabled={!pagination.has_prev}
+                    disabled={filters.page <= 1}
                   >
                     Previous
                   </Button>
                   <span className="flex items-center px-3 py-2 text-sm">
-                    Page {filters.page} of {pagination.total_pages}
+                    Page {filters.page} of {Math.ceil(filteredStudents.length / filters.limit)}
                   </span>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handlePageChange(filters.page + 1)}
-                    disabled={!pagination.has_next}
+                    disabled={filters.page >= Math.ceil(filteredStudents.length / filters.limit)}
                   >
                     Next
                   </Button>

@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,8 +34,7 @@ import { useAuth } from '@/lib/auth/context';
 import type { ClassDivision } from '@/types/academic';
 import type { CalendarEvent } from '@/lib/api/calendar';
 import { cn } from '@/lib/utils';
-import { DatePicker } from '@/components/ui/date-picker';
-import { TimePicker } from '@/components/ui/date-picker';
+
 
 interface EventFormData {
   title: string;
@@ -108,9 +107,9 @@ export function EventCreationWizard({
         title: event.title || '',
         description: event.description || '',
         date: eventDateStr,
-        startTime: event.start_time || '09:00',
-        endTime: event.end_time || '10:00',
-        isFullDay: event.is_single_day ?? false,
+        startTime: event.start_time ? event.start_time.substring(0, 5) : '09:00', // Convert "09:00:00" to "09:00"
+        endTime: event.end_time ? event.end_time.substring(0, 5) : '10:00', // Convert "12:00:00" to "12:00"
+        isFullDay: !event.start_time && !event.end_time, // Full day only if no specific times
         eventType: (event.event_type as 'school_wide' | 'class_specific') || 'school_wide',
         classDivisionIds: event.class_division_id ? [event.class_division_id] : [] as string[]
       };
@@ -123,14 +122,23 @@ export function EventCreationWizard({
         date: dateFromParams,
         startTime: '09:00',
         endTime: '10:00',
-        isFullDay: false,
+        isFullDay: false, // Default to showing time fields
         eventType: 'school_wide' as 'school_wide' | 'class_specific',
         classDivisionIds: [] as string[]
       };
     }
   };
   
-  const [formData, setFormData] = useState<EventFormData>(initializeFormData());
+  const initialFormData = useMemo(() => initializeFormData(), [initializeFormData]);
+  const [formData, setFormData] = useState<EventFormData>(initialFormData);
+
+  // Update form data when event or initialDate changes (for edit mode)
+  useEffect(() => {
+    if (event || initialDate) {
+      console.log('Setting form data for edit mode:', initialFormData);
+      setFormData(initialFormData);
+    }
+  }, [event, initialDate, initialFormData]);
 
   // Fetch class divisions on component mount
   useEffect(() => {
@@ -184,40 +192,7 @@ export function EventCreationWizard({
     });
   };
 
-  // Handle date change from DatePicker
-  const handleDateChange = (date: Date | undefined) => {
-    if (date) {
-      // Format date as YYYY-MM-DD
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const formattedDate = `${year}-${month}-${day}`;
-      setFormData(prev => ({
-        ...prev,
-        date: formattedDate
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        date: ''
-      }));
-    }
-  };
 
-  // Handle time changes from TimePicker
-  const handleStartTimeChange = (time: string) => {
-    setFormData(prev => ({
-      ...prev,
-      startTime: time
-    }));
-  };
-
-  const handleEndTimeChange = (time: string) => {
-    setFormData(prev => ({
-      ...prev,
-      endTime: time
-    }));
-  };
 
   // Select all divisions for a specific grade
   const handleSelectAllGradeDivisions = (grade: string) => {
@@ -298,8 +273,7 @@ export function EventCreationWizard({
   // Determine if we're in edit mode
   const isEditMode = !!event;
 
-  // Convert string date to Date object for DatePicker
-  const selectedDate = formData.date ? new Date(formData.date) : undefined;
+
 
   return (
     <form onSubmit={handleSubmit}>
@@ -468,10 +442,13 @@ export function EventCreationWizard({
                       <Calendar className="h-4 w-4" />
                       Date
                     </Label>
-                    <DatePicker 
-                      date={selectedDate} 
-                      onDateChange={handleDateChange} 
-                      placeholder="Pick a date"
+                    <Input
+                      type="date"
+                      name="date"
+                      value={formData.date}
+                      onChange={handleInputChange}
+                      className="h-10"
+                      required
                     />
                   </div>
                   
@@ -499,19 +476,25 @@ export function EventCreationWizard({
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <Label className="text-xs text-muted-foreground">Start</Label>
-                                              <TimePicker 
-                      time={formData.startTime} 
-                      onTimeChange={handleStartTimeChange} 
-                      placeholder="Select start time"
-                    />
+                          <Input
+                            type="time"
+                            name="startTime"
+                            value={formData.startTime}
+                            onChange={handleInputChange}
+                            className="h-10"
+                            required
+                          />
                         </div>
                         <div>
                           <Label className="text-xs text-muted-foreground">End</Label>
-                                                      <TimePicker 
-                              time={formData.endTime} 
-                              onTimeChange={handleEndTimeChange} 
-                              placeholder="Select end time"
-                            />
+                          <Input
+                            type="time"
+                            name="endTime"
+                            value={formData.endTime}
+                            onChange={handleInputChange}
+                            className="h-10"
+                            required
+                          />
                         </div>
                       </div>
                     )}

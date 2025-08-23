@@ -91,12 +91,16 @@ function EditEventContent({ params }: { params: Promise<{ id: string }> }) {
         description: data.description.trim(),
         event_date: data.date,
         event_type: data.eventType as 'school_wide' | 'class_specific' | 'teacher_specific',
-        is_single_day: data.isFullDay,
-        start_time: data.startTime,
-        end_time: data.endTime,
+        is_single_day: true, // Always true since we're editing a single-day event
+        start_time: data.isFullDay ? undefined : `${data.startTime}:00`, // Add seconds to match API format
+        end_time: data.isFullDay ? undefined : `${data.endTime}:00`, // Add seconds to match API format
         event_category: 'general',
         timezone: 'Asia/Kolkata'
       };
+
+      // Debug: log the update data being sent
+      console.log('Update data being sent:', updateData);
+      console.log('Original form data:', data);
 
       // Add class division if class specific
       if (data.eventType === 'class_specific' && data.classDivisionIds.length > 0) {
@@ -110,7 +114,7 @@ function EditEventContent({ params }: { params: Promise<{ id: string }> }) {
           title: "Success",
           description: "Event updated successfully",
         });
-        router.push(`/calendar/${eventId}`);
+        router.push('/calendar'); // Redirect to calendar home page
       } else {
         throw new Error(response.message || 'Failed to update event');
       }

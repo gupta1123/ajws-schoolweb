@@ -94,9 +94,17 @@ const pageHeaders: Record<string, PageHeader> = {
     title: 'Add New Student',
     subtitle: 'Add a new student to the school system.'
   },
+  '/students/[id]': {
+    title: 'Student Details',
+    subtitle: 'View comprehensive student information and records.'
+  },
   '/academic/setup': {
     title: 'Academic Setup',
     subtitle: 'Manage academic years, classes, divisions, and subjects.'
+  },
+  '/students/[id]/edit': {
+    title: 'Edit Student',
+    subtitle: 'Update student information and details.'
   }
 };
 
@@ -144,6 +152,21 @@ export function EnhancedTopbar({ onMenuClick }: { onMenuClick?: () => void }) {
       }
     }
 
+    // Handle student dynamic routes
+    if (pathname.includes('/students/') && pathname !== '/students') {
+      if (pathname.includes('/edit')) {
+        header = {
+          title: 'Edit Student',
+          subtitle: 'Update student information and details.'
+        };
+      } else if (pathname.match(/\/students\/[^\/]+$/) && !pathname.includes('/create')) {
+        header = {
+          title: 'Student Details',
+          subtitle: 'View comprehensive student information and records.'
+        };
+      }
+    }
+
     setCurrentPageHeader(header);
   }, [pathname]);
 
@@ -165,6 +188,8 @@ export function EnhancedTopbar({ onMenuClick }: { onMenuClick?: () => void }) {
         <div className="flex-1 min-w-0">
           {currentPageHeader ? (
             <div className="space-y-0.5">
+
+              
               {/* Page Title */}
               <h1 className="text-lg font-semibold text-foreground truncate">
                 {currentPageHeader.title}

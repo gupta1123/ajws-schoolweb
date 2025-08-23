@@ -69,16 +69,17 @@ export function UpcomingBirthdays() {
           });
         }
 
-        if (response.status === 'success' && response.data?.upcoming_birthdays) {
-                    try {
-            // Process birthdays to calculate days until birthday and age
-            const processedBirthdays = response.data.upcoming_birthdays.flatMap((monthData: {
-              date: string;
-              students: Array<{
+        if (response.status === 'success') {
+          try {
+            let processedBirthdays: BirthdayData[] = [];
+            
+            if (user?.role === 'teacher' && 'birthdays' in response.data) {
+              // For teachers, process the birthdays array directly
+              processedBirthdays = response.data.birthdays.map((birthday: {
                 id: string;
                 full_name: string;
                 date_of_birth: string;
-                academic_records?: Array<{
+                student_academic_records?: Array<{
                   class_division: {
                     division: string;
                     level: {
@@ -88,11 +89,7 @@ export function UpcomingBirthdays() {
                   };
                   roll_number: string;
                 }>;
-              }>;
-            }) => {
-              if (!monthData?.students) return [];
-
-              return monthData.students.map((birthday) => {
+              }) => {
                 try {
                   const birthDate = new Date(birthday.date_of_birth);
                   const today = new Date();
@@ -107,7 +104,7 @@ export function UpcomingBirthdays() {
                   const age = today.getFullYear() - birthDate.getFullYear();
 
                   // Extract class info from academic records
-                  const classInfo = birthday.academic_records?.[0];
+                  const classInfo = birthday.student_academic_records?.[0];
                   const className = classInfo?.class_division?.level?.name;
                   const division = classInfo?.class_division?.division;
 
@@ -124,8 +121,64 @@ export function UpcomingBirthdays() {
                   console.warn('Error processing birthday data for student:', birthday.full_name, birthdayError);
                   return null;
                 }
-              }).filter(Boolean); // Filter out null entries
-            });
+              }).filter(Boolean) as BirthdayData[]; // Filter out null entries
+            } else if ('upcoming_birthdays' in response.data) {
+              // For admin/principal, process the upcoming_birthdays array
+              processedBirthdays = response.data.upcoming_birthdays.flatMap((monthData: {
+                date: string;
+                students: Array<{
+                  id: string;
+                  full_name: string;
+                  date_of_birth: string;
+                  student_academic_records?: Array<{
+                    class_division: {
+                      division: string;
+                      level: {
+                        name: string;
+                        sequence_number: number;
+                      };
+                    };
+                    roll_number: string;
+                  }>;
+                }>;
+              }) => {
+                if (!monthData?.students) return [];
+
+                return monthData.students.map((birthday) => {
+                  try {
+                    const birthDate = new Date(birthday.date_of_birth);
+                    const today = new Date();
+
+                    // Calculate next birthday
+                    const nextBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+                    if (nextBirthday < today) {
+                      nextBirthday.setFullYear(today.getFullYear() + 1);
+                    }
+
+                    const daysUntilBirthday = Math.ceil((nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                    const age = today.getFullYear() - birthDate.getFullYear();
+
+                    // Extract class info from academic records
+                    const classInfo = birthday.student_academic_records?.[0];
+                    const className = classInfo?.class_division?.level?.name;
+                    const division = classInfo?.class_division?.division;
+
+                    return {
+                      id: birthday.id,
+                      student_name: birthday.full_name,
+                      date_of_birth: birthday.date_of_birth,
+                      class_name: className,
+                      division: division,
+                      age: age,
+                      days_until_birthday: daysUntilBirthday
+                    };
+                  } catch (birthdayError) {
+                    console.warn('Error processing birthday data for student:', birthday.full_name, birthdayError);
+                    return null;
+                  }
+                });
+              }).filter(Boolean) as BirthdayData[]; // Filter out null entries
+            }
 
             // Sort by days until birthday (closest first)
             const sortedBirthdays = processedBirthdays
@@ -133,7 +186,7 @@ export function UpcomingBirthdays() {
               .sort((a, b) => (a!.days_until_birthday || 0) - (b!.days_until_birthday || 0))
               .slice(0, 5); // Show only next 5 birthdays
 
-            setBirthdays(sortedBirthdays as BirthdayData[]);
+            setBirthdays(sortedBirthdays);
           } catch (processingError) {
             console.error('Error processing birthday data:', processingError);
             setBirthdays([]); // Set empty array on error

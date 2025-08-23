@@ -240,10 +240,12 @@ export default function LeaveRequestDetailsPage({ params }: { params: Promise<{ 
                     <div>
                       <p className="text-sm text-gray-500">Class</p>
                       <p className="font-medium">
-                        {leaveRequest.student.class_division 
-                          ? `${leaveRequest.student.class_division.level.name} - Section ${leaveRequest.student.class_division.division}`
-                          : 'N/A'
-                        }
+                        {(() => {
+                          const currentRecord = leaveRequest.student.student_academic_records.find(record => record.roll_number);
+                          return currentRecord?.class_division 
+                            ? `${currentRecord.class_division.level.name} - Section ${currentRecord.class_division.division}`
+                            : 'N/A';
+                        })()}
                       </p>
                     </div>
                     <div>

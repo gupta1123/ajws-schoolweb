@@ -12,14 +12,18 @@ export interface LeaveRequest {
     id: string;
     full_name: string;
     admission_number: string;
-    class_division?: {
-      id: string;
-      division: string;
-      level: {
-        name: string;
-        sequence_number: number;
+    student_academic_records: Array<{
+      roll_number: string;
+      class_division: {
+        id: string;
+        division: string;
+        level: {
+          id: string;
+          name: string;
+          sequence_number: number;
+        };
       };
-    };
+    }>;
   };
   parent?: {
     id: string;

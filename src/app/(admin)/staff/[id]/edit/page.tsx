@@ -236,7 +236,7 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
+                      <Label htmlFor="phone" className="text-sm font-medium">Phone Number *</Label>
                       <div className="relative">
                         <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
@@ -245,14 +245,10 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
                           value={formData.phone}
                           onChange={handleChange}
                           placeholder="Enter phone number"
-                          className="pl-10 bg-muted cursor-not-allowed opacity-60"
-                          readOnly
-                          disabled
+                          className="pl-10"
+                          required
                         />
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Phone number cannot be changed. Contact admin for updates.
-                      </p>
                     </div>
                   </div>
                 </div>

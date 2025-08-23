@@ -23,9 +23,10 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import { AlertCircle, CheckCircle, Search, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, Search, Loader2, Plus } from 'lucide-react';
 import { parentServices } from '@/lib/api/parents';
 import { useAuth } from '@/lib/auth/context';
+import { CreateParentModal } from './create-parent-modal';
 
 interface ParentData {
   id: string;
@@ -74,6 +75,7 @@ export function ParentLinking({ onLinkParent, onCancel, existingParentMappings =
   const [success, setSuccess] = useState<boolean>(false);
   const [parents, setParents] = useState<ParentData[]>([]);
   const [filteredParents, setFilteredParents] = useState<ParentData[]>([]);
+  const [showCreateParent, setShowCreateParent] = useState(false);
 
   const fetchParents = useCallback(async () => {
     if (!token) return;
@@ -187,6 +189,13 @@ export function ParentLinking({ onLinkParent, onCancel, existingParentMappings =
     }
   };
 
+  const handleCreateParentSuccess = (parentId: string) => {
+    // Refresh the parents list to include the newly created parent
+    fetchParents();
+    // Optionally select the newly created parent
+    setSelectedParentId(parentId);
+  };
+
   const handleParentSelect = (parentId: string) => {
     setSelectedParentId(parentId);
   };
@@ -209,7 +218,17 @@ export function ParentLinking({ onLinkParent, onCancel, existingParentMappings =
       
       {/* Search Section */}
       <div className="space-y-2">
-        <Label htmlFor="parent-search">Search Parents by {searchType.charAt(0).toUpperCase() + searchType.slice(1)}</Label>
+        <div className="flex justify-between items-center">
+          <Label htmlFor="parent-search">Search Parents by {searchType.charAt(0).toUpperCase() + searchType.slice(1)}</Label>
+          <Button 
+            onClick={() => setShowCreateParent(true)}
+            variant="outline"
+            className="bg-primary hover:bg-primary/90 text-white border-primary"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Parent
+          </Button>
+        </div>
         <div className="flex gap-2">
           <Select value={searchType} onValueChange={(value) => {
             setSearchType(value as 'name' | 'phone' | 'email');
@@ -241,14 +260,6 @@ export function ParentLinking({ onLinkParent, onCancel, existingParentMappings =
               title={`Search parents by ${searchType}`}
             />
           </div>
-          <Button 
-            onClick={handleSearch}
-            disabled={isSearching || !searchTerm.trim()}
-            variant="outline"
-            title={`Search parents by ${searchType}`}
-          >
-            {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : `Search by ${searchType}`}
-          </Button>
           {searchTerm && (
             <Button 
               onClick={() => {
@@ -301,7 +312,17 @@ export function ParentLinking({ onLinkParent, onCancel, existingParentMappings =
               ) : filteredParents.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    {searchTerm ? 'No parents found matching your search.' : 'No parents available. Try searching by name, phone, or email.'}
+                    {searchTerm ? (
+                      <div className="space-y-2">
+                        <p>No parents found matching your search.</p>
+                        <p className="text-sm">Try a different search term or create a new parent.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p>No parents available.</p>
+                        <p className="text-sm">Try searching by name, phone, or email, or create a new parent.</p>
+                      </div>
+                    )}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -383,6 +404,13 @@ export function ParentLinking({ onLinkParent, onCancel, existingParentMappings =
           {isLoading ? 'Linking...' : 'Link Parent'}
         </Button>
       </div>
+
+      {/* Create Parent Modal */}
+      <CreateParentModal
+        isOpen={showCreateParent}
+        onClose={() => setShowCreateParent(false)}
+        onSuccess={handleCreateParentSuccess}
+      />
     </div>
   );
 }

@@ -112,12 +112,31 @@ export const useBirthdays = () => {
       setLoading(true);
       setError(null);
       
-      const response = await birthdayServices.getTodayBirthdays(token);
+      let response;
       
-      if (response.status === 'success' && response.data.birthdays) {
-        const converted = response.data.birthdays.map(convertStudentToBirthdayData);
-        setTodayBirthdays(converted);
-        setUseFallback(false);
+      if (user?.role === 'teacher') {
+        // For teachers, use the my-classes API to get birthdays for their assigned classes
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        
+        response = await birthdayServices.getTeacherClassesBirthdays(token, {
+          date: todayStr
+        });
+        
+        if (response.status === 'success' && response.data.birthdays) {
+          const converted = response.data.birthdays.map(convertStudentToBirthdayData);
+          setTodayBirthdays(converted);
+          setUseFallback(false);
+        }
+      } else {
+        // For admin/principal, use the original today's birthdays API
+        response = await birthdayServices.getTodayBirthdays(token);
+        
+        if (response.status === 'success' && response.data.birthdays) {
+          const converted = response.data.birthdays.map(convertStudentToBirthdayData);
+          setTodayBirthdays(converted);
+          setUseFallback(false);
+        }
       }
     } catch (err: unknown) {
       console.error('Error fetching today\'s birthdays:', err);
@@ -129,7 +148,7 @@ export const useBirthdays = () => {
     } finally {
       setLoading(false);
     }
-  }, [token, convertStudentToBirthdayData]);
+  }, [token, convertStudentToBirthdayData, user?.role]);
 
   // Fetch upcoming birthdays
   const fetchUpcomingBirthdays = useCallback(async () => {
@@ -150,7 +169,7 @@ export const useBirthdays = () => {
       const endDateStr = endDate.toISOString().split('T')[0];
       
       if (user?.role === 'teacher') {
-        // For teachers, get birthdays for their classes
+        // For teachers, get birthdays for their classes with date range
         response = await birthdayServices.getMyClassBirthdays(startDateStr, endDateStr, token);
       } else {
         // For admin/principal, get all upcoming birthdays with date range
@@ -164,8 +183,14 @@ export const useBirthdays = () => {
         console.log('API Response:', response.data);
         const allUpcoming: BirthdayData[] = [];
         
-        if (response.data.upcoming_birthdays) {
-          // Process upcoming birthdays
+        if (user?.role === 'teacher' && 'birthdays' in response.data) {
+          // For teachers, process the birthdays array directly
+          response.data.birthdays.forEach((student: BirthdayStudent) => {
+            console.log('Processing student:', student);
+            allUpcoming.push(convertStudentToBirthdayData(student));
+          });
+        } else if ('upcoming_birthdays' in response.data) {
+          // For admin/principal, process the upcoming_birthdays array
           response.data.upcoming_birthdays.forEach((monthData: { students: BirthdayStudent[] }) => {
             console.log('Month data:', monthData);
             monthData.students.forEach((student: BirthdayStudent) => {

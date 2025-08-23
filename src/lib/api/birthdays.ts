@@ -95,6 +95,22 @@ export interface DivisionBirthdaysResponse {
   };
 }
 
+export interface TeacherClassesBirthdaysResponse {
+  birthdays: BirthdayStudent[];
+  count: number;
+  total_count: number;
+  date: string;
+  class_division_ids: string[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+    has_next: boolean;
+    has_prev: boolean;
+  };
+}
+
 export const birthdayServices = {
   // Get today's birthdays
   getTodayBirthdays: async (
@@ -200,7 +216,7 @@ export const birthdayServices = {
       page?: number;
       limit?: number;
     }
-  ): Promise<ApiResponse<UpcomingBirthdaysResponse> | ApiErrorResponse> => {
+  ): Promise<ApiResponse<TeacherClassesBirthdaysResponse> | ApiErrorResponse> => {
     const searchParams = new URLSearchParams();
     if (params?.date) {
       searchParams.append('date', params.date);
@@ -227,7 +243,7 @@ export const birthdayServices = {
     startDate: string,
     endDate: string,
     token: string
-  ): Promise<ApiResponse<UpcomingBirthdaysResponse> | ApiErrorResponse> => {
+  ): Promise<ApiResponse<TeacherClassesBirthdaysResponse> | ApiErrorResponse> => {
     return birthdayServices.getTeacherClassesBirthdays(token, {
       start_date: startDate,
       end_date: endDate

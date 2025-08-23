@@ -362,7 +362,7 @@ export default function StaffPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="phone_number" className="text-sm font-medium">Phone Number</Label>
+                      <Label htmlFor="phone_number" className="text-sm font-medium">Phone Number *</Label>
                       <div className="relative">
                         <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
@@ -371,14 +371,10 @@ export default function StaffPage() {
                           value={currentStaff?.phone_number || ''}
                           onChange={handleInputChange}
                           placeholder="Enter phone number"
-                          className="pl-10 bg-muted cursor-not-allowed opacity-60"
-                          readOnly
-                          disabled
+                          className="pl-10"
+                          required
                         />
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Phone number cannot be changed. Contact admin for updates.
-                      </p>
                     </div>
                   </div>
             </div>

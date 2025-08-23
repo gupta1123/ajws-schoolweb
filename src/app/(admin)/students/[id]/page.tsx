@@ -15,12 +15,13 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import { Calendar, Phone, Mail, User, BookOpen, Users, Plus, Loader2 } from 'lucide-react';
+import { Calendar, Phone, Mail, User, Plus, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect, useCallback } from 'react';
 import { ParentLinking } from '@/components/students/parent-linking';
+import { CreateParentModal } from '@/components/students/create-parent-modal';
 import { studentServices, Student } from '@/lib/api/students';
 import { leaveRequestServices } from '@/lib/api/leave-requests';
 import { formatDate } from '@/lib/utils';
@@ -30,6 +31,7 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
   const { user, token } = useAuth();
   const router = useRouter();
   const [showParentLinking, setShowParentLinking] = useState(false);
+  const [showCreateParent, setShowCreateParent] = useState(false);
   const [studentData, setStudentData] = useState<Student | null>(null);
   const [studentId, setStudentId] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -97,7 +99,7 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
 
 
 
-  // Function to handle linking a new parent
+
   const handleLinkParent = async (parentId: string, relationship: string, isPrimary: boolean, accessLevel: string) => {
     if (!token || !studentData) return;
     
@@ -287,35 +289,7 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
               </CardContent>
             </Card>
 
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>
-                  Common actions for this student
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button variant="outline" className="w-full justify-start" asChild>
-                  <Link href="/homework/create">
-                    <BookOpen className="mr-2 h-4 w-4" />
-                    Assign Homework
-                  </Link>
-                </Button>
-                <Button variant="outline" className="w-full justify-start" asChild>
-                  <Link href="/classwork/create">
-                    <BookOpen className="mr-2 h-4 w-4" />
-                    Record Classwork
-                  </Link>
-                </Button>
-                <Button variant="outline" className="w-full justify-start" asChild>
-                  <Link href={`/leave-requests?studentId=${studentData.id}`}>
-                    <Users className="mr-2 h-4 w-4" />
-                    View Leave Requests
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
+
           </div>
 
           {/* Academic History */}
@@ -342,8 +316,8 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                     <TableBody>
                       {studentData.student_academic_records.map((record) => (
                         <TableRow key={record.id}>
-                          <TableCell className="font-medium">{record.class_division.academic_year?.year_name || 'N/A'}</TableCell>
-                          <TableCell>{record.class_division.class_level?.name || 'N/A'}</TableCell>
+                          <TableCell className="font-medium">N/A</TableCell>
+                          <TableCell>{record.class_division.level?.name || 'N/A'}</TableCell>
                           <TableCell>{record.class_division.division || 'N/A'}</TableCell>
                           <TableCell>{record.roll_number}</TableCell>
                           <TableCell>
@@ -415,32 +389,7 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                   </Table>
                 </div>
                 
-                {/* Parent Linking Modal */}
-                {showParentLinking && (
-                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-                    <Card className="w-full max-w-4xl">
-                      <CardHeader>
-                        <CardTitle>Link Parent</CardTitle>
-                        <CardDescription>
-                          Link an existing parent to this student
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <ParentLinking 
-                          onLinkParent={handleLinkParent}
-                          onCancel={handleCancelParentLinking}
-                          existingParentMappings={studentData.parent_mappings?.map(mapping => ({
-                            relationship: mapping.relationship,
-                            parent: {
-                              id: mapping.parent.id,
-                              full_name: mapping.parent.full_name
-                            }
-                          })) || []}
-                        />
-                      </CardContent>
-                    </Card>
-                  </div>
-                )}
+
               </CardContent>
             </Card>
 
@@ -516,6 +465,45 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
           </div>
         </main>
       </div>
+
+      {/* Create Parent Modal */}
+      <CreateParentModal
+        isOpen={showCreateParent}
+        onClose={() => setShowCreateParent(false)}
+        onSuccess={(parentId) => {
+          // Optionally refresh student data or show success message
+          console.log('Parent created with ID:', parentId);
+        }}
+      />
+
+      {/* Parent Linking Modal */}
+      {showParentLinking && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <Card>
+              <CardHeader>
+                <CardTitle>Link Parent</CardTitle>
+                <CardDescription>
+                  Link an existing parent to this student
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ParentLinking 
+                  onLinkParent={handleLinkParent}
+                  onCancel={handleCancelParentLinking}
+                  existingParentMappings={studentData?.parent_mappings?.map(mapping => ({
+                    relationship: mapping.relationship,
+                    parent: {
+                      id: mapping.parent.id,
+                      full_name: mapping.parent.full_name
+                    }
+                  })) || []}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
     </ProtectedRoute>
   );
 }

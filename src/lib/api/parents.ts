@@ -90,6 +90,11 @@ export interface ParentDetailsResponse {
 }
 
 export const parentServices = {
+  // Create a new parent record using /api/parents endpoint
+  createParentDirect: async (data: CreateParentRequest, token: string): Promise<ApiResponse<CreateParentResponse> | ApiErrorResponse> => {
+    return apiClient.post('/api/parents', data, token);
+  },
+
   // Create a new parent record
   createParent: async (data: CreateParentRequest, token: string): Promise<ApiResponse<CreateParentResponse> | ApiErrorResponse> => {
     return apiClient.post('/api/auth/create-parent', data, token);
