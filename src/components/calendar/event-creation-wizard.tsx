@@ -67,24 +67,26 @@ export function EventCreationWizard({
   const [classDivisions, setClassDivisions] = useState<ClassDivision[]>([]);
   const [loadingClassDivisions, setLoadingClassDivisions] = useState(false);
   
-  // Initialize form data with date from URL params or initialDate
-  const getDefaultDate = () => {
-    if (searchParams.get('date')) return searchParams.get('date')!;
-    if (initialDate) return initialDate;
-    
-    // Create date in local timezone without UTC conversion
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
+
   
-  // Initialize form data - with event data for edit mode or defaults for create mode
-  const initializeFormData = () => {
+
+  
+  const initialFormData = useMemo(() => {
+    // Helper function to get default date inside useMemo
+    const getDefaultDateInMemo = () => {
+      if (searchParams.get('date')) return searchParams.get('date')!;
+      if (initialDate) return initialDate;
+      
+      // Create date in local timezone without UTC conversion
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
     if (event) {
       // Edit mode - populate form with existing event data
-      // Convert event_date to local date string
       let eventDateStr = '';
       if (event.event_date_ist) {
         // Parse the IST date manually to avoid timezone conversion issues
@@ -107,29 +109,28 @@ export function EventCreationWizard({
         title: event.title || '',
         description: event.description || '',
         date: eventDateStr,
-        startTime: event.start_time ? event.start_time.substring(0, 5) : '09:00', // Convert "09:00:00" to "09:00"
-        endTime: event.end_time ? event.end_time.substring(0, 5) : '10:00', // Convert "12:00:00" to "12:00"
-        isFullDay: !event.start_time && !event.end_time, // Full day only if no specific times
+        startTime: event.start_time ? event.start_time.substring(0, 5) : '09:00',
+        endTime: event.end_time ? event.end_time.substring(0, 5) : '10:00',
+        isFullDay: !event.start_time && !event.end_time,
         eventType: (event.event_type as 'school_wide' | 'class_specific') || 'school_wide',
-        classDivisionIds: event.class_division_id ? [event.class_division_id] : [] as string[]
+        classDivisionIds: event.class_division_id ? [event.class_division_id] : []
       };
     } else {
       // Create mode - use defaults
-      const dateFromParams = getDefaultDate();
+      const dateFromParams = getDefaultDateInMemo();
       return {
         title: '',
         description: '',
         date: dateFromParams,
         startTime: '09:00',
         endTime: '10:00',
-        isFullDay: false, // Default to showing time fields
+        isFullDay: false,
         eventType: 'school_wide' as 'school_wide' | 'class_specific',
-        classDivisionIds: [] as string[]
+        classDivisionIds: []
       };
     }
-  };
+  }, [event, initialDate, searchParams]);
   
-  const initialFormData = useMemo(() => initializeFormData(), [initializeFormData]);
   const [formData, setFormData] = useState<EventFormData>(initialFormData);
 
   // Update form data when event or initialDate changes (for edit mode)

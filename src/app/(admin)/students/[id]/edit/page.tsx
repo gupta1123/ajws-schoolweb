@@ -60,7 +60,7 @@ export default function EditStudentPage({ params }: { params: Promise<{ id: stri
               fullName: student.full_name,
               rollNumber: currentRecord?.roll_number || '',
               class: currentRecord && currentRecord.class_division ? 
-                `${currentRecord.class_division.level?.name || 'Unknown'} - Section ${currentRecord.class_division.division || 'Unknown'}` : '',
+                `${currentRecord.class_division.class_level?.name || 'Unknown'} - Section ${currentRecord.class_division.division || 'Unknown'}` : '',
               dateOfBirth: student.date_of_birth,
               fatherName: primaryParent?.parent.full_name || '',
               motherName: '', // Not available in current API

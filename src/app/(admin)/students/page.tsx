@@ -95,7 +95,7 @@ export default function StudentsPage() {
     if (filters.class_level_id) {
       filtered = filtered.filter(student => {
         const currentRecord = student.student_academic_records.find(record => record.status === 'ongoing');
-        return currentRecord?.class_division?.level?.id === filters.class_level_id;
+        return currentRecord?.class_division?.class_level?.id === filters.class_level_id;
       });
     }
 
@@ -229,9 +229,11 @@ export default function StudentsPage() {
                           </TableCell>
                           <TableCell>{student.full_name}</TableCell>
                           <TableCell>
-                            {currentRecord?.class_division ? 
-                              `${currentRecord.class_division.level.name} - Section ${currentRecord.class_division.division}` : 
-                              'N/A'
+                            {currentRecord?.class_division?.class_level?.name ? 
+                              `${currentRecord.class_division.class_level.name} - Section ${currentRecord.class_division.division}` : 
+                              currentRecord?.class_division ? 
+                                `Section ${currentRecord.class_division.division}` :
+                                'N/A'
                             }
                           </TableCell>
                           <TableCell className="text-right">

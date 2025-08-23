@@ -4,18 +4,15 @@
 
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
   Search, 
   Filter,
-  Users,
-  BookOpen,
-  Clipboard
+  Users
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { ClassCard } from '@/components/classes/class-card';
 import { academicServices } from '@/lib/api/academic';
 
@@ -203,36 +200,7 @@ export default function ClassesPage() {
             )}
           </div>
           
-          <div className="space-y-6">
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5" />
-                  Quick Actions
-                </CardTitle>
-                <CardDescription>
-                  Common teaching tasks
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 gap-3">
-                  <Button variant="outline" className="justify-start" asChild>
-                    <Link href="/homework/create">
-                      <BookOpen className="h-4 w-4 mr-2" />
-                      Create Homework
-                    </Link>
-                  </Button>
-                  <Button variant="outline" className="justify-start" asChild>
-                    <Link href="/classwork/create">
-                      <Clipboard className="h-4 w-4 mr-2" />
-                      Record Classwork
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+
         </div>
       </div>
     </ProtectedRoute>

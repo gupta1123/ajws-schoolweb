@@ -317,7 +317,7 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                       {studentData.student_academic_records.map((record) => (
                         <TableRow key={record.id}>
                           <TableCell className="font-medium">N/A</TableCell>
-                          <TableCell>{record.class_division.level?.name || 'N/A'}</TableCell>
+                          <TableCell>{record.class_division.class_level?.name || 'N/A'}</TableCell>
                           <TableCell>{record.class_division.division || 'N/A'}</TableCell>
                           <TableCell>{record.roll_number}</TableCell>
                           <TableCell>

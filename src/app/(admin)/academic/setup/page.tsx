@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth/context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -864,14 +864,14 @@ export default function AcademicSystemSetupPage() {
   const allUniqueGrades = Array.from(new Set(divisions.map(d => d.className))).filter(Boolean).sort();
 
   // Get divisions available for the selected grade in subject filters (only those with subject assignments)
-  const getDivisionsForGrade = (grade: string) => {
+  const getDivisionsForGrade = useCallback((grade: string) => {
     if (grade === 'all') return uniqueDivisionsWithAssignments;
     return Array.from(new Set(
       divisions
         .filter(d => d.className === grade && d.subjects && d.subjects.length > 0)
         .map(d => d.name)
     )).filter(Boolean).sort();
-  };
+  }, [divisions, uniqueDivisionsWithAssignments]);
 
   // Reset division filter when grade filter changes
   useEffect(() => {

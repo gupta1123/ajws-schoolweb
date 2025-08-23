@@ -24,7 +24,7 @@ export interface StudentAcademicRecord {
   class_division: {
     id: string;
     division: string;
-    level: {
+    class_level: {
       id: string;
       name: string;
       sequence_number: number;

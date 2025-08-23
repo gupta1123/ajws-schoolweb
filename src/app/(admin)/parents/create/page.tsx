@@ -541,7 +541,7 @@ export default function CreateParentPage() {
                                           <div>
                                             <div className="font-medium">{student.full_name}</div>
                                             <div className="text-sm text-gray-500">
-                                              {student.admission_number} • {student.student_academic_records[0]?.class_division.level.name} {student.student_academic_records[0]?.class_division.division}
+                                              {student.admission_number} • {student.student_academic_records[0]?.class_division.class_level.name} {student.student_academic_records[0]?.class_division.division}
                                             </div>
                                           </div>
                                           <CheckCircle className="h-5 w-4 text-green-500 opacity-0 group-hover:opacity-100" />
