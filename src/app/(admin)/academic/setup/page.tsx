@@ -41,7 +41,7 @@ interface Division {
   academicYear: string;
   studentCount: number;
   subjects: string[];
-  subjectTeachers: Array<{ subject: string; teacher: string }>;
+  subjectTeachers: Array<{ subject: string; teacher: string; assignmentId?: string }>;
 }
 
 interface Subject {
@@ -127,6 +127,12 @@ export default function AcademicSystemSetupPage() {
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedSubjectTeacher, setSelectedSubjectTeacher] = useState('');
 
+  // Subject Teacher Assignment State
+  const [isSubjectTeacherDialogOpen, setIsSubjectTeacherDialogOpen] = useState(false);
+  const [selectedDivision, setSelectedDivision] = useState<Division | null>(null);
+  const [editingSubject, setEditingSubject] = useState<string>('');
+  const [selectedTeacher, setSelectedTeacher] = useState<string>('');
+
   // Fetch class divisions summary
   useEffect(() => {
     const fetchClassDivisions = async () => {
@@ -141,14 +147,18 @@ export default function AcademicSystemSetupPage() {
           const transformedDivisions: Division[] = response.data.divisions.map((division: ApiDivision) => ({
             id: division.id,
             name: division.division,
-            classId: division.level.sequence_number.toString(), // Use sequence_number as classId since level.id doesn't exist
+            classId: division.level.sequence_number.toString(),
             className: division.level.name,
             teacherId: division.class_teacher?.id || null,
             teacherName: division.class_teacher?.name || null,
             academicYear: division.academic_year.year_name,
             studentCount: division.student_count,
             subjects: [...new Set(division.subjects.map(s => s.name))], // Remove duplicates
-            subjectTeachers: division.subject_teachers.map(st => ({ subject: st.subject || '', teacher: st.name }))
+            subjectTeachers: division.subject_teachers.map(st => ({ 
+              subject: st.subject || '', 
+              teacher: st.name,
+              assignmentId: st.id
+            }))
           }));
           setDivisions(transformedDivisions);
         }
@@ -355,11 +365,35 @@ export default function AcademicSystemSetupPage() {
     
     try {
       if (isEditingDivision && currentDivision.id) {
-        // For editing, we would need an update function
-        // For now, let's just update the local state
-        setDivisions(divisions.map(division => 
-          division.id === currentDivision.id ? currentDivision : division
-        ));
+        // Update the existing division
+        const response = await academicServices.updateClassDivision(
+          currentDivision.id,
+          {
+            division: currentDivision.name,
+            teacher_id: currentDivision.teacherId || undefined
+          },
+          token
+        );
+        
+        if (response.status === 'success') {
+          // Refresh the divisions data
+          const refreshResponse = await academicServices.getClassDivisionsSummary(token);
+          if (refreshResponse.status === 'success') {
+            const transformedDivisions: Division[] = refreshResponse.data.divisions.map((division: ApiDivision) => ({
+              id: division.id,
+              name: division.division,
+              classId: division.level.sequence_number.toString(),
+              className: division.level.name,
+              teacherId: division.class_teacher?.id || null,
+              teacherName: division.class_teacher?.name || null,
+              academicYear: division.academic_year.year_name,
+              studentCount: division.student_count,
+              subjects: [...new Set(division.subjects.map(s => s.name))], // Remove duplicates
+              subjectTeachers: division.subject_teachers.map(st => ({ subject: st.subject || '', teacher: st.name }))
+            }));
+            setDivisions(transformedDivisions);
+          }
+        }
       } else {
         // Get the active academic year
         const activeYearResponse = await academicServices.getActiveAcademicYear(token);
@@ -395,7 +429,7 @@ export default function AcademicSystemSetupPage() {
             const transformedDivisions: Division[] = refreshResponse.data.divisions.map((division: ApiDivision) => ({
               id: division.id,
               name: division.division,
-              classId: division.level.sequence_number.toString(), // Use sequence_number as classId
+              classId: division.level.sequence_number.toString(),
               className: division.level.name,
               teacherId: division.class_teacher?.id || null,
               teacherName: division.class_teacher?.name || null,
@@ -593,7 +627,7 @@ export default function AcademicSystemSetupPage() {
           const transformedDivisions: Division[] = refreshResponse.data.divisions.map((division: ApiDivision) => ({
             id: division.id,
             name: division.division,
-            classId: division.level.sequence_number.toString(), // Use sequence_number as classId
+            classId: division.level.sequence_number.toString(),
             className: division.level.name,
             teacherId: division.class_teacher?.id || null,
             teacherName: division.class_teacher?.name || null,
@@ -613,6 +647,95 @@ export default function AcademicSystemSetupPage() {
     setSelectedClassDivision('');
     setSelectedSubject('');
     setSelectedSubjectTeacher('');
+  };
+
+  // Subject Teacher Assignment Functions
+  const handleEditSubjectTeacher = (division: Division, subject: string) => {
+    setSelectedDivision(division);
+    setEditingSubject(subject);
+    
+    // Find the current teacher for this subject
+    const subjectTeacher = division.subjectTeachers?.find((st) => st.subject === subject);
+    setSelectedTeacher(subjectTeacher ? subjectTeacher.teacher : '');
+    
+    setIsSubjectTeacherDialogOpen(true);
+  };
+
+  const handleSaveSubjectTeacher = async () => {
+    if (!token || !selectedDivision || !editingSubject) return;
+    
+    try {
+      // First, we need to find the teacher ID from the teacher name
+      const teacher = teachers.find(t => t.name === selectedTeacher);
+      if (!teacher && selectedTeacher) {
+        console.error('Teacher not found');
+        return;
+      }
+      
+      // Check if there's already an assignment for this subject in this division
+      const existingAssignment = selectedDivision.subjectTeachers?.find(st => 
+        st.subject === editingSubject
+      );
+      
+      let response;
+      
+      if (existingAssignment && existingAssignment.assignmentId) {
+        // Update existing assignment (PUT request)
+        response = await academicServices.updateTeacherAssignment(
+          existingAssignment.assignmentId,
+          {
+            assignment_type: 'subject_teacher',
+
+            is_primary: false,
+          },
+          token
+        );
+      } else {
+        // Create new assignment (POST request)
+        response = await academicServices.assignTeacherToClass(
+          selectedDivision.id,
+          {
+            class_division_id: selectedDivision.id,
+            teacher_id: teacher ? teacher.id : '',
+            assignment_type: 'subject_teacher',
+            subject: editingSubject,
+            is_primary: false
+          },
+          token
+        );
+      }
+      
+      if (response.status === 'success') {
+        // Refresh the divisions data to show updated assignments
+        const refreshResponse = await academicServices.getClassDivisionsSummary(token);
+        if (refreshResponse.status === 'success') {
+          const transformedDivisions: Division[] = refreshResponse.data.divisions.map((division: ApiDivision) => ({
+            id: division.id,
+            name: division.division,
+            classId: division.level.sequence_number.toString(),
+            className: division.level.name,
+            teacherId: division.class_teacher?.id || null,
+            teacherName: division.class_teacher?.name || null,
+            academicYear: division.academic_year.year_name,
+            studentCount: division.student_count,
+            subjects: [...new Set(division.subjects.map(s => s.name))], // Remove duplicates
+            subjectTeachers: division.subject_teachers.map(st => ({ 
+              subject: st.subject || '', 
+              teacher: st.name,
+              assignmentId: st.id
+            }))
+          }));
+          setDivisions(transformedDivisions);
+        }
+      }
+    } catch (error) {
+      console.error('Error assigning subject teacher:', error);
+    }
+    
+    setIsSubjectTeacherDialogOpen(false);
+    setSelectedDivision(null);
+    setEditingSubject('');
+    setSelectedTeacher('');
   };
 
       // Helper functions
@@ -885,7 +1008,7 @@ export default function AcademicSystemSetupPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {divisions.flatMap((division) => 
+                                        {divisions.flatMap((division) => 
                       division.subjects.map((subject: string, index: number) => {
                         // Find the teacher for this subject
                         const subjectTeacher = division.subjectTeachers?.find((st) => 
@@ -899,9 +1022,21 @@ export default function AcademicSystemSetupPage() {
                             <TableCell>{subject}</TableCell>
                             <TableCell>
                               {subjectTeacher ? (
-                                <Badge variant="default">{subjectTeacher.teacher}</Badge>
+                                <Badge 
+                                  variant="default" 
+                                  className="cursor-pointer hover:opacity-80"
+                                  onClick={() => handleEditSubjectTeacher(division, subject)}
+                                >
+                                  {subjectTeacher.teacher}
+                                </Badge>
                               ) : (
-                                <Badge variant="secondary">Not assigned</Badge>
+                                <Badge 
+                                  variant="secondary" 
+                                  className="cursor-pointer hover:opacity-80"
+                                  onClick={() => handleEditSubjectTeacher(division, subject)}
+                                >
+                                  Assign Teacher
+                                </Badge>
                               )}
                             </TableCell>
                           </TableRow>
@@ -1176,6 +1311,52 @@ export default function AcademicSystemSetupPage() {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsClassSubjectDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSaveClassSubject}>Assign</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Subject Teacher Assignment Dialog */}
+      <Dialog open={isSubjectTeacherDialogOpen} onOpenChange={setIsSubjectTeacherDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Teacher to Subject</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Class Division</Label>
+              <div className="text-sm font-medium">
+                {selectedDivision?.className} - {selectedDivision?.name}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Subject</Label>
+              <div className="text-sm font-medium">
+                {editingSubject}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="teacher">Teacher</Label>
+              <Select 
+                value={selectedTeacher || "none"} 
+                onValueChange={(value) => setSelectedTeacher(value === "none" ? "" : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a teacher" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No teacher assigned</SelectItem>
+                  {teachers.map((teacher) => (
+                    <SelectItem key={teacher.id} value={teacher.name}>
+                      {teacher.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsSubjectTeacherDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveSubjectTeacher}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
