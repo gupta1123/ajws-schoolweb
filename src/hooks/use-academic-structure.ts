@@ -768,13 +768,15 @@ export const useAcademicStructure = (): UseAcademicStructureReturn => {
   const refreshAll = useCallback(async () => {
     setLoading(true);
     // Optimized: Use summary API to get divisions, teachers, and subjects in one call
+    // But also fetch all teachers separately to get the complete list
     await Promise.all([
       fetchAcademicYears(),
       fetchClassLevels(),
-      fetchDivisionsWithSummary()  // This replaces fetchClassDivisions, fetchTeachers, and fetchSubjects
+      fetchDivisionsWithSummary(),
+      fetchTeachers()  // Fetch all teachers separately
     ]);
     setLoading(false);
-  }, [fetchAcademicYears, fetchClassLevels, fetchDivisionsWithSummary]);
+  }, [fetchAcademicYears, fetchClassLevels, fetchDivisionsWithSummary, fetchTeachers]);
 
   // Keep individual fetch functions for specific use cases
   const refreshIndividual = useCallback(async () => {

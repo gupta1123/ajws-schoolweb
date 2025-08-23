@@ -9,10 +9,11 @@ import { BookOpen, Users, User, Loader2, AlertTriangle } from 'lucide-react';
 import { AcademicStructureManager } from './academic-structure-manager';
 import { AcademicYearManager } from './academic-year-manager';
 import { SubjectManager } from './SubjectManager';
+import { ClassLevelManager } from './class-level-manager';
 import { useAcademicStructure } from '@/hooks/use-academic-structure';
 
 export function ComprehensiveAcademicManager() {
-  const [activeView, setActiveView] = useState<'current' | 'years' | 'subjects'>('current');
+  const [activeView, setActiveView] = useState<'current' | 'years' | 'subjects' | 'levels'>('current');
   const { 
     classLevels, 
     classDivisions, 
@@ -26,13 +27,16 @@ export function ComprehensiveAcademicManager() {
     <div className="space-y-6">
       {/* Navigation Tabs - Moved to top */}
       <div className="flex justify-center">
-        <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'current' | 'years' | 'subjects')} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+        <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'current' | 'years' | 'subjects' | 'levels')} className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="current" onClick={() => setActiveView('current')}>
               Current Structure
             </TabsTrigger>
             <TabsTrigger value="years" onClick={() => setActiveView('years')}>
               Academic Years
+            </TabsTrigger>
+            <TabsTrigger value="levels" onClick={() => setActiveView('levels')}>
+              Grades
             </TabsTrigger>
             <TabsTrigger value="subjects" onClick={() => setActiveView('subjects')}>
               Subjects
@@ -124,6 +128,22 @@ export function ComprehensiveAcademicManager() {
         </div>
       )}
 
+
+
+      {activeView === 'levels' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Grade Levels</h2>
+              <p className="text-muted-foreground">
+                Manage grade levels and their configurations
+              </p>
+            </div>
+          </div>
+
+          <ClassLevelManager />
+        </div>
+      )}
 
 
       {activeView === 'subjects' && (

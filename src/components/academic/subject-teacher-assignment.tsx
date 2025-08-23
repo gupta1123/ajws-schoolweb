@@ -13,7 +13,7 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, CheckCircle, User, BookOpen, X, GraduationCap, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, User, BookOpen, X, GraduationCap } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import type { Subject } from '@/types/academic';
 
@@ -85,7 +85,35 @@ export function SubjectTeacherAssignment({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
   const [allTeachers, setAllTeachers] = useState<Teacher[]>(teachers);
-  const [loadingTeachers, setLoadingTeachers] = useState(false);
+
+  // Fetch all teachers when component mounts or when teachers prop changes
+  useEffect(() => {
+    const fetchTeachers = async () => {
+      if (!token) return;
+      
+      try {
+        const response = await fetch('https://ajws-school-ba8ae5e3f955.herokuapp.com/api/academic/teachers', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.status === 200 || response.status === 304) {
+          const data = await response.json();
+          if (data.status === 'success' && data.data.teachers) {
+            setAllTeachers(data.data.teachers);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching teachers:', error);
+        // Fallback to props if API fails
+        setAllTeachers(teachers);
+      }
+    };
+
+    fetchTeachers();
+  }, [token, teachers]);
 
   const handleSave = async () => {
     if (!selectedTeacherId) {
@@ -121,38 +149,6 @@ export function SubjectTeacherAssignment({
     setIsPrimary(false);
     onCancel();
   };
-
-  // Fetch all teachers when component mounts or when teachers prop changes
-  useEffect(() => {
-    const fetchTeachers = async () => {
-      if (!token) return;
-      
-      try {
-        setLoadingTeachers(true);
-        const response = await fetch('https://ajws-school-ba8ae5e3f955.herokuapp.com/api/academic/teachers', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.status === 200 || response.status === 304) {
-          const data = await response.json();
-          if (data.status === 'success' && data.data.teachers) {
-            setAllTeachers(data.data.teachers);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching teachers:', error);
-        // Fallback to props if API fails
-        setAllTeachers(teachers);
-      } finally {
-        setLoadingTeachers(false);
-      }
-    };
-
-    fetchTeachers();
-  }, [token, teachers]);
 
   // Don't render if no subjects are available
   if (!availableSubjects || availableSubjects.length === 0) {
@@ -298,21 +294,24 @@ export function SubjectTeacherAssignment({
             </Label>
             <Select value={selectedTeacherId} onValueChange={setSelectedTeacherId}>
               <SelectTrigger className="h-11">
-                <SelectValue placeholder={loadingTeachers ? "Loading teachers..." : "Choose a teacher..."} />
+                <SelectValue placeholder="Choose a teacher..." />
               </SelectTrigger>
               <SelectContent>
-                {loadingTeachers ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                    <span className="text-sm text-gray-500">Loading teachers...</span>
+                {Object.entries(teachersByDepartment).map(([department, deptTeachers]) => (
+                  <div key={department}>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      {department}
+                    </div>
+                    {deptTeachers.map((teacher) => (
+                      <SelectItem 
+                        key={teacher.teacher_id} 
+                        value={teacher.teacher_id}
+                      >
+                        {teacher.full_name}
+                      </SelectItem>
+                    ))}
                   </div>
-                ) : (
-                  allTeachers.map((teacher) => (
-                    <SelectItem key={teacher.teacher_id} value={teacher.teacher_id}>
-                      {teacher.full_name}
-                    </SelectItem>
-                  ))
-                )}
+                ))}
               </SelectContent>
             </Select>
           </div>

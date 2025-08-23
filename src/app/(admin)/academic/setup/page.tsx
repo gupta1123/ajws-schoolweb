@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Edit, Trash2, Loader2 } from 'lucide-react';
 import { academicServices } from '@/lib/api/academic';
+import type { ClassLevel } from '@/types/academic';
 
 // Interfaces
 interface AcademicYear {
@@ -40,7 +41,7 @@ interface Division {
   academicYear: string;
   studentCount: number;
   subjects: string[];
-  subjectTeachers: string[];
+  subjectTeachers: Array<{ subject: string; teacher: string }>;
 }
 
 interface Subject {
@@ -85,14 +86,6 @@ const mockAcademicYears: AcademicYear[] = [
   { id: 'ay3', year_name: '2025-2026', start_date: '2025-06-01', end_date: '2026-05-31', is_active: false },
 ];
 
-// Mock data for teachers
-const mockTeachers: Teacher[] = [
-  { id: 't1', name: 'John Doe', email: 'john.doe@school.edu', phone: '123-456-7890' },
-  { id: 't2', name: 'Jane Smith', email: 'jane.smith@school.edu', phone: '234-567-8901' },
-  { id: 't3', name: 'Robert Johnson', email: 'robert.johnson@school.edu', phone: '345-678-9012' },
-  { id: 't4', name: 'Emily Davis', email: 'emily.davis@school.edu', phone: '456-789-0123' },
-];
-
 export default function AcademicSystemSetupPage() {
   const { token } = useAuth();
   
@@ -109,6 +102,14 @@ export default function AcademicSystemSetupPage() {
   const [currentDivision, setCurrentDivision] = useState<Division | null>(null);
   const [isEditingDivision, setIsEditingDivision] = useState(false);
 
+  // Class Levels State
+  const [classLevels, setClassLevels] = useState<ClassLevel[]>([]);
+  const [loadingClassLevels, setLoadingClassLevels] = useState(false);
+  const [isClassLevelDialogOpen, setIsClassLevelDialogOpen] = useState(false);
+  const [currentClassLevel, setCurrentClassLevel] = useState<Omit<ClassLevel, 'id' | 'created_at'> | null>(null);
+  const [editingClassLevelId, setEditingClassLevelId] = useState<string | null>(null);
+  const [isEditingClassLevel, setIsEditingClassLevel] = useState(false);
+
   // Subjects State
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
@@ -116,15 +117,15 @@ export default function AcademicSystemSetupPage() {
   const [currentSubject, setCurrentSubject] = useState<Subject | null>(null);
   const [isEditingSubject, setIsEditingSubject] = useState(false);
 
+  // Teachers State
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [loadingTeachers, setLoadingTeachers] = useState(false);
+
   // Class-Subject Assignment State
   const [isClassSubjectDialogOpen, setIsClassSubjectDialogOpen] = useState(false);
   const [selectedClassDivision, setSelectedClassDivision] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedSubjectTeacher, setSelectedSubjectTeacher] = useState('');
-
-  // Grade filter state
-  const [gradeFilter, setGradeFilter] = useState('all');
-  const [divisionGradeFilter, setDivisionGradeFilter] = useState('all');
 
   // Fetch class divisions summary
   useEffect(() => {
@@ -140,14 +141,14 @@ export default function AcademicSystemSetupPage() {
           const transformedDivisions: Division[] = response.data.divisions.map((division: ApiDivision) => ({
             id: division.id,
             name: division.division,
-            classId: division.level.name, // Changed to level.name
+            classId: division.level.sequence_number.toString(), // Use sequence_number as classId since level.id doesn't exist
             className: division.level.name,
             teacherId: division.class_teacher?.id || null,
             teacherName: division.class_teacher?.name || null,
             academicYear: division.academic_year.year_name,
             studentCount: division.student_count,
-            subjects: division.subjects.map(s => s.name), // Changed to s.name
-            subjectTeachers: division.subject_teachers.map(st => st.subject || '') // Changed to st.subject
+            subjects: [...new Set(division.subjects.map(s => s.name))], // Remove duplicates
+            subjectTeachers: division.subject_teachers.map(st => ({ subject: st.subject || '', teacher: st.name }))
           }));
           setDivisions(transformedDivisions);
         }
@@ -160,6 +161,61 @@ export default function AcademicSystemSetupPage() {
 
     if (token) {
       fetchClassDivisions();
+    }
+  }, [token]);
+
+  // Fetch class levels
+  useEffect(() => {
+    const fetchClassLevels = async () => {
+      if (!token) return;
+      
+      try {
+        setLoadingClassLevels(true);
+        const response = await academicServices.getClassLevels(token);
+        
+        if (response.status === 'success') {
+          setClassLevels(response.data.class_levels);
+        }
+      } catch (error) {
+        console.error('Error fetching class levels:', error);
+      } finally {
+        setLoadingClassLevels(false);
+      }
+    };
+
+    if (token) {
+      fetchClassLevels();
+    }
+  }, [token]);
+
+  // Fetch teachers
+  useEffect(() => {
+    const fetchTeachers = async () => {
+      if (!token) return;
+      
+      try {
+        setLoadingTeachers(true);
+        const response = await academicServices.getTeachers(token);
+        
+        if (response.status === 'success') {
+          // Transform the API response to match our expected format
+          const transformedTeachers: Teacher[] = response.data.teachers.map((teacher) => ({
+            id: teacher.teacher_id,
+            name: teacher.full_name,
+            email: teacher.email || '',
+            phone: teacher.phone_number
+          }));
+          setTeachers(transformedTeachers);
+        }
+      } catch (error) {
+        console.error('Error fetching teachers:', error);
+      } finally {
+        setLoadingTeachers(false);
+      }
+    };
+
+    if (token) {
+      fetchTeachers();
     }
   }, [token]);
 
@@ -269,7 +325,18 @@ export default function AcademicSystemSetupPage() {
   // Division Functions
   const handleAddDivision = () => {
     setIsEditingDivision(false);
-    setCurrentDivision({ id: '', name: '', classId: '', teacherId: '', className: '', teacherName: '', academicYear: '', studentCount: 0, subjects: [], subjectTeachers: [] });
+    setCurrentDivision({ 
+      id: '', 
+      name: '', 
+      classId: '', 
+      className: '', 
+      teacherId: '', 
+      teacherName: '', 
+      academicYear: '', 
+      studentCount: 0, 
+      subjects: [], 
+      subjectTeachers: [] 
+    });
     setIsDivisionDialogOpen(true);
   };
 
@@ -283,20 +350,68 @@ export default function AcademicSystemSetupPage() {
     setDivisions(divisions.filter(division => division.id !== id));
   };
 
-  const handleSaveDivision = () => {
-    if (isEditingDivision && currentDivision) {
-      setDivisions(divisions.map(division => 
-        division.id === currentDivision.id ? currentDivision : division
-      ));
-    } else if (currentDivision) {
-      const newDivision: Division = {
-        ...currentDivision,
-        id: `d${Date.now()}`,
-        className: divisions.find(d => d.classId === currentDivision.classId)?.className || '',
-        teacherName: mockTeachers.find(t => t.id === currentDivision.teacherId)?.name || null
-      };
-      setDivisions([...divisions, newDivision]);
+  const handleSaveDivision = async () => {
+    if (!token || !currentDivision) return;
+    
+    try {
+      if (isEditingDivision && currentDivision.id) {
+        // For editing, we would need an update function
+        // For now, let's just update the local state
+        setDivisions(divisions.map(division => 
+          division.id === currentDivision.id ? currentDivision : division
+        ));
+      } else {
+        // Get the active academic year
+        const activeYearResponse = await academicServices.getActiveAcademicYear(token);
+        if (activeYearResponse.status !== 'success') {
+          console.error('Error fetching active academic year');
+          return;
+        }
+        
+        const activeYearId = activeYearResponse.data.academic_year.id;
+        
+        // Find the class level by name to get its ID
+        const classLevel = classLevels.find(level => level.name === currentDivision!.className);
+        if (!classLevel) {
+          console.error('Class level not found');
+          return;
+        }
+        
+        // Create the division using the API
+        const response = await academicServices.createClassDivision(
+          {
+            academic_year_id: activeYearId,
+            class_level_id: classLevel.id,
+            division: currentDivision!.name,
+            teacher_id: currentDivision!.teacherId || undefined
+          },
+          token
+        );
+        
+        if (response.status === 'success') {
+          // Refresh the divisions data
+          const refreshResponse = await academicServices.getClassDivisionsSummary(token);
+          if (refreshResponse.status === 'success') {
+            const transformedDivisions: Division[] = refreshResponse.data.divisions.map((division: ApiDivision) => ({
+              id: division.id,
+              name: division.division,
+              classId: division.level.sequence_number.toString(), // Use sequence_number as classId
+              className: division.level.name,
+              teacherId: division.class_teacher?.id || null,
+              teacherName: division.class_teacher?.name || null,
+              academicYear: division.academic_year.year_name,
+              studentCount: division.student_count,
+              subjects: [...new Set(division.subjects.map(s => s.name))], // Remove duplicates
+              subjectTeachers: division.subject_teachers.map(st => ({ subject: st.subject || '', teacher: st.name }))
+            }));
+            setDivisions(transformedDivisions);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error saving division:', error);
     }
+    
     setIsDivisionDialogOpen(false);
   };
 
@@ -369,6 +484,91 @@ export default function AcademicSystemSetupPage() {
     setIsSubjectDialogOpen(false);
   };
 
+  // Class Level Functions
+  const handleAddClassLevel = () => {
+    setIsEditingClassLevel(false);
+    setEditingClassLevelId(null);
+    setCurrentClassLevel({ name: '', sequence_number: 0 });
+    setIsClassLevelDialogOpen(true);
+  };
+
+  const handleEditClassLevel = (classLevel: ClassLevel) => {
+    setIsEditingClassLevel(true);
+    setEditingClassLevelId(classLevel.id);
+    setCurrentClassLevel({ 
+      name: classLevel.name,
+      sequence_number: classLevel.sequence_number
+    });
+    setIsClassLevelDialogOpen(true);
+  };
+
+  const handleDeleteClassLevel = async (id: string) => {
+    if (!token) return;
+    
+    try {
+      const response = await academicServices.deleteClassLevel(id, token);
+      
+      if (response.status === 'success') {
+        // Refresh the class levels data
+        const refreshResponse = await academicServices.getClassLevels(token);
+        if (refreshResponse.status === 'success') {
+          setClassLevels(refreshResponse.data.class_levels);
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting class level:', error);
+    }
+  };
+
+  const handleSaveClassLevel = async () => {
+    if (!token || !currentClassLevel) return;
+    
+    try {
+      if (isEditingClassLevel && editingClassLevelId) {
+        const response = await academicServices.updateClassLevel(
+          editingClassLevelId,
+          {
+            name: currentClassLevel.name,
+            sequence_number: currentClassLevel.sequence_number
+          },
+          token
+        );
+        
+        if (response.status === 'success') {
+          // Refresh the class levels data
+          const refreshResponse = await academicServices.getClassLevels(token);
+          if (refreshResponse.status === 'success') {
+            setClassLevels(refreshResponse.data.class_levels);
+          }
+        }
+      } else {
+        const response = await academicServices.createClassLevel(
+          {
+            name: currentClassLevel.name,
+            sequence_number: currentClassLevel.sequence_number
+          },
+          token
+        );
+        
+        if (response.status === 'success') {
+          // Refresh the class levels data
+          const refreshResponse = await academicServices.getClassLevels(token);
+          if (refreshResponse.status === 'success') {
+            setClassLevels(refreshResponse.data.class_levels);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error saving class level:', error);
+    }
+    
+    setIsClassLevelDialogOpen(false);
+  };
+
+  const handleClassLevelChange = (field: string, value: string | number) => {
+    setCurrentClassLevel({ ...currentClassLevel!, [field]: value });
+  };
+
   // Class-Subject Assignment Functions
   const handleAddClassSubject = () => {
     setIsClassSubjectDialogOpen(true);
@@ -393,14 +593,14 @@ export default function AcademicSystemSetupPage() {
           const transformedDivisions: Division[] = refreshResponse.data.divisions.map((division: ApiDivision) => ({
             id: division.id,
             name: division.division,
-            classId: division.level.name, // Changed to level.name
+            classId: division.level.sequence_number.toString(), // Use sequence_number as classId
             className: division.level.name,
             teacherId: division.class_teacher?.id || null,
             teacherName: division.class_teacher?.name || null,
             academicYear: division.academic_year.year_name,
             studentCount: division.student_count,
-            subjects: division.subjects.map(s => s.name), // Changed to s.name
-            subjectTeachers: division.subject_teachers.map(st => st.subject || '') // Changed to st.subject
+            subjects: [...new Set(division.subjects.map(s => s.name))], // Remove duplicates
+            subjectTeachers: division.subject_teachers.map(st => ({ subject: st.subject || '', teacher: st.name }))
           }));
           setDivisions(transformedDivisions);
         }
@@ -421,7 +621,16 @@ export default function AcademicSystemSetupPage() {
     };
   
     const handleDivisionChange = (field: string, value: string) => {
-      setCurrentDivision({ ...currentDivision!, [field]: value });
+      if (field === 'className') {
+        // When class name changes, also update classId to match
+        setCurrentDivision({ 
+          ...currentDivision!, 
+          className: value,
+          classId: value // Keep both in sync for now
+        });
+      } else {
+        setCurrentDivision({ ...currentDivision!, [field]: value });
+      }
     };
   
     const handleSubjectChange = (field: string, value: string) => {
@@ -430,13 +639,10 @@ export default function AcademicSystemSetupPage() {
 
   // Get unique class levels from divisions
   const getClassLevels = () => {
-    const uniqueLevels = new Map();
-    divisions.forEach(division => {
-      if (division.classId && division.className) {
-        uniqueLevels.set(division.classId, division.className);
-      }
-    });
-    return Array.from(uniqueLevels, ([id, name]) => ({ id, name }));
+    return classLevels.map(level => ({
+      id: level.id,
+      name: level.name
+    }));
   };
 
   // Get divisions for a specific class
@@ -505,77 +711,107 @@ export default function AcademicSystemSetupPage() {
 
         {/* Classes & Divisions Tab */}
         <TabsContent value="divisions">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Classes & Divisions</CardTitle>
-              <Button onClick={handleAddDivision}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Division
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4">
-                <Label htmlFor="divisionGradeFilter">Filter by Grade</Label>
-                <Select onValueChange={(value) => setDivisionGradeFilter(value)} value={divisionGradeFilter}>
-                  <SelectTrigger id="divisionGradeFilter">
-                    <SelectValue placeholder="All Grades" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Grades</SelectItem>
-                    {getClassLevels().map((classLevel) => (
-                      <SelectItem key={classLevel.id} value={classLevel.id}>
-                        {classLevel.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {loadingDivisions ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                  <span>Loading class divisions...</span>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Grade</TableHead>
-                      <TableHead>Division</TableHead>
-                      <TableHead>Class Teacher</TableHead>
-                      <TableHead>Students</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {divisions
-                      .filter(division => divisionGradeFilter === 'all' || division.classId === divisionGradeFilter)
-                      .map((division) => (
-                        <TableRow key={division.id}>
-                          <TableCell className="font-medium">{division.className || 'N/A'}</TableCell>
-                          <TableCell>{division.name}</TableCell>
-                          <TableCell>
-                            {division.teacherName ? (
-                              <Badge variant="default">{division.teacherName}</Badge>
-                            ) : (
-                              <Badge variant="secondary">Not assigned</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>{division.studentCount || 0}</TableCell>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Panel - Class Levels */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Class Levels</CardTitle>
+                <Button onClick={handleAddClassLevel}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Class
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {loadingClassLevels ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                    <span>Loading class levels...</span>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Sequence</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {classLevels.map((classLevel) => (
+                        <TableRow key={classLevel.id}>
+                          <TableCell className="font-medium">{classLevel.name}</TableCell>
+                          <TableCell>{classLevel.sequence_number}</TableCell>
                           <TableCell className="text-right">
-                            <Button variant="outline" size="sm" className="mr-2" onClick={() => handleEditDivision(division)}>
+                            <Button variant="outline" size="sm" className="mr-2" onClick={() => handleEditClassLevel(classLevel)}>
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button variant="destructive" size="sm" onClick={() => handleDeleteDivision(division.id)}>
+                            <Button variant="destructive" size="sm" onClick={() => handleDeleteClassLevel(classLevel.id)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </TableCell>
                         </TableRow>
                       ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Right Panel - Divisions */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Divisions</CardTitle>
+                <Button onClick={handleAddDivision}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Division
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {loadingDivisions || loadingTeachers || loadingClassLevels ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                    <span>Loading class divisions...</span>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Grade</TableHead>
+                        <TableHead>Division</TableHead>
+                        <TableHead>Class Teacher</TableHead>
+                        <TableHead>Students</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {divisions.map((division) => (
+                          <TableRow key={division.id}>
+                            <TableCell className="font-medium">{division.className || 'N/A'}</TableCell>
+                            <TableCell>{division.name}</TableCell>
+                            <TableCell>
+                              {division.teacherName ? (
+                                <Badge variant="default">{division.teacherName}</Badge>
+                              ) : (
+                                <Badge variant="secondary">Not assigned</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>{division.studentCount || 0}</TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="outline" size="sm" className="mr-2" onClick={() => handleEditDivision(division)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="destructive" size="sm" onClick={() => handleDeleteDivision(division.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Subjects Tab */}
@@ -591,7 +827,7 @@ export default function AcademicSystemSetupPage() {
                 </Button>
               </CardHeader>
               <CardContent>
-                {loadingSubjects ? (
+                {loadingSubjects || loadingTeachers ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin mr-2" />
                     <span>Loading subjects...</span>
@@ -639,22 +875,6 @@ export default function AcademicSystemSetupPage() {
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="mb-4">
-                  <Label htmlFor="gradeFilter">Filter by Grade</Label>
-                  <Select onValueChange={(value) => setGradeFilter(value)} value={gradeFilter}>
-                    <SelectTrigger id="gradeFilter">
-                      <SelectValue placeholder="All Grades" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Grades</SelectItem>
-                      {getClassLevels().map((classLevel) => (
-                        <SelectItem key={classLevel.id} value={classLevel.id}>
-                          {classLevel.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -665,31 +885,29 @@ export default function AcademicSystemSetupPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {divisions
-                      .filter(division => gradeFilter === 'all' || division.classId === gradeFilter)
-                      .flatMap((division) => 
-                        division.subjects.map((subject: string, index: number) => {
-                          // Find the teacher for this subject
-                          const subjectTeacher = division.subjectTeachers?.find((teacherSubject) => 
-                            teacherSubject === subject
-                          );
-                          
-                          return (
-                            <TableRow key={`${division.id}-${subject}-${index}`}>
-                              <TableCell>{division.className || 'N/A'}</TableCell>
-                              <TableCell>{division.name}</TableCell>
-                              <TableCell>{subject}</TableCell>
-                              <TableCell>
-                                {subjectTeacher ? (
-                                  <Badge variant="default">{subjectTeacher}</Badge>
-                                ) : (
-                                  <Badge variant="secondary">Not assigned</Badge>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
-                      )}
+                    {divisions.flatMap((division) => 
+                      division.subjects.map((subject: string, index: number) => {
+                        // Find the teacher for this subject
+                        const subjectTeacher = division.subjectTeachers?.find((st) => 
+                          st.subject === subject
+                        );
+                        
+                        return (
+                          <TableRow key={`${division.id}-${subject}-${index}`}>
+                            <TableCell>{division.className || 'N/A'}</TableCell>
+                            <TableCell>{division.name}</TableCell>
+                            <TableCell>{subject}</TableCell>
+                            <TableCell>
+                              {subjectTeacher ? (
+                                <Badge variant="default">{subjectTeacher.teacher}</Badge>
+                              ) : (
+                                <Badge variant="secondary">Not assigned</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -759,15 +977,16 @@ export default function AcademicSystemSetupPage() {
             <div className="space-y-2">
               <Label htmlFor="className">Class</Label>
               <Select 
-                value={currentDivision?.classId || ''} 
-                onValueChange={(value) => handleDivisionChange('classId', value)}
+                value={currentDivision?.className || ''} 
+                onValueChange={(value) => handleDivisionChange('className', value)}
+                disabled={isEditingDivision}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a class" />
                 </SelectTrigger>
                 <SelectContent>
-                  {getClassLevels().map((classLevel) => (
-                    <SelectItem key={classLevel.id} value={classLevel.id}>
+                  {classLevels.map((classLevel) => (
+                    <SelectItem key={classLevel.id} value={classLevel.name}>
                       {classLevel.name}
                     </SelectItem>
                   ))}
@@ -792,7 +1011,7 @@ export default function AcademicSystemSetupPage() {
                   <SelectValue placeholder="Select a teacher" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockTeachers.map((teacher) => (
+                  {teachers.map((teacher) => (
                     <SelectItem key={teacher.id} value={teacher.id}>
                       {teacher.name}
                     </SelectItem>
@@ -803,7 +1022,7 @@ export default function AcademicSystemSetupPage() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsDivisionDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveDivision}>Save</Button>
+            <Button onClick={handleSaveDivision} disabled={loadingClassLevels || !currentDivision?.className || !currentDivision?.name}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -835,6 +1054,43 @@ export default function AcademicSystemSetupPage() {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsSubjectDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSaveSubject}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Class Level Dialog */}
+      <Dialog open={isClassLevelDialogOpen} onOpenChange={setIsClassLevelDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{isEditingClassLevel ? 'Edit Class' : 'Add Class'}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="classLevelName">Class Name</Label>
+              <Input 
+                id="classLevelName" 
+                value={currentClassLevel?.name || ''} 
+                onChange={(e) => handleClassLevelChange('name', e.target.value)} 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sequenceNumber">Sequence Number</Label>
+              <Input 
+                id="sequenceNumber" 
+                type="number"
+                value={currentClassLevel?.sequence_number || ''} 
+                onChange={(e) => handleClassLevelChange('sequence_number', parseInt(e.target.value) || 0)} 
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsClassLevelDialogOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleSaveClassLevel}
+              disabled={!currentClassLevel?.name || currentClassLevel?.sequence_number === undefined}
+            >
+              Save
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -908,7 +1164,7 @@ export default function AcademicSystemSetupPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No teacher assigned</SelectItem>
-                  {mockTeachers.map((teacher) => (
+                  {teachers.map((teacher) => (
                     <SelectItem key={teacher.id} value={teacher.id}>
                       {teacher.name}
                     </SelectItem>
