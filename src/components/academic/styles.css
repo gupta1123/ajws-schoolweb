@@ -1,0 +1,33 @@
+/* src/components/academic/styles.css */
+
+.academic-blue-bg {
+  background-color: rgb(219 234 254);
+}
+
+.academic-green-bg {
+  background-color: rgb(220 252 231);
+}
+
+.academic-purple-bg {
+  background-color: rgb(233 213 255);
+}
+
+.academic-orange-bg {
+  background-color: rgb(255 237 213);
+}
+
+.academic-blue-text {
+  color: rgb(37 99 235);
+}
+
+.academic-green-text {
+  color: rgb(22 163 74);
+}
+
+.academic-purple-text {
+  color: rgb(147 51 234);
+}
+
+.academic-orange-text {
+  color: rgb(249 115 22);
+}
