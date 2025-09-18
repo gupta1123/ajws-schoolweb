@@ -19,9 +19,11 @@ import { Search, Plus, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
 import { studentServices, Student } from '@/lib/api/students';
+import { useI18n } from '@/lib/i18n/context';
 
 export default function StudentsPage() {
   const { user, token } = useAuth();
+  const { t } = useI18n();
   const [students] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -137,8 +139,8 @@ export default function StudentsPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only admins and principals can access this page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="text-gray-600">{t('access.adminsOnly', 'Only admins and principals can access this page.')}</p>
         </div>
       </div>
     );
@@ -150,7 +152,7 @@ export default function StudentsPage() {
         <div className="container max-w-6xl mx-auto py-8">
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-8 w-8 animate-spin" />
-            <span className="ml-2">Loading students...</span>
+            <span className="ml-2">{t('students.loading', 'Loading students...')}</span>
           </div>
         </div>
       </ProtectedRoute>
@@ -166,7 +168,7 @@ export default function StudentsPage() {
             <div className="relative w-64">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Search students..." 
+                placeholder={t('students.searchPlaceholder', 'Search students...')} 
                 className="pl-8"
                 value={filters.search}
                 onChange={handleSearchChange}
@@ -177,7 +179,7 @@ export default function StudentsPage() {
               value={filters.class_level_id}
               onChange={(e) => handleFilterChange('class_level_id', e.target.value)}
             >
-              <option value="">All Classes</option>
+              <option value="">{t('students.allClasses', 'All Classes')}</option>
               {availableFilters.class_levels?.map(level => (
                 <option key={level.id} value={level.id}>
                   {level.name}
@@ -189,7 +191,7 @@ export default function StudentsPage() {
           <Button asChild>
             <Link href="/students/create">
               <Plus className="mr-2 h-4 w-4" />
-              Add Student
+              {t('students.addStudent')}
             </Link>
           </Button>
         </div>
@@ -203,9 +205,9 @@ export default function StudentsPage() {
         {/* Students Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Student List</CardTitle>
+            <CardTitle>{t('students.listTitle')}</CardTitle>
             <CardDescription>
-              List of all students in the school
+              {t('students.listSubtitle')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -213,10 +215,10 @@ export default function StudentsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Roll No.</TableHead>
-                    <TableHead>Student Name</TableHead>
-                    <TableHead>Class</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t('students.cols.rollNo')}</TableHead>
+                    <TableHead>{t('students.cols.name')}</TableHead>
+                    <TableHead>{t('students.cols.class')}</TableHead>
+                    <TableHead className="text-right">{t('students.cols.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -224,8 +226,8 @@ export default function StudentsPage() {
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                         {filters.search || filters.class_level_id 
-                          ? 'No students found matching the selected filters.'
-                          : 'No students available.'
+                          ? t('students.emptyFiltered')
+                          : t('students.empty')
                         }
                       </TableCell>
                     </TableRow>
@@ -238,26 +240,26 @@ export default function StudentsPage() {
                       return (
                         <TableRow key={student.id}>
                           <TableCell className="font-medium">
-                            {currentRecord?.roll_number || 'N/A'}
+                            {currentRecord?.roll_number || t('students.na', 'N/A')}
                           </TableCell>
                           <TableCell>{student.full_name}</TableCell>
                           <TableCell>
                             {currentRecord?.class_division?.class_level?.name ? 
-                              `${currentRecord.class_division.class_level.name} - Section ${currentRecord.class_division.division}` : 
+                              `${currentRecord.class_division.class_level.name} - ${t('timetable.section')} ${currentRecord.class_division.division}` : 
                               currentRecord?.class_division ? 
-                                `Section ${currentRecord.class_division.division}` :
-                                'N/A'
+                                `${t('timetable.section')} ${currentRecord.class_division.division}` :
+                                t('students.na', 'N/A')
                             }
                           </TableCell>
                           <TableCell className="text-right">
                             <Button variant="outline" size="sm" className="mr-2" asChild>
                               <Link href={`/students/${student.id}`}>
-                                View
+                                {t('actions.view', 'View')}
                               </Link>
                             </Button>
                             <Button variant="outline" size="sm" asChild>
                               <Link href={`/students/${student.id}/edit`}>
-                                Edit
+                                {t('actions.edit', 'Edit')}
                               </Link>
                             </Button>
                           </TableCell>
@@ -273,7 +275,7 @@ export default function StudentsPage() {
             {Math.ceil(filteredStudents.length / filters.limit) > 1 && (
               <div className="flex items-center justify-between mt-4">
                 <div className="text-sm text-gray-700">
-                  Showing {((filters.page - 1) * filters.limit) + 1} to {Math.min(filters.page * filters.limit, filteredStudents.length)} of {filteredStudents.length} results
+                  {t('pagination.showing', 'Showing')} {((filters.page - 1) * filters.limit) + 1} {t('pagination.to', 'to')} {Math.min(filters.page * filters.limit, filteredStudents.length)} {t('pagination.of', 'of')} {filteredStudents.length} {t('pagination.results', 'results')}
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -282,10 +284,10 @@ export default function StudentsPage() {
                     onClick={() => handlePageChange(filters.page - 1)}
                     disabled={filters.page <= 1}
                   >
-                    Previous
+                    {t('pagination.previous', 'Previous')}
                   </Button>
                   <span className="flex items-center px-3 py-2 text-sm">
-                    Page {filters.page} of {Math.ceil(filteredStudents.length / filters.limit)}
+                    {t('pagination.page', 'Page')} {filters.page} {t('pagination.of', 'of')} {Math.ceil(filteredStudents.length / filters.limit)}
                   </span>
                   <Button
                     variant="outline"
@@ -293,7 +295,7 @@ export default function StudentsPage() {
                     onClick={() => handlePageChange(filters.page + 1)}
                     disabled={filters.page >= Math.ceil(filteredStudents.length / filters.limit)}
                   >
-                    Next
+                    {t('pagination.next', 'Next')}
                   </Button>
                 </div>
               </div>

@@ -20,9 +20,11 @@ import {
   Users,
   CheckSquare
 } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/context';
 
 export default function AdminAttendancePage() {
   const { user, token } = useAuth();
+  const { t } = useI18n();
 
   const [classDivisions, setClassDivisions] = useState<ClassDivision[]>([]);
   const [selectedClass, setSelectedClass] = useState<string>('');
@@ -109,8 +111,8 @@ export default function AdminAttendancePage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only admins and principals can access this section.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="text-gray-600">{t('access.adminsOnlySection', 'Only admins and principals can access this section.')}</p>
         </div>
       </div>
     );
@@ -127,10 +129,10 @@ export default function AdminAttendancePage() {
                 <div className="p-2 rounded-lg bg-primary/10">
                   <CheckSquare className="h-6 w-6 text-primary" />
                 </div>
-                <h1 className="text-3xl font-bold">Attendance Management</h1>
+                <h1 className="text-3xl font-bold">{t('attendanceMgmt.title', 'Attendance Management')}</h1>
               </div>
               <p className="text-muted-foreground">
-                Monitor and review attendance across all classes
+                {t('attendanceMgmt.subtitle', 'Monitor and review attendance across all classes')}
               </p>
             </div>
 
@@ -142,7 +144,7 @@ export default function AdminAttendancePage() {
                 className="flex items-center gap-2"
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
+                {t('actions.refresh', 'Refresh')}
               </Button>
               <Button
                 variant="outline"
@@ -150,7 +152,7 @@ export default function AdminAttendancePage() {
                 className="flex items-center gap-2"
               >
                 <Download className="h-4 w-4" />
-                Export
+                {t('attendanceMgmt.export', 'Export')}
               </Button>
             </div>
           </div>
@@ -162,7 +164,7 @@ export default function AdminAttendancePage() {
         <CardHeader>
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
-            Select Date
+            {t('attendanceMgmt.selectDate', 'Select Date')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -171,7 +173,7 @@ export default function AdminAttendancePage() {
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
               <div className="flex items-center gap-2">
                 <label htmlFor="date" className="text-sm font-medium">
-                  Attendance Date:
+                  {t('attendanceMgmt.attendanceDate', 'Attendance Date:')}
                 </label>
                 <Input
                   id="date"
@@ -184,7 +186,7 @@ export default function AdminAttendancePage() {
 
               {allClassesSummary && (
                 <div className="text-sm text-muted-foreground">
-                  Academic Year: {allClassesSummary.academic_year}
+                  {t('attendanceMgmt.academicYear', 'Academic Year:')} {allClassesSummary.academic_year}
                 </div>
               )}
             </div>
@@ -193,7 +195,7 @@ export default function AdminAttendancePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <label htmlFor="class-filter" className="text-sm font-medium">
-                  Filter by Class:
+                  {t('attendanceMgmt.filters.class', 'Filter by Class:')}
                 </label>
                 <select
                   id="class-filter"
@@ -201,7 +203,7 @@ export default function AdminAttendancePage() {
                   onChange={(e) => setSelectedClass(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  <option value="">All Classes</option>
+                  <option value="">{t('attendanceMgmt.allClasses', 'All Classes')}</option>
                   {uniqueClasses.map((className) => (
                     <option key={className} value={className}>
                       {className}
@@ -212,7 +214,7 @@ export default function AdminAttendancePage() {
 
               <div className="space-y-2">
                 <label htmlFor="division-filter" className="text-sm font-medium">
-                  Filter by Division:
+                  {t('attendanceMgmt.filters.division', 'Filter by Division:')}
                 </label>
                 <select
                   id="division-filter"
@@ -220,10 +222,10 @@ export default function AdminAttendancePage() {
                   onChange={(e) => setSelectedDivision(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  <option value="">All Divisions</option>
+                  <option value="">{t('attendanceMgmt.allDivisions', 'All Divisions')}</option>
                   {uniqueDivisions.map((division) => (
                     <option key={division} value={division}>
-                      Division {division}
+                      {t('timetable.section', 'Section')} {division}
                     </option>
                   ))}
                 </select>
@@ -238,7 +240,7 @@ export default function AdminAttendancePage() {
                   }}
                   className="flex-1"
                 >
-                  Clear Filters
+                  {t('attendanceMgmt.filters.clear', 'Clear Filters')}
                 </Button>
               </div>
             </div>
@@ -246,9 +248,9 @@ export default function AdminAttendancePage() {
             {/* Filter Summary */}
             {(selectedClass || selectedDivision) && (
               <div className="text-sm text-muted-foreground">
-                Showing {filteredAttendanceList.length} of {classAttendanceList.length} classes
-                {selectedClass && ` for ${selectedClass}`}
-                {selectedDivision && ` - Division ${selectedDivision}`}
+                {t('pagination.showing', 'Showing')} {filteredAttendanceList.length} {t('pagination.of', 'of')} {classAttendanceList.length} {t('attendanceMgmt.classesLower', 'classes')}
+                {selectedClass && ` ${t('attendanceMgmt.for', 'for')} ${selectedClass}`}
+                {selectedDivision && ` - ${t('timetable.section', 'Section')} ${selectedDivision}`}
               </div>
             )}
           </div>
@@ -289,19 +291,19 @@ export default function AdminAttendancePage() {
       {classesWithoutAttendance > 0 && (
         <Card className="hover:shadow-md transition-shadow border-l-4 border-l-orange-500">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
-              Action Required
-            </CardTitle>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                {t('attendanceMgmt.actionRequired', 'Action Required')}
+              </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <p className="text-foreground">
-                  <strong>{classesWithoutAttendance}</strong> classes still need attendance to be marked.
+                  <strong>{classesWithoutAttendance}</strong> {t('attendanceMgmt.unmarkedNotice', 'classes still need attendance to be marked.')}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Teachers should mark attendance for these classes to maintain accurate records.
+                  {t('attendanceMgmt.unmarkedHelp', 'Teachers should mark attendance for these classes to maintain accurate records.')}
                 </p>
               </div>
               <Button
@@ -318,7 +320,7 @@ export default function AdminAttendancePage() {
                 className="flex items-center gap-2"
               >
                 <Users className="h-4 w-4" />
-                View Pending Classes
+                {t('attendanceMgmt.viewPending', 'View Pending Classes')}
               </Button>
             </div>
           </CardContent>

@@ -36,14 +36,16 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { useI18n } from '@/lib/i18n/context';
 
 // Only allow admins and principals to access this page
 function AccessDenied() {
+  const { t } = useI18n();
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-        <p className="text-gray-600">Only admins and principals can access timetable management.</p>
+        <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
+        <p className="text-gray-600">{t('access.adminsOnlySection', 'Only admins and principals can access this section.')}</p>
       </div>
     </div>
   );
@@ -51,6 +53,7 @@ function AccessDenied() {
 
 export default function TimetablePage() {
   const { user, token } = useAuth();
+  const { t } = useI18n();
   const [configs, setConfigs] = useState<TimetableConfig[]>([]);
   const [selectedConfig, setSelectedConfig] = useState<TimetableConfig | null>(null);
   const [classDivisions, setClassDivisions] = useState<ClassDivision[]>([]);
@@ -220,8 +223,8 @@ export default function TimetablePage() {
       if (timetableResponse.status === 'success') {
         setTimetableData(timetableResponse.data.timetable);
         toast({
-          title: "Timetable Loaded",
-          description: `Found ${timetableResponse.data.total_entries} timetable entries for this class.`,
+          title: t('timetable.toasts.loadedTitle'),
+          description: `${t('timetable.toasts.loadedDesc')} ${timetableResponse.data.total_entries}`,
         });
       }
 
@@ -236,8 +239,8 @@ export default function TimetablePage() {
     } catch (error) {
       console.error('Error loading timetable data:', error);
       toast({
-        title: "Error",
-        description: "Failed to load timetable data",
+        title: t('timetable.toasts.error'),
+        description: t('timetable.toasts.failedToLoad'),
         variant: "error",
       });
     } finally {
@@ -251,8 +254,8 @@ export default function TimetablePage() {
     // Validate required fields
     if (!configForm.name.trim()) {
       toast({
-        title: "Error",
-        description: "Configuration name is required",
+        title: t('timetable.toasts.error'),
+        description: t('timetable.validation.configNameRequired'),
         variant: "error",
       });
       return;
@@ -260,8 +263,8 @@ export default function TimetablePage() {
 
     if (!configForm.academic_year_id) {
       toast({
-        title: "Error",
-        description: "Please select an academic year",
+        title: t('timetable.toasts.error'),
+        description: t('timetable.validation.selectAcademicYear'),
         variant: "error",
       });
       return;
@@ -274,8 +277,8 @@ export default function TimetablePage() {
       if (response && typeof response === 'object' && 'status' in response) {
         if (response.status === 'success') {
           toast({
-            title: "Success",
-            description: "Timetable configuration created successfully",
+            title: t('timetable.toasts.success'),
+            description: t('timetable.toasts.configCreated'),
           });
           setShowConfigDialog(false);
           setConfigForm({
@@ -290,14 +293,14 @@ export default function TimetablePage() {
           // Handle case where configuration already exists
           if (response.message.includes('already exists')) {
             toast({
-              title: "Configuration Exists",
+              title: t('timetable.toasts.configExists'),
               description: response.message,
             });
             setShowConfigDialog(false);
             await loadConfigs(); // Refresh to show existing config
           } else {
             toast({
-              title: "Error",
+              title: t('timetable.toasts.error'),
               description: response.message,
               variant: "error",
             });
@@ -313,14 +316,14 @@ export default function TimetablePage() {
       const errorMessage = error instanceof Error ? error.message : 'Failed to create configuration';
       if (errorMessage.includes('already exists')) {
         toast({
-          title: "Configuration Exists",
+          title: t('timetable.toasts.configExists'),
           description: errorMessage,
         });
         setShowConfigDialog(false);
         await loadConfigs(); // Refresh to show existing config
       } else {
         toast({
-          title: "Error",
+          title: t('timetable.toasts.error'),
           description: errorMessage,
           variant: "error",
         });
@@ -397,7 +400,7 @@ export default function TimetablePage() {
         // Set error state - useEffect will handle auto-closing
         setEntryError({
           type: 'teacher_conflict',
-          title: 'Teacher Schedule Conflict',
+          title: t('timetable.teacherConflict', 'Teacher Schedule Conflict'),
           message: typeof response.details === 'string' ? response.details : 'This teacher is already assigned to another class during the same period and day.',
           suggestion: typeof response.suggestion === 'string' ? response.suggestion : 'Please choose a different teacher, period, or day for this assignment.',
           constraint: response.constraint_violated
@@ -408,7 +411,7 @@ export default function TimetablePage() {
         const errorSuggestion = typeof response.suggestion === 'string' ? response.suggestion : "Please choose a different teacher, period, or day for this assignment.";
 
         toast({
-          title: "Teacher Schedule Conflict",
+          title: t('timetable.teacherConflict', 'Teacher Schedule Conflict'),
           description: `${errorDetails}\n\n💡 ${errorSuggestion}`,
           variant: "error",
           duration: 8000,
@@ -447,7 +450,7 @@ export default function TimetablePage() {
         // Set error state - useEffect will handle auto-closing
         setEntryError({
           type: 'teacher_conflict',
-          title: 'Teacher Schedule Conflict',
+          title: t('timetable.teacherConflict', 'Teacher Schedule Conflict'),
           message: typeof errorObj?.details === 'string' ? errorObj.details : 'This teacher is already assigned to another class during the same period and day.',
           suggestion: typeof errorObj?.suggestion === 'string' ? errorObj.suggestion : 'Please choose a different teacher, period, or day for this assignment.',
           constraint: errorObj?.constraint_violated
@@ -458,7 +461,7 @@ export default function TimetablePage() {
         const errorSuggestion = typeof errorObj?.suggestion === 'string' ? errorObj.suggestion : "Please choose a different teacher, period, or day for this assignment.";
 
         toast({
-          title: "Teacher Schedule Conflict",
+          title: t('timetable.teacherConflict', 'Teacher Schedule Conflict'),
           description: `${errorDetails}\n\n💡 ${errorSuggestion}`,
           variant: "error",
           duration: 8000,
@@ -504,10 +507,10 @@ export default function TimetablePage() {
                 <div className="p-2 rounded-lg bg-primary/10">
                   <Calendar className="h-6 w-6 text-primary" />
                 </div>
-                <h1 className="text-3xl font-bold">Timetable Management</h1>
+                <h1 className="text-3xl font-bold">{t('timetable.managementTitle')}</h1>
               </div>
               <p className="text-muted-foreground">
-                Create and manage school timetables for all classes
+                {t('timetable.managementSubtitle')}
               </p>
             </div>
 
@@ -519,7 +522,7 @@ export default function TimetablePage() {
                 className="flex items-center gap-2"
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
+                {t('actions.refresh')}
               </Button>
             </div>
           </div>
@@ -529,8 +532,8 @@ export default function TimetablePage() {
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="entries">Manage Entries</TabsTrigger>
+          <TabsTrigger value="overview">{t('timetable.tabs.overview')}</TabsTrigger>
+          <TabsTrigger value="entries">{t('timetable.tabs.entries')}</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -538,7 +541,7 @@ export default function TimetablePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="hover:shadow-md transition-shadow border-l-4 border-l-primary">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Active Configs</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">{t('timetable.kpi.activeConfigs')}</CardTitle>
                 <Settings className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
@@ -550,7 +553,7 @@ export default function TimetablePage() {
 
             <Card className="hover:shadow-md transition-shadow border-l-4 border-l-green-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Classes</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">{t('timetable.kpi.totalClasses')}</CardTitle>
                 <BookOpen className="h-4 w-4 text-green-500" />
               </CardHeader>
               <CardContent>
@@ -560,7 +563,7 @@ export default function TimetablePage() {
 
             <Card className="hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Periods/Day</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">{t('timetable.kpi.periodsPerDay')}</CardTitle>
                 <Clock className="h-4 w-4 text-blue-500" />
               </CardHeader>
               <CardContent>
@@ -572,7 +575,7 @@ export default function TimetablePage() {
 
             <Card className="hover:shadow-md transition-shadow border-l-4 border-l-purple-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Days/Week</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">{t('timetable.kpi.daysPerWeek')}</CardTitle>
                 <Calendar className="h-4 w-4 text-purple-500" />
               </CardHeader>
               <CardContent>
@@ -589,7 +592,7 @@ export default function TimetablePage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <CheckCircle className="h-5 w-5 text-green-500" />
-                  Active Configuration
+                  {t('timetable.activeConfiguration')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -598,7 +601,7 @@ export default function TimetablePage() {
                     <h3 className="font-semibold">{selectedConfig.name}</h3>
                     <p className="text-sm text-muted-foreground mt-1">{selectedConfig.description}</p>
                     <p className="text-sm text-muted-foreground mt-2">
-                      {selectedConfig.days_per_week} days/week • {selectedConfig.total_periods} periods/day
+                      {selectedConfig.days_per_week} {t('timetable.daysPerWeek')} • {selectedConfig.total_periods} {t('timetable.periodsPerDay')}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -608,7 +611,7 @@ export default function TimetablePage() {
                       onClick={() => openEditConfig(selectedConfig)}
                     >
                       <Edit className="h-4 w-4 mr-2" />
-                      Edit Config
+                      {t('timetable.editConfig')}
                     </Button>
                   </div>
                 </div>
@@ -621,7 +624,7 @@ export default function TimetablePage() {
         <TabsContent value="configurations" className="space-y-6">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-xl font-semibold">Timetable Configurations</h2>
+              <h2 className="text-xl font-semibold">{t('timetable.configs.title', 'Timetable Configurations')}</h2>
               <p className="text-sm text-muted-foreground mt-1">
                 Manage timetable structures for different academic years
               </p>
@@ -639,53 +642,53 @@ export default function TimetablePage() {
                   });
                 }}>
                   <Plus className="h-4 w-4 mr-2" />
-                  New Configuration
+                  {t('timetable.configs.new', 'New Configuration')}
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                   <DialogTitle>
-                    {editingConfig ? 'Edit Configuration' : 'Create New Configuration'}
+                    {editingConfig ? t('timetable.configs.editTitle', 'Edit Configuration') : t('timetable.configs.createTitle', 'Create New Configuration')}
                   </DialogTitle>
                   <DialogDescription>
-                    Set up the basic structure for your school timetable
+                    {t('timetable.configs.description', 'Set up the basic structure for your school timetable')}
                   </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="config-name">Configuration Name</Label>
+                    <Label htmlFor="config-name">{t('timetable.configs.nameLabel', 'Configuration Name')}</Label>
                     <Input
                       id="config-name"
                       value={configForm.name}
                       onChange={(e) => setConfigForm(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="e.g., Primary School Schedule 2025-26"
+                      placeholder={t('timetable.configs.namePlaceholder', 'e.g., Primary School Schedule 2025-26')}
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="config-description">Description (Optional)</Label>
+                    <Label htmlFor="config-description">{t('timetable.configs.descLabel', 'Description (Optional)')}</Label>
                     <Textarea
                       id="config-description"
                       value={configForm.description}
                       onChange={(e) => setConfigForm(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Brief description of this timetable configuration"
+                      placeholder={t('timetable.configs.descPlaceholder', 'Brief description of this timetable configuration')}
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="academic-year">Academic Year</Label>
+                    <Label htmlFor="academic-year">{t('timetable.academicYearLabel', 'Academic Year:')}</Label>
                     <Select
                       value={configForm.academic_year_id}
                       onValueChange={(value) => setConfigForm(prev => ({ ...prev, academic_year_id: value }))}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select Academic Year" />
+                        <SelectValue placeholder={t('timetable.selectAcademicYear', 'Select Academic Year')} />
                       </SelectTrigger>
                       <SelectContent>
                         {academicYears.map((year) => (
                           <SelectItem key={year.id} value={year.id}>
-                            {year.year_name} {year.is_active && '(Active)'}
+                            {year.year_name} {year.is_active && `(${t('academicSetup.status.active', 'Active')})`}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -694,7 +697,7 @@ export default function TimetablePage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="periods">Periods per Day</Label>
+                      <Label htmlFor="periods">{t('timetable.kpi.periodsPerDay', 'Periods/Day')}</Label>
                       <Input
                         id="periods"
                         type="number"
@@ -706,7 +709,7 @@ export default function TimetablePage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="days">Days per Week</Label>
+                      <Label htmlFor="days">{t('timetable.kpi.daysPerWeek', 'Days/Week')}</Label>
                       <Input
                         id="days"
                         type="number"
@@ -723,7 +726,7 @@ export default function TimetablePage() {
                       variant="outline"
                       onClick={() => setShowConfigDialog(false)}
                     >
-                      Cancel
+                      {t('actions.cancel')}
                     </Button>
                     <Button
                       onClick={editingConfig ? handleUpdateConfig : handleCreateConfig}
@@ -734,7 +737,7 @@ export default function TimetablePage() {
                       ) : (
                         <Save className="h-4 w-4 mr-2" />
                       )}
-                      {editingConfig ? 'Update' : 'Create'}
+                      {editingConfig ? t('actions.update', 'Update') : t('actions.create', 'Create')}
                     </Button>
                   </div>
                 </div>
@@ -757,14 +760,14 @@ export default function TimetablePage() {
                       <p className="text-sm text-muted-foreground mb-2">{config.description}</p>
                       <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                         <div>
-                          <span className="font-medium">Structure:</span> {config.days_per_week} days/week, {config.total_periods} periods/day
+                          <span className="font-medium">{t('timetable.structureLabel', 'Structure:')}</span> {config.days_per_week} {t('timetable.daysPerWeek')} , {config.total_periods} {t('timetable.periodsPerDay')}
                         </div>
                         <div>
-                          <span className="font-medium">Academic Year:</span> {config.academic_year?.year_name}
+                          <span className="font-medium">{t('timetable.academicYearLabel', 'Academic Year:')}</span> {config.academic_year?.year_name}
                         </div>
                       </div>
                       <div className="mt-2 text-xs text-muted-foreground">
-                        Created: {new Date(config.created_at).toLocaleDateString()}
+                        {t('timetable.createdLabel', 'Created:')} {new Date(config.created_at).toLocaleDateString()}
                       </div>
                     </div>
 
@@ -783,7 +786,7 @@ export default function TimetablePage() {
                         onClick={() => setSelectedConfig(config)}
                         className={selectedConfig?.id === config.id ? '' : 'hover:bg-primary/10'}
                       >
-                        {selectedConfig?.id === config.id ? 'Selected' : 'Select'}
+                        {selectedConfig?.id === config.id ? t('common.selected', 'Selected') : t('actions.select', 'Select')}
                       </Button>
                     </div>
                   </div>
@@ -826,9 +829,9 @@ export default function TimetablePage() {
         <TabsContent value="entries" className="space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h2 className="text-xl font-semibold">Manage Timetable Entries</h2>
+              <h2 className="text-xl font-semibold">{t('timetable.entries.title', 'Manage Timetable Entries')}</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Add and manage subjects, teachers, and schedules for each class
+                {t('timetable.entries.subtitle', 'Add and manage subjects, teachers, and schedules for each class')}
               </p>
             </div>
 
@@ -844,7 +847,7 @@ export default function TimetablePage() {
                   }}
                 >
                   <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Select Class" />
+                    <SelectValue placeholder={t('timetable.selectClass', 'Select Class')} />
                   </SelectTrigger>
                   <SelectContent>
                     {classDivisions.map((division) => (
@@ -968,7 +971,7 @@ export default function TimetablePage() {
                           }}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a subject" />
+                          <SelectValue placeholder={t('timetable.selectSubject')} />
                           </SelectTrigger>
                           <SelectContent>
                             {classDivisionSubjects.map((subject) => (
@@ -980,13 +983,13 @@ export default function TimetablePage() {
                               </SelectItem>
                             ))}
                             {/* Allow manual entry if no subjects are assigned or always allow custom */}
-                            <SelectItem value="custom">Enter Custom Subject</SelectItem>
+                            <SelectItem value="custom">{t('timetable.enterCustomSubject')}</SelectItem>
                           </SelectContent>
                         </Select>
                         {(customSubject || (!entryForm.subject && classDivisionSubjects.length === 0)) && (
                           <Input
                             className="mt-2"
-                            placeholder="Enter custom subject name"
+                            placeholder={t('timetable.enterCustomSubjectName')}
                             value={customSubject}
                             onChange={(e) => {
                               setCustomSubject(e.target.value);
@@ -996,19 +999,19 @@ export default function TimetablePage() {
                         )}
                         {classDivisionSubjects.length === 0 && !customSubject && (
                           <p className="text-sm text-muted-foreground mt-2">
-                            No subjects assigned to this class. You can enter a custom subject.
+                            {t('timetable.noSubjectsAssigned')}
                           </p>
                         )}
                       </div>
 
                       <div>
-                        <Label>Teacher</Label>
+                        <Label>{t('timetable.teacher')}</Label>
                         <Select
                           value={entryForm.teacher_id}
                           onValueChange={(value) => setEntryForm(prev => ({ ...prev, teacher_id: value }))}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a teacher" />
+                            <SelectValue placeholder={t('timetable.selectTeacher')} />
                           </SelectTrigger>
                           <SelectContent>
                             {classDivisionTeachers
@@ -1019,12 +1022,12 @@ export default function TimetablePage() {
                                     <span className="font-medium">{teacher.teacher_info.full_name}</span>
                                     {teacher.assignment_type === 'subject_teacher' && teacher.subject && (
                                       <span className="text-xs text-muted-foreground">
-                                        Subject: {teacher.subject}
+                                        {t('timetable.subject')}: {teacher.subject}
                                       </span>
                                     )}
                                     {teacher.assignment_type === 'class_teacher' && (
                                       <span className="text-xs text-muted-foreground">
-                                        Class Teacher
+                                        {t('timetable.classTeacher')}
                                       </span>
                                     )}
                                   </div>
@@ -1034,23 +1037,23 @@ export default function TimetablePage() {
                         </Select>
                         {classDivisionTeachers.length === 0 && selectedClass && (
                           <p className="text-sm text-muted-foreground mt-2">
-                            No teachers assigned to this class yet
+                          {t('timetable.noTeachersAssigned')}
                           </p>
                         )}
                       </div>
 
                       <div>
-                        <Label>Notes (Optional)</Label>
+                        <Label>{t('timetable.notesOptional')}</Label>
                         <Textarea
                           value={entryForm.notes}
                           onChange={(e) => setEntryForm(prev => ({ ...prev, notes: e.target.value }))}
-                          placeholder="Additional notes or instructions"
+                          placeholder={t('timetable.additionalNotes')}
                         />
                       </div>
 
                       <div className="flex justify-end gap-2">
                         <Button variant="outline" onClick={() => setShowEntryDialog(false)}>
-                          Cancel
+                          {t('actions.cancel')}
                         </Button>
                         <Button onClick={handleCreateEntry} disabled={loading}>
                           {loading ? (
@@ -1058,7 +1061,7 @@ export default function TimetablePage() {
                           ) : (
                             <Save className="h-4 w-4 mr-2" />
                           )}
-                          Create Entry
+                          {t('timetable.createEntry')}
                         </Button>
                       </div>
                     </div>
@@ -1073,13 +1076,13 @@ export default function TimetablePage() {
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  Please select a timetable configuration from the &quot;Configurations&quot; tab to start managing timetable entries.
+                  {t('timetable.alerts.selectConfig')}
                 </AlertDescription>
               </Alert>
 
               {configs.length > 0 && (
                 <div className="grid gap-3">
-                  <h3 className="font-medium text-sm">Available Configurations:</h3>
+                  <h3 className="font-medium text-sm">{t('timetable.availableConfigurations')}</h3>
                   {configs.slice(0, 3).map((config) => (
                     <Card key={config.id} className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-primary/50" onClick={() => setSelectedConfig(config)}>
                       <CardContent className="p-4">
@@ -1089,7 +1092,7 @@ export default function TimetablePage() {
                             <p className="text-sm text-muted-foreground">{config.academic_year?.year_name}</p>
                           </div>
                           <Button variant="outline" size="sm">
-                            Select This
+                            {t('actions.select')} {t('common.this', 'This')}
                           </Button>
                         </div>
                       </CardContent>
@@ -1106,10 +1109,10 @@ export default function TimetablePage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Calendar className="h-5 w-5" />
-                    Timetable for Selected Class
+                    {t('timetable.forSelectedClass', 'Timetable for Selected Class')}
                   </CardTitle>
                   <CardDescription>
-                    {classDivisions.find(c => c.id === selectedClass)?.class_level.name} - Section {classDivisions.find(c => c.id === selectedClass)?.division}
+                    {classDivisions.find(c => c.id === selectedClass)?.class_level.name} - {t('timetable.section')} {classDivisions.find(c => c.id === selectedClass)?.division}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -1121,7 +1124,7 @@ export default function TimetablePage() {
                         disabled={loading}
                       >
                         <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                        Refresh
+                        {t('actions.refresh')}
                       </Button>
 
                       <Button
@@ -1136,7 +1139,7 @@ export default function TimetablePage() {
                         }}
                       >
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Entry
+                        {t('timetable.addEntry')}
                       </Button>
                     </div>
 
@@ -1146,19 +1149,19 @@ export default function TimetablePage() {
                         <div className="font-semibold text-lg">
                           {Object.values(timetableData).reduce((total, entries) => total + entries.length, 0)}
                         </div>
-                        <div className="text-muted-foreground">Total Entries</div>
+                        <div className="text-muted-foreground">{t('timetable.totalEntries')}</div>
                       </div>
                       <div className="text-center">
                         <div className="font-semibold text-lg">
                           {new Set(Object.values(timetableData).flat().map(entry => entry.subject)).size}
                         </div>
-                        <div className="text-muted-foreground">Subjects</div>
+                        <div className="text-muted-foreground">{t('timetable.subjects', 'Subjects')}</div>
                       </div>
                       <div className="text-center">
                         <div className="font-semibold text-lg">
                           {new Set(Object.values(timetableData).flat().map(entry => entry.teacher_id)).size}
                         </div>
-                        <div className="text-muted-foreground">Teachers</div>
+                        <div className="text-muted-foreground">{t('common.staff')}</div>
                       </div>
                     </div>
                   </div>
@@ -1171,9 +1174,9 @@ export default function TimetablePage() {
                           <Plus className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div>
-                          <h4 className="font-medium text-blue-900 dark:text-blue-100">No Timetable Entries Yet</h4>
+                          <h4 className="font-medium text-blue-900 dark:text-blue-100">{t('timetable.noEntriesTitle', 'No Timetable Entries Yet')}</h4>
                           <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                            This class doesn&apos;t have any timetable entries yet. Click &quot;Add Entry&quot; to create the first schedule for this class.
+                            {t('timetable.noEntriesYet', `No entries yet. Click "Add Entry" to create the first schedule for this class.`)}
                           </p>
                         </div>
                       </div>
@@ -1188,10 +1191,10 @@ export default function TimetablePage() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <BookOpen className="h-5 w-5" />
-                      Available Subjects
+                      {t('timetable.availableSubjectsTitle', 'Available Subjects')}
                     </CardTitle>
                     <CardDescription>
-                      Subjects assigned to this class division
+                      {t('timetable.availableSubjectsDesc', 'Subjects assigned to this class division')}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -1218,10 +1221,10 @@ export default function TimetablePage() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <User className="h-5 w-5" />
-                      Available Teachers
+                      {t('timetable.availableTeachersTitle', 'Available Teachers')}
                     </CardTitle>
                     <CardDescription>
-                      Teachers assigned to this class division
+                      {t('timetable.availableTeachersDesc', 'Teachers assigned to this class division')}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -1273,12 +1276,12 @@ export default function TimetablePage() {
                   setShowEntryDialog(true);
                 }}
                 onDeleteEntry={async (entryId) => {
-                  if (confirm('Are you sure you want to delete this timetable entry?')) {
+                  if (confirm(t('timetable.delete.confirm'))) {
                     try {
                       await timetableApi.deleteEntry(entryId, token || '');
                       toast({
-                        title: "Success",
-                        description: "Timetable entry deleted successfully",
+                        title: t('timetable.toasts.success'),
+                        description: t('timetable.delete.success'),
                       });
                       if (selectedClass) {
                         await loadTimetableData(selectedClass);
@@ -1286,8 +1289,8 @@ export default function TimetablePage() {
                     } catch (error) {
                       console.error('Error deleting entry:', error);
                       toast({
-                        title: "Error",
-                        description: "Failed to delete entry",
+                        title: t('timetable.toasts.error'),
+                        description: t('timetable.delete.failed'),
                         variant: "error",
                       });
                     }
@@ -1302,13 +1305,13 @@ export default function TimetablePage() {
               <Alert>
                 <BookOpen className="h-4 w-4" />
                 <AlertDescription>
-                  Select a class from the dropdown above to view and manage its timetable entries.
+                  {t('timetable.selectClassHint', 'Select a class from the dropdown above to view and manage its timetable entries.')}
                 </AlertDescription>
               </Alert>
 
               {classDivisions.length > 0 && (
                 <div className="grid gap-3">
-                  <h3 className="font-medium text-sm">Available Classes:</h3>
+                  <h3 className="font-medium text-sm">{t('timetable.availableClasses', 'Available Classes:')}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {classDivisions.slice(0, 6).map((division) => (
                       <Card
@@ -1321,9 +1324,9 @@ export default function TimetablePage() {
                       >
                         <CardContent className="p-4 text-center">
                           <h4 className="font-medium">{division.class_level.name}</h4>
-                          <p className="text-sm text-muted-foreground">Section {division.division}</p>
+                          <p className="text-sm text-muted-foreground">{t('timetable.section', 'Section')} {division.division}</p>
                           <Button variant="outline" size="sm" className="mt-2 w-full">
-                            View Timetable
+                            {t('timetable.viewTimetable', 'View Timetable')}
                           </Button>
                         </CardContent>
                       </Card>

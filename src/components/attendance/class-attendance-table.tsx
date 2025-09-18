@@ -22,6 +22,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { ClassAttendanceSummary } from '@/lib/api/attendance';
+import { useI18n } from '@/lib/i18n/context';
 
 interface ClassAttendanceTableProps {
   classAttendanceList: ClassAttendanceSummary[];
@@ -39,6 +40,7 @@ export function ClassAttendanceTable({
   selectedDate
 }: ClassAttendanceTableProps) {
   const router = useRouter();
+  const { t } = useI18n();
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'marked' | 'unmarked' | 'holiday'>('all');
 
@@ -55,14 +57,14 @@ export function ClassAttendanceTable({
 
   const getStatusBadge = (classData: ClassAttendanceSummary) => {
     if (classData.is_holiday) {
-      return <Badge className="bg-purple-100 text-purple-800">Holiday</Badge>;
+      return <Badge className="bg-purple-100 text-purple-800">{t('attendanceMgmt.status.holiday', 'Holiday')}</Badge>;
     }
     
     if (classData.attendance_marked) {
-      return <Badge className="bg-green-100 text-green-800">Marked</Badge>;
+      return <Badge className="bg-green-100 text-green-800">{t('attendanceMgmt.status.marked', 'Marked')}</Badge>;
     }
     
-    return <Badge className="bg-orange-100 text-orange-800">Pending</Badge>;
+    return <Badge className="bg-orange-100 text-orange-800">{t('attendanceMgmt.status.pending', 'Pending')}</Badge>;
   };
 
   const getAttendancePercentageColor = (percentage: number) => {
@@ -97,14 +99,14 @@ export function ClassAttendanceTable({
     <Card>
       <CardHeader>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <CardTitle className="text-lg font-semibold">Class Attendance Overview</CardTitle>
+          <CardTitle className="text-lg font-semibold">{t('attendanceMgmt.table.title', 'Class Attendance Overview')}</CardTitle>
           
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search classes..."
+                placeholder={t('attendanceMgmt.table.searchPlaceholder', 'Search classes...')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 w-full sm:w-64"
@@ -117,10 +119,10 @@ export function ClassAttendanceTable({
               onChange={(e) => setFilter(e.target.value as 'all' | 'marked' | 'unmarked' | 'holiday')}
               className="px-3 py-2 border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
             >
-              <option value="all">All Classes</option>
-              <option value="marked">Attendance Marked</option>
-              <option value="unmarked">Pending Attendance</option>
-              <option value="holiday">Holidays</option>
+              <option value="all">{t('attendanceMgmt.allClasses', 'All Classes')}</option>
+              <option value="marked">{t('attendanceMgmt.cards.attendanceMarked', 'Attendance Marked')}</option>
+              <option value="unmarked">{t('attendanceMgmt.cards.pendingAttendance', 'Pending Attendance')}</option>
+              <option value="holiday">{t('attendanceMgmt.table.holidays', 'Holidays')}</option>
             </select>
           </div>
         </div>
@@ -134,20 +136,20 @@ export function ClassAttendanceTable({
         ) : filteredClasses.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-            <p>No classes found matching your criteria</p>
+            <p>{t('attendanceMgmt.table.empty', 'No classes found matching your criteria')}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Class</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Students</TableHead>
-                  <TableHead>Present</TableHead>
-                  <TableHead>Absent</TableHead>
-                  <TableHead>Attendance %</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>{t('attendanceMgmt.cols.class', 'Class')}</TableHead>
+                  <TableHead>{t('attendanceMgmt.cols.status', 'Status')}</TableHead>
+                  <TableHead>{t('attendanceMgmt.cols.students', 'Students')}</TableHead>
+                  <TableHead>{t('attendanceMgmt.cols.present', 'Present')}</TableHead>
+                  <TableHead>{t('attendanceMgmt.cols.absent', 'Absent')}</TableHead>
+                  <TableHead>{t('attendanceMgmt.cols.attendancePct', 'Attendance %')}</TableHead>
+                  <TableHead>{t('academicSetup.cols.actions', 'Actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -193,7 +195,7 @@ export function ClassAttendanceTable({
                         className="flex items-center gap-1"
                       >
                         <Eye className="h-3 w-3" />
-                        View Details
+                        {t('attendanceMgmt.table.viewDetails', 'View Details')}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -205,7 +207,7 @@ export function ClassAttendanceTable({
         
         {filteredClasses.length > 0 && (
           <div className="mt-4 text-sm text-muted-foreground text-center">
-            Showing {filteredClasses.length} of {classAttendanceList.length} classes
+            {t('pagination.showing', 'Showing')} {filteredClasses.length} {t('pagination.of', 'of')} {classAttendanceList.length} {t('attendanceMgmt.classesLower', 'classes')}
           </div>
         )}
       </CardContent>

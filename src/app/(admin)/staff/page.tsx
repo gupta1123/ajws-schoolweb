@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/table';
 import { Search, Plus, Loader2, AlertTriangle, UserCog } from 'lucide-react';
 import { useStaff } from '@/hooks/use-staff';
+import { useI18n } from '@/lib/i18n/context';
 
 import Link from 'next/link';
 
@@ -28,6 +29,7 @@ import Link from 'next/link';
 export default function StaffPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const { t } = useI18n();
   const {
     staff,
     loading,
@@ -65,8 +67,8 @@ export default function StaffPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only admins and principals can access this page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="text-gray-600">{t('access.adminsOnly', 'Only admins and principals can access this page.')}</p>
         </div>
       </div>
     );
@@ -80,7 +82,7 @@ export default function StaffPage() {
     is_primary?: boolean;
     is_legacy?: boolean;
   }>) => {
-    if (!classTeacherOf || classTeacherOf.length === 0) return 'None';
+    if (!classTeacherOf || classTeacherOf.length === 0) return t('common.none', 'None');
     return classTeacherOf.map((cls) => cls.class_name).join(', ');
   };
 
@@ -91,7 +93,7 @@ export default function StaffPage() {
     academic_year: string;
     subject: string;
   }>) => {
-    if (!subjectsTaught || subjectsTaught.length === 0) return 'None';
+    if (!subjectsTaught || subjectsTaught.length === 0) return t('common.none', 'None');
     
     // If we have detailed subject teaching info, show it
     if (subjectTeacherOf && subjectTeacherOf.length > 0) {
@@ -113,7 +115,7 @@ export default function StaffPage() {
             <div className="relative w-full md:w-64">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Search staff..." 
+                placeholder={t('staff.searchPlaceholder', 'Search staff...')} 
                 className="pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -123,7 +125,7 @@ export default function StaffPage() {
           <div className="flex items-center gap-3">
             <Button onClick={handleAddNew}>
               <Plus className="mr-2 h-4 w-4" />
-              Add Staff
+              {t('staff.addStaff', 'Add Staff')}
             </Button>
             <Button
               variant="outline"
@@ -131,7 +133,7 @@ export default function StaffPage() {
               className="flex items-center gap-2"
             >
               <UserCog className="mr-2 h-4 w-4" />
-              Assign Subjects
+              {t('staff.assignSubjects', 'Assign Subjects')}
             </Button>
           </div>
         </div>
@@ -152,9 +154,9 @@ export default function StaffPage() {
         {/* Staff Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Staff List</CardTitle>
+            <CardTitle>{t('staff.list.title', 'Staff List')}</CardTitle>
             <CardDescription>
-              List of all staff members in the school
+              {t('staff.list.subtitle', 'List of all staff members in the school')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -162,11 +164,11 @@ export default function StaffPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Class Teacher Of</TableHead>
-                    <TableHead>Subjects Taught</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t('staff.cols.name', 'Name')}</TableHead>
+                    <TableHead>{t('staff.cols.phone', 'Phone')}</TableHead>
+                    <TableHead>{t('staff.cols.classTeacherOf', 'Class Teacher Of')}</TableHead>
+                    <TableHead>{t('staff.cols.subjectsTaught', 'Subjects Taught')}</TableHead>
+                    <TableHead className="text-right">{t('academicSetup.cols.actions', 'Actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -175,7 +177,7 @@ export default function StaffPage() {
                       <TableCell colSpan={5} className="text-center py-8">
                         <div className="flex items-center justify-center gap-2">
                           <Loader2 className="h-5 w-5 animate-spin" />
-                          <span>Loading staff...</span>
+                          <span>{t('staff.loading', 'Loading staff...')}</span>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -183,7 +185,7 @@ export default function StaffPage() {
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-8">
                         <span className="text-muted-foreground">
-                          {searchTerm ? 'No staff found matching the search term' : 'No staff members found'}
+                          {searchTerm ? t('staff.empty.noMatch', 'No staff found matching the search term') : t('staff.empty.noStaff', 'No staff members found')}
                         </span>
                       </TableCell>
                     </TableRow>
@@ -195,22 +197,22 @@ export default function StaffPage() {
                           <TableCell>
                             {staff.teaching_details?.class_teacher_of && staff.teaching_details.class_teacher_of.length > 0
                               ? formatClassTeacherInfo(staff.teaching_details.class_teacher_of)
-                              : 'None'}
+                              : t('common.none', 'None')}
                           </TableCell>
                           <TableCell>
                             {staff.teaching_details?.subjects_taught && staff.teaching_details.subjects_taught.length > 0
                               ? formatSubjectsTaught(staff.teaching_details.subjects_taught)
-                              : 'None'}
+                              : t('common.none', 'None')}
                           </TableCell>
                         <TableCell className="text-right">
                           <Button variant="outline" size="sm" className="mr-2" asChild>
                             <Link href={`/staff/${staff.id}`}>
-                              View
+                              {t('actions.view', 'View')}
                             </Link>
                           </Button>
                           <Button variant="outline" size="sm" className="mr-2" asChild>
                             <Link href={`/staff/${staff.id}/edit`}>
-                              Edit
+                              {t('actions.edit', 'Edit')}
                             </Link>
                           </Button>
                           <Button 
@@ -219,7 +221,7 @@ export default function StaffPage() {
                             onClick={() => handleDelete(staff.id)}
                             className="text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
-                            Delete
+                            {t('actions.delete', 'Delete')}
                           </Button>
                         </TableCell>
                       </TableRow>

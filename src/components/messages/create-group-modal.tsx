@@ -32,6 +32,7 @@ import {
 } from '@/lib/api/messages';
 import { useAuth } from '@/lib/auth/context';
 import { useToast } from '@/hooks/use-toast';
+import { useI18n } from '@/lib/i18n/context';
 
 interface CreateGroupModalProps {
   open: boolean;
@@ -42,6 +43,7 @@ interface CreateGroupModalProps {
 export function CreateGroupModal({ open, onOpenChange, onGroupCreated }: CreateGroupModalProps) {
   const { token } = useAuth();
   const { toast } = useToast();
+  const { t } = useI18n();
   const [groupName, setGroupName] = useState('');
   const [groupDescription, setGroupDescription] = useState('');
   const [initialMessage, setInitialMessage] = useState('');
@@ -73,11 +75,11 @@ export function CreateGroupModal({ open, onOpenChange, onGroupCreated }: CreateG
       }
     } catch (error) {
       console.error('Error fetching linked parents:', error);
-      setError('Failed to load parents. Please try again.');
+      setError(t('messages.loadParentsFailed'));
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   // Fetch linked parents when modal opens
   useEffect(() => {
@@ -120,8 +122,8 @@ export function CreateGroupModal({ open, onOpenChange, onGroupCreated }: CreateG
         
         // Show success toast
         toast({
-          title: "Group Created Successfully!",
-          description: `"${groupName.trim()}" group has been created with ${selectedParents.length} parent(s).`,
+          title: t('messages.groupCreatedTitle'),
+          description: t('messages.groupCreatedDesc'),
           variant: "success"
         });
         
@@ -138,11 +140,11 @@ export function CreateGroupModal({ open, onOpenChange, onGroupCreated }: CreateG
         // Close modal
         onOpenChange(false);
       } else {
-        throw new Error(response.message || 'Failed to create group');
+        throw new Error(response.message || t('messages.createGroupFailed'));
       }
     } catch (error) {
       console.error('Error creating group:', error);
-      setError('Failed to create group. Please try again.');
+      setError(t('messages.createGroupFailed'));
     } finally {
       setCreating(false);
     }
@@ -168,10 +170,10 @@ export function CreateGroupModal({ open, onOpenChange, onGroupCreated }: CreateG
   );
 
   const getStudentInfo = (parent: TeacherLinkedParent) => {
-    if (parent.linked_students.length === 0) return 'No students linked';
+    if (parent.linked_students.length === 0) return t('messages.createGroup.noStudentsLinked');
     
     const studentNames = parent.linked_students.map(student => student.student_name).join(', ');
-    const className = parent.linked_students[0]?.teacher_assignments[0]?.class_name || 'Unknown Class';
+    const className = parent.linked_students[0]?.teacher_assignments[0]?.class_name || t('messages.createGroup.unknownClass');
     
     return `${studentNames} (${className})`;
   };
@@ -184,10 +186,10 @@ export function CreateGroupModal({ open, onOpenChange, onGroupCreated }: CreateG
             <div>
               <DialogTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                Create New Group
+                {t('messages.createGroup.title')}
               </DialogTitle>
               <DialogDescription className="mt-1">
-                Create a group chat with selected parents
+                {t('messages.createGroup.subtitle')}
               </DialogDescription>
             </div>
             <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={handleClose}>
@@ -200,10 +202,10 @@ export function CreateGroupModal({ open, onOpenChange, onGroupCreated }: CreateG
           {/* Group Details */}
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="groupName">Group Name *</Label>
+              <Label htmlFor="groupName">{t('messages.createGroup.groupName')}</Label>
               <Input
                 id="groupName"
-                placeholder="Enter group name (e.g., Grade 5A Parents)"
+                placeholder={t('messages.createGroup.groupNamePlaceholder')}
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
                 disabled={creating}
@@ -211,10 +213,10 @@ export function CreateGroupModal({ open, onOpenChange, onGroupCreated }: CreateG
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="groupDescription">Group Description (Optional)</Label>
+              <Label htmlFor="groupDescription">{t('messages.createGroup.groupDesc')}</Label>
               <Textarea
                 id="groupDescription"
-                placeholder="Describe the purpose of this group"
+                placeholder={t('messages.createGroup.groupDescPlaceholder')}
                 value={groupDescription}
                 onChange={(e) => setGroupDescription(e.target.value)}
                 disabled={creating}
@@ -223,10 +225,10 @@ export function CreateGroupModal({ open, onOpenChange, onGroupCreated }: CreateG
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="initialMessage">Initial Message (Optional)</Label>
+              <Label htmlFor="initialMessage">{t('messages.createGroup.initialMessage')}</Label>
               <Textarea
                 id="initialMessage"
-                placeholder="Send a welcome message to the group"
+                placeholder={t('messages.createGroup.initialMessagePlaceholder')}
                 value={initialMessage}
                 onChange={(e) => setInitialMessage(e.target.value)}
                 disabled={creating}
@@ -248,7 +250,7 @@ export function CreateGroupModal({ open, onOpenChange, onGroupCreated }: CreateG
           {/* Parent Selection */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label>Select Parents ({selectedParents.length} selected)</Label>
+              <Label>{t('messages.createGroup.selectParents')} ({selectedParents.length} {t('messages.createGroup.selected')})</Label>
               {selectedParents.length > 0 && (
                 <Button
                   variant="ghost"
@@ -256,7 +258,7 @@ export function CreateGroupModal({ open, onOpenChange, onGroupCreated }: CreateG
                   onClick={() => setSelectedParents([])}
                   disabled={creating}
                 >
-                  Clear All
+                  {t('messages.createGroup.clearAll')}
                 </Button>
               )}
             </div>
@@ -265,7 +267,7 @@ export function CreateGroupModal({ open, onOpenChange, onGroupCreated }: CreateG
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search parents or students..."
+                placeholder={t('messages.createGroup.searchParentsPlaceholder')}
                 className="pl-10"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -278,13 +280,13 @@ export function CreateGroupModal({ open, onOpenChange, onGroupCreated }: CreateG
               {loading ? (
                 <div className="p-8 text-center">
                   <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">Loading parents...</p>
+                  <p className="text-sm text-muted-foreground">{t('messages.createGroup.loadingParents')}</p>
                 </div>
               ) : filteredParents.length === 0 ? (
                 <div className="p-8 text-center">
                   <Users className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">
-                    {searchTerm ? 'No parents found matching your search' : 'No parents available'}
+                    {searchTerm ? t('messages.createGroup.noParentsMatch') : t('messages.createGroup.noParents')}
                   </p>
                 </div>
               ) : (
@@ -330,7 +332,7 @@ export function CreateGroupModal({ open, onOpenChange, onGroupCreated }: CreateG
 
         <DialogFooter className="border-t pt-4">
           <Button variant="outline" onClick={handleClose} disabled={creating}>
-            Cancel
+            {t('messages.createGroup.cancel')}
           </Button>
           <Button 
             onClick={handleCreateGroup}
@@ -340,12 +342,12 @@ export function CreateGroupModal({ open, onOpenChange, onGroupCreated }: CreateG
             {creating ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Creating...
+                {t('messages.createGroup.creating')}
               </>
             ) : (
               <>
                 <Users className="h-4 w-4 mr-2" />
-                Create Group
+                {t('messages.createGroup.createGroup')}
               </>
             )}
           </Button>

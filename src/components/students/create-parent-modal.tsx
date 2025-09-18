@@ -12,6 +12,7 @@ import { User, Phone, Mail, Lock, X, Loader2, CheckCircle } from 'lucide-react';
 import { parentServices, CreateParentRequest } from '@/lib/api/parents';
 import { useAuth } from '@/lib/auth/context';
 import { toast } from '@/hooks/use-toast';
+import { useI18n } from '@/lib/i18n/context';
 
 interface CreateParentModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ interface CreateParentModalProps {
 
 export function CreateParentModal({ isOpen, onClose, onSuccess, studentAdmissionNumber, relationship }: CreateParentModalProps) {
   const { token } = useAuth();
+  const { t } = useI18n();
   const [formData, setFormData] = useState({
     full_name: '',
     phone_number: '',
@@ -77,8 +79,8 @@ export function CreateParentModal({ isOpen, onClose, onSuccess, studentAdmission
       // Handle successful response
       if ('status' in response && response.status === 'success') {
         toast({
-          title: "Success",
-          description: "Parent created successfully!",
+          title: t('timetable.toasts.success'),
+          description: t('parents.created'),
         });
 
         // Reset form
@@ -116,17 +118,17 @@ export function CreateParentModal({ isOpen, onClose, onSuccess, studentAdmission
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            Create New Parent
+            {t('parents.createTitle')}
           </DialogTitle>
           <DialogDescription>
-            Create a new parent account that can be linked to students
+            {t('parents.createSubtitle')}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="full_name" className="text-sm font-medium">
-              Full Name *
+              {t('settings.fullName')} *
             </Label>
             <div className="relative">
               <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -135,7 +137,7 @@ export function CreateParentModal({ isOpen, onClose, onSuccess, studentAdmission
                 name="full_name"
                 value={formData.full_name}
                 onChange={handleInputChange}
-                placeholder="Enter parent's full name"
+                placeholder={t('parents.enterFullName')}
                 className="pl-10"
                 required
                 disabled={isLoading}
@@ -145,7 +147,7 @@ export function CreateParentModal({ isOpen, onClose, onSuccess, studentAdmission
 
           <div className="space-y-2">
             <Label htmlFor="phone_number" className="text-sm font-medium">
-              Phone Number *
+              {t('auth.phoneNumber')} *
             </Label>
             <div className="relative">
               <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -155,7 +157,7 @@ export function CreateParentModal({ isOpen, onClose, onSuccess, studentAdmission
                 type="tel"
                 value={formData.phone_number}
                 onChange={handleInputChange}
-                placeholder="Enter phone number"
+                placeholder={t('parents.enterPhone')}
                 className="pl-10"
                 required
                 disabled={isLoading}
@@ -165,7 +167,7 @@ export function CreateParentModal({ isOpen, onClose, onSuccess, studentAdmission
 
           <div className="space-y-2">
             <Label htmlFor="email" className="text-sm font-medium">
-              Email (Optional)
+              {t('parents.emailOptional')}
             </Label>
             <div className="relative">
               <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -175,7 +177,7 @@ export function CreateParentModal({ isOpen, onClose, onSuccess, studentAdmission
                 type="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                placeholder="Enter email address"
+                placeholder={t('parents.enterEmail')}
                 className="pl-10"
                 disabled={isLoading}
               />
@@ -184,7 +186,7 @@ export function CreateParentModal({ isOpen, onClose, onSuccess, studentAdmission
 
           <div className="space-y-2">
             <Label htmlFor="initial_password" className="text-sm font-medium">
-              Initial Password *
+              {t('parents.initialPassword')} *
             </Label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -194,7 +196,7 @@ export function CreateParentModal({ isOpen, onClose, onSuccess, studentAdmission
                 type="password"
                 value={formData.initial_password}
                 onChange={handleInputChange}
-                placeholder="Enter initial password"
+                placeholder={t('parents.enterInitialPassword')}
                 className="pl-10"
                 required
                 disabled={isLoading}
@@ -216,7 +218,7 @@ export function CreateParentModal({ isOpen, onClose, onSuccess, studentAdmission
               disabled={isLoading}
             >
               <X className="h-4 w-4 mr-2" />
-              Cancel
+              {t('actions.cancel')}
             </Button>
             <Button
               type="submit"
@@ -226,12 +228,12 @@ export function CreateParentModal({ isOpen, onClose, onSuccess, studentAdmission
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
+                  {t('parents.creating')}
                 </>
               ) : (
                 <>
                   <CheckCircle className="h-4 w-4 mr-2" />
-                  Create Parent
+                  {t('parents.createParent')}
                 </>
               )}
             </Button>

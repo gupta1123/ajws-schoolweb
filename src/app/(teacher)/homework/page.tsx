@@ -30,6 +30,7 @@ import { homeworkServices } from '@/lib/api/homework';
 import { academicServices } from '@/lib/api/academic';
 import { Homework } from '@/types/homework';
 import { toast } from '@/hooks/use-toast';
+import { useI18n } from '@/lib/i18n/context';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/utils';
 
@@ -52,6 +53,7 @@ interface TeacherAssignment {
 export default function HomeworkPage() {
   const { user, token, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { t } = useI18n();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [selectedClass, setSelectedClass] = useState('all');
@@ -60,99 +62,99 @@ export default function HomeworkPage() {
   const [filteredHomework, setFilteredHomework] = useState<Homework[]>([]);
   const [teacherSubjects, setTeacherSubjects] = useState<string[]>([]);
   const [teacherClasses, setTeacherClasses] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit] = useState(10);
+  const [pagination, setPagination] = useState<{
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+    has_next: boolean;
+    has_prev: boolean;
+  } | null>(null);
 
-  // Fetch teacher assignments and homework data from API
-  const fetchData = useCallback(async () => {
+  // Fetch teacher assignments (subjects + classes) once
+  const fetchAssignments = useCallback(async () => {
+    if (!token) return;
     try {
-      setLoading(true);
-      
-      if (!token) {
-        console.log('No token available, skipping API call');
-        return;
-      }
-    
-    
       const teacherResponse = await academicServices.getMyTeacherClasses(token);
       if (teacherResponse.status === 'success' && teacherResponse.data) {
-        // Extract unique subjects from teacher assignments
         const subjects = Array.from(new Set(
           teacherResponse.data.assigned_classes
             .map((assignment: TeacherAssignment) => assignment.subject)
-            .filter((subject): subject is string => subject !== undefined && subject !== null) // Filter out undefined/null subjects
+            .filter((subject): subject is string => subject !== undefined && subject !== null)
         ));
         setTeacherSubjects(subjects);
-        
-        // Extract unique classes from teacher assignments
+
         const classes = Array.from(new Set(
           teacherResponse.data.assigned_classes
             .map((assignment: TeacherAssignment) => `${assignment.class_level} - Section ${assignment.division}`)
         ));
         setTeacherClasses(classes);
-        
-        console.log('Teacher assignments:', teacherResponse.data);
-        console.log('Teacher subjects:', subjects);
-        console.log('Teacher classes:', classes);
       } else {
-        console.log('No teacher assignments found or API error:', teacherResponse);
-        // Set empty arrays as fallback
         setTeacherSubjects([]);
         setTeacherClasses([]);
       }
-      
-      // Fetch homework data
-      const homeworkResponse = await homeworkServices.getHomework(token);
+    } catch (error) {
+      console.error('Error fetching teacher assignments:', error);
+    }
+  }, [token]);
+
+  // Fetch homework with pagination/filters
+  const fetchHomework = useCallback(async () => {
+    if (!token) return;
+    try {
+      setLoading(true);
+      const homeworkResponse = await homeworkServices.getHomework(token, {
+        page: currentPage,
+        limit,
+        subject: selectedSubject !== 'all' ? selectedSubject : undefined,
+      });
       if (homeworkResponse.status === 'success' && homeworkResponse.data) {
-        // The homework response should already include attachments data
-        // If not, we can fetch them individually as needed
-        const homeworkWithAttachments = homeworkResponse.data.homework.map(hw => {
-          // Ensure attachments array exists, even if empty
-          return {
-            ...hw,
-            attachments: hw.attachments || []
-          };
-        });
-        
-        // Sort by due_date in descending order (newest first)
+        const homeworkWithAttachments = homeworkResponse.data.homework.map(hw => ({
+          ...hw,
+          attachments: hw.attachments || []
+        }));
         const sortedHomework = homeworkWithAttachments.sort((a, b) =>
           new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
         );
         setHomework(sortedHomework);
-        setFilteredHomework(sortedHomework);
+        setPagination(homeworkResponse.data.pagination || null);
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch data",
-        variant: "error",
-      });
+      console.error('Error fetching homework:', error);
+      toast({ title: t('common.error', 'Error'), description: t('homeworkTeacher.list.fetchFailed', 'Failed to fetch data'), variant: 'error' });
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, currentPage, limit, selectedSubject, t]);
 
 
 
-  // Fetch data on component mount
+  // Fetch assignments once, then homework when pagination/filters change
   useEffect(() => {
-    if (token) {
-      fetchData();
-    } else {
-      console.log('No token available, skipping API call');
-    }
-  }, [token, fetchData]);
+    if (token) fetchAssignments();
+  }, [token, fetchAssignments]);
 
-  // Refresh data when page becomes visible (e.g., returning from create/edit)
+  useEffect(() => {
+    if (token) fetchHomework();
+  }, [token, fetchHomework]);
+
+  // Refresh homework when page becomes visible (e.g., returning from create/edit)
   useEffect(() => {
     const handleFocus = () => {
-      if (token && !loading) {
-        fetchData();
-      }
+      if (token) fetchHomework();
     };
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [token, loading, fetchData]);
+  }, [token, fetchHomework]);
+
+  const handlePageChange = (page: number) => {
+    if (!pagination) return;
+    if (page < 1 || page > pagination.total_pages) return;
+    setCurrentPage(page);
+  };
 
   // Filter homework based on search term, filters, and teacher assignments
   useEffect(() => {
@@ -187,8 +189,8 @@ export default function HomeworkPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only teachers can access this page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="text-gray-600">{t('access.teachersOnlyPage', 'Only teachers can access this page.')}</p>
         </div>
       </div>
     );
@@ -200,7 +202,7 @@ export default function HomeworkPage() {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading authentication...</p>
+          <p className="mt-2 text-gray-600">{t('auth.loading', 'Loading authentication...')}</p>
         </div>
       </div>
     );
@@ -211,13 +213,13 @@ export default function HomeworkPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Authentication Required</h2>
-          <p className="text-gray-600">Please log in to access this page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('auth.title', 'Sign in to your account')}</h2>
+          <p className="text-gray-600">{t('homeworkTeacher.authRequired', 'Please log in to access this page.')}</p>
           <Button 
             onClick={() => router.push('/login')}
             className="mt-4"
           >
-            Go to Login
+            {t('homeworkTeacher.goToLogin', 'Go to Login')}
           </Button>
         </div>
       </div>
@@ -232,15 +234,15 @@ export default function HomeworkPage() {
       if (response.status === 'success') {
         setHomework(prev => prev.filter(hw => hw.id !== id));
         toast({
-          title: "Success",
-          description: "Homework assignment deleted successfully!",
+          title: t('common.success', 'Success'),
+          description: t('homeworkTeacher.delete.success', 'Homework assignment deleted successfully!'),
         });
       }
     } catch (error) {
       console.error('Error deleting homework:', error);
         toast({
-          title: "Error",
-          description: "Failed to delete homework assignment",
+          title: t('common.error', 'Error'),
+          description: t('homeworkTeacher.delete.failed', 'Failed to delete homework assignment'),
           variant: "error",
         });
     }
@@ -257,7 +259,7 @@ export default function HomeworkPage() {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading homework...</p>
+          <p className="mt-2 text-gray-600">{t('homeworkTeacher.list.loading', 'Loading homework...')}</p>
         </div>
       </div>
     );
@@ -274,7 +276,7 @@ export default function HomeworkPage() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input 
-                  placeholder="Search homework..." 
+                  placeholder={t('homeworkTeacher.list.search', 'Search homework...')} 
                   className="pl-10" 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -284,15 +286,15 @@ export default function HomeworkPage() {
                 <select 
                   className="border rounded-md px-3 py-2 text-sm"
                   value={selectedSubject}
-                  onChange={(e) => setSelectedSubject(e.target.value)}
+                  onChange={(e) => { setSelectedSubject(e.target.value); setCurrentPage(1); }}
                 >
-                  <option value="all">All Subjects</option>
+                  <option value="all">{t('homeworkTeacher.filters.allSubjects', 'All Subjects')}</option>
                   {teacherSubjects.length > 0 ? (
                     teacherSubjects.map(subject => (
                       <option key={subject} value={subject}>{subject}</option>
                     ))
                   ) : (
-                    <option value="" disabled>No subjects assigned</option>
+                    <option value="" disabled>{t('homeworkTeacher.filters.noSubjects', 'No subjects assigned')}</option>
                   )}
                 </select>
                 <select 
@@ -300,20 +302,20 @@ export default function HomeworkPage() {
                   value={selectedClass}
                   onChange={(e) => setSelectedClass(e.target.value)}
                 >
-                  <option value="all">All Classes</option>
+                  <option value="all">{t('homeworkTeacher.filters.allClasses', 'All Classes')}</option>
                   {teacherClasses.length > 0 ? (
                     teacherClasses.map(cls => (
                       <option key={cls} value={cls}>{cls}</option>
                     ))
                   ) : (
-                    <option value="" disabled>No classes assigned</option>
+                    <option value="" disabled>{t('homeworkTeacher.filters.noClasses', 'No classes assigned')}</option>
                   )}
                 </select>
               </div>
               <Button asChild size="lg">
                 <Link href="/homework/create">
                   <Plus className="mr-2 h-5 w-5" />
-                  Create Homework
+                  {t('homeworkTeacher.create.cta', 'Create Homework')}
                 </Link>
               </Button>
 
@@ -324,9 +326,9 @@ export default function HomeworkPage() {
         {/* Homework Assignments Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Homework Assignments</CardTitle>
+            <CardTitle>{t('homeworkTeacher.list.title', 'Homework Assignments')}</CardTitle>
             <CardDescription>
-              List of homework assignments you&apos;ve created
+              {t('homeworkTeacher.list.subtitle', "List of homework assignments you've created")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -334,11 +336,11 @@ export default function HomeworkPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Class</TableHead>
-                    <TableHead>Due Date</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t('homeworkTeacher.table.subject', 'Subject')}</TableHead>
+                    <TableHead>{t('homeworkTeacher.table.title', 'Title')}</TableHead>
+                    <TableHead>{t('homeworkTeacher.table.class', 'Class')}</TableHead>
+                    <TableHead>{t('homeworkTeacher.table.dueDate', 'Due Date')}</TableHead>
+                    <TableHead className="text-right">{t('academicSetup.cols.actions', 'Actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -387,16 +389,46 @@ export default function HomeworkPage() {
             {filteredHomework.length === 0 && (
               <div className="text-center py-12">
                 <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No homework found</h3>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">{t('homeworkTeacher.empty.title', 'No homework found')}</h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  {searchTerm ? 'No homework matches your search.' : 'You haven\'t created any homework yet.'}
+                  {searchTerm ? t('homeworkTeacher.empty.noMatch', 'No homework matches your search.') : t('homeworkTeacher.empty.none', "You haven't created any homework yet.")}
                 </p>
                 <div className="mt-6">
                   <Button asChild>
                     <Link href="/homework/create">
                       <Plus className="mr-2 h-4 w-4" />
-                      Create Homework
+                      {t('homeworkTeacher.create.cta', 'Create Homework')}
                     </Link>
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {pagination && pagination.total_pages > 1 && (
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-gray-700">
+                  {t('pagination.showing', 'Showing')} {((currentPage - 1) * limit) + 1} {t('pagination.to', 'to')} {Math.min(currentPage * limit, pagination.total)} {t('pagination.of', 'of')} {pagination.total} {t('pagination.results', 'results')}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={!pagination.has_prev}
+                  >
+                    {t('pagination.previous', 'Previous')}
+                  </Button>
+                  <span className="flex items-center px-3 py-2 text-sm">
+                    {t('pagination.page', 'Page')} {currentPage} {t('pagination.of', 'of')} {pagination.total_pages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={!pagination.has_next}
+                  >
+                    {t('pagination.next', 'Next')}
                   </Button>
                 </div>
               </div>

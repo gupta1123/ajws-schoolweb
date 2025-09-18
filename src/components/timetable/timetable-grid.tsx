@@ -17,6 +17,7 @@ import {
   User,
   Clock
 } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/context';
 
 interface TimetableGridProps {
   timetableData: Record<string, TimetableEntry[]>;
@@ -36,12 +37,22 @@ export function TimetableGrid({
   onDeleteEntry,
   className = ''
 }: TimetableGridProps) {
+  const { t } = useI18n();
+  const dayKeyMap: Record<string, string> = {
+    Monday: 'days.monday',
+    Tuesday: 'days.tuesday',
+    Wednesday: 'days.wednesday',
+    Thursday: 'days.thursday',
+    Friday: 'days.friday',
+    Saturday: 'days.saturday',
+    Sunday: 'days.sunday',
+  };
   if (!config) {
     return (
       <Card className={className}>
         <CardContent className="p-8 text-center">
           <Clock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <p className="text-muted-foreground">No timetable configuration selected</p>
+          <p className="text-muted-foreground">{t('timetable.noConfigSelected')}</p>
         </CardContent>
       </Card>
     );
@@ -75,7 +86,7 @@ export function TimetableGrid({
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <User className="h-3 w-3" />
             <span className="truncate">
-              {entry.teacher?.full_name || 'Unknown Teacher'}
+              {entry.teacher?.full_name || t('timetable.unknownTeacher')}
             </span>
           </div>
 
@@ -112,7 +123,7 @@ export function TimetableGrid({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Clock className="h-5 w-5" />
-          Class Timetable
+          {t('timetable.classTimetable')}
         </CardTitle>
       </CardHeader>
 
@@ -122,14 +133,14 @@ export function TimetableGrid({
             <TableHeader>
               <TableRow>
                 <TableHead className="border border-gray-200 bg-muted/50 font-semibold text-center">
-                  Period
+                  {t('timetable.period')}
                 </TableHead>
                 {Array.from({ length: config.days_per_week }, (_, i) => (
                   <TableHead
                     key={i}
                     className="border border-gray-200 bg-muted/50 font-semibold text-center min-w-[150px]"
                   >
-                    {dayNames[i]}
+                    {t(dayKeyMap[dayNames[i]] || dayNames[i])}
                   </TableHead>
                 ))}
               </TableRow>
@@ -141,7 +152,7 @@ export function TimetableGrid({
                   <TableCell className="border border-gray-200 bg-muted/30 font-medium text-center">
                     <div className="flex flex-col items-center">
                       <span className="text-sm font-semibold">
-                        Period {periodIndex + 1}
+                        {t('timetable.period')} {periodIndex + 1}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {formatPeriodTime(periodIndex + 1)}
@@ -160,19 +171,19 @@ export function TimetableGrid({
 
         {/* Legend */}
         <div className="mt-6 p-4 bg-muted/20 rounded-lg">
-          <h4 className="font-medium mb-3">Legend</h4>
+          <h4 className="font-medium mb-3">{t('timetable.legend.title')}</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span>Subject & Teacher assigned</span>
+              <span>{t('timetable.legend.assigned')}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-gray-200 rounded-full"></div>
-              <span>No class scheduled</span>
+              <span>{t('timetable.legend.noClass')}</span>
             </div>
             <div className="flex items-center gap-2">
               <Edit className="h-3 w-3" />
-              <span>Click to edit entry</span>
+              <span>{t('timetable.legend.editHint')}</span>
             </div>
           </div>
         </div>

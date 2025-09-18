@@ -15,11 +15,13 @@ import { useCalendarEvents } from '@/hooks/use-calendar-events';
 import { convertApiEventToUI, UICalendarEvent } from '@/lib/utils/calendar-utils';
 import { calendarServices, CalendarEvent } from '@/lib/api/calendar';
 import { useToast } from '@/hooks/use-toast';
+import { useI18n } from '@/lib/i18n/context';
 
 
 export default function CalendarPage() {
   const { user, token, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const { t } = useI18n();
   const [selectedEvent, setSelectedEvent] = useState<UICalendarEvent | null>(null);
   const [pendingEvents, setPendingEvents] = useState<CalendarEvent[]>([]);
   const [pendingEventsLoading, setPendingEventsLoading] = useState(false);
@@ -129,8 +131,8 @@ export default function CalendarPage() {
     // Prevent action while auth is loading
     if (authLoading) {
       toast({
-        title: "Please wait",
-        description: "Authentication is still loading. Please try again in a moment.",
+        title: t('calendar.page.pleaseWait', 'Please wait'),
+        description: t('calendar.page.authLoading', 'Authentication is still loading. Please try again in a moment.'),
         variant: "error",
       });
       return;
@@ -172,8 +174,8 @@ export default function CalendarPage() {
     // Prevent action while auth is loading
     if (authLoading) {
       toast({
-        title: "Please wait",
-        description: "Authentication is still loading. Please try again in a moment.",
+        title: t('calendar.page.pleaseWait', 'Please wait'),
+        description: t('calendar.page.authLoading', 'Authentication is still loading. Please try again in a moment.'),
         variant: "error",
       });
       return;
@@ -193,8 +195,8 @@ export default function CalendarPage() {
     // Prevent action while auth is loading
     if (authLoading) {
       toast({
-        title: "Please wait",
-        description: "Authentication is still loading. Please try again in a moment.",
+        title: t('calendar.page.pleaseWait', 'Please wait'),
+        description: t('calendar.page.authLoading', 'Authentication is still loading. Please try again in a moment.'),
         variant: "error",
       });
       return;
@@ -235,8 +237,8 @@ export default function CalendarPage() {
       // Check if user is authenticated
       if (!user || !token) {
         toast({
-          title: "Authentication Error",
-          description: "Please log in to perform this action",
+          title: t('calendar.page.authError', 'Authentication Error'),
+          description: t('calendar.page.loginPrompt', 'Please log in to perform this action'),
           variant: "error",
         });
         return;
@@ -245,15 +247,15 @@ export default function CalendarPage() {
       // Check if user has permission to delete events
       if (user.role !== 'admin' && user.role !== 'principal') {
         toast({
-          title: "Access Denied",
-          description: "Only admins and principals can delete events",
+          title: t('calendar.page.accessDenied', 'Access Denied'),
+          description: t('calendar.page.deleteOnlyAdmins', 'Only admins and principals can delete events'),
           variant: "error",
         });
         return;
       }
 
       // Show confirmation dialog
-      if (!confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
+      if (!confirm(t('calendar.page.confirmDelete', 'Are you sure you want to delete this event? This action cannot be undone.'))) {
         return;
       }
 
@@ -265,8 +267,8 @@ export default function CalendarPage() {
       
       if (response && typeof response === 'object' && 'status' in response && response.status === 'success') {
         toast({
-          title: "Success",
-          description: "Event deleted successfully",
+          title: t('common.success', 'Success'),
+          description: t('calendar.page.deleteSuccess', 'Event deleted successfully'),
         });
         
         // Refresh the events list
@@ -280,8 +282,8 @@ export default function CalendarPage() {
     } catch (error: unknown) {
       console.error('Error deleting event:', error);
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : 'Failed to delete event',
+        title: t('common.error', 'Error'),
+        description: error instanceof Error ? error.message : t('calendar.page.deleteFailed', 'Failed to delete event'),
         variant: "error",
       });
     }
@@ -314,7 +316,7 @@ export default function CalendarPage() {
           <div className="flex items-center justify-center py-12">
             <div className="flex items-center gap-3">
               <RefreshCw className="h-6 w-6 animate-spin text-blue-500" />
-              <span className="text-lg text-gray-600">Loading...</span>
+              <span className="text-lg text-gray-600">{t('calendar.page.loading', 'Loading...')}</span>
             </div>
           </div>
         )}
@@ -329,8 +331,8 @@ export default function CalendarPage() {
                   <CalendarIcon className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold">School Calendar</h1>
-                  <p className="text-sm text-muted-foreground">Manage and view all school events</p>
+                  <h1 className="text-2xl font-bold">{t('calendar.page.title', 'School Calendar')}</h1>
+                  <p className="text-sm text-muted-foreground">{t('calendar.page.subtitle', 'Manage and view all school events')}</p>
                 </div>
               </div>
               <Button 
@@ -339,7 +341,7 @@ export default function CalendarPage() {
                 className="h-11 px-4"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Create Event
+                {t('calendar.page.createEvent', 'Create Event')}
               </Button>
             </div>
 
@@ -357,8 +359,8 @@ export default function CalendarPage() {
             
             <Tabs defaultValue="calendar" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="calendar">Calendar</TabsTrigger>
-                <TabsTrigger value="pending">Pending Requests</TabsTrigger>
+                <TabsTrigger value="calendar">{t('calendar.page.tabs.calendar', 'Calendar')}</TabsTrigger>
+                <TabsTrigger value="pending">{t('calendar.page.tabs.pending', 'Pending Requests')}</TabsTrigger>
               </TabsList>
               <TabsContent value="calendar">
                 <ImprovedCalendarView 

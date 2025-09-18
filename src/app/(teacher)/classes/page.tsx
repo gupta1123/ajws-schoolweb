@@ -15,6 +15,7 @@ import {
 import { useEffect, useState } from 'react';
 import { ClassCard } from '@/components/classes/class-card';
 import { academicServices } from '@/lib/api/academic';
+import { useI18n } from '@/lib/i18n/context';
 
 interface TeacherClass {
   name: string;
@@ -28,6 +29,7 @@ interface TeacherClass {
 
 export default function ClassesPage() {
   const { user, token } = useAuth();
+  const { t } = useI18n();
   const [classes, setClasses] = useState<TeacherClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -101,8 +103,8 @@ export default function ClassesPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only teachers can access this page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="text-gray-600">{t('access.teachersOnlyPage', 'Only teachers can access this page.')}</p>
         </div>
       </div>
     );
@@ -126,7 +128,7 @@ export default function ClassesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-pulse">Loading classes...</div>
+        <div className="animate-pulse">{t('classes.loading', 'Loading classes...')}</div>
       </div>
     );
   }
@@ -135,9 +137,9 @@ export default function ClassesPage() {
     <ProtectedRoute>
       <div className="container max-w-6xl mx-auto py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">My Classes</h1>
+          <h1 className="text-3xl font-bold mb-2">{t('classes.title', 'My Classes')}</h1>
           <p className="text-gray-600 dark:text-gray-300">
-            Manage your classes and view student information
+            {t('classes.subtitle', 'Manage your classes and view student information')}
           </p>
         </div>
 
@@ -150,7 +152,7 @@ export default function ClassesPage() {
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Search classes..."
+                      placeholder={t('classes.searchPlaceholder', 'Search classes...')}
                       className="pl-10"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -162,8 +164,8 @@ export default function ClassesPage() {
                       value={sortBy}
                       onChange={(e) => setSortBy(e.target.value)}
                     >
-                      <option value="name">Sort by Name</option>
-                      <option value="students">Sort by Students</option>
+                      <option value="name">{t('classes.sort.name', 'Sort by Name')}</option>
+                      <option value="students">{t('classes.sort.students', 'Sort by Students')}</option>
                     </select>
                     <Button variant="outline" size="icon">
                       <Filter className="h-4 w-4" />
@@ -178,9 +180,11 @@ export default function ClassesPage() {
               <Card>
                 <CardContent className="text-center py-12">
                   <Users className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No classes found</h3>
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">{t('classes.emptyTitle', 'No classes found')}</h3>
                   <p className="mt-1 text-sm text-gray-500">
-                    {searchTerm ? 'No classes match your search.' : 'You don\'t have any classes assigned to you yet.'}
+                    {searchTerm 
+                      ? t('classes.noSearchMatch', 'No classes match your search.') 
+                      : t('classes.noAssigned', "You don't have any classes assigned to you yet.")}
                   </p>
                 </CardContent>
               </Card>

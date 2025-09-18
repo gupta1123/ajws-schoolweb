@@ -12,22 +12,24 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/context';
 import { useEffect, useState } from 'react';
+import { useI18n } from '@/lib/i18n/context';
 
 export function WelcomeBanner() {
   const { user } = useAuth();
   const { theme } = useTheme();
-  const [greeting, setGreeting] = useState({ text: '', icon: <Sun className="h-5 w-5" /> });
+  const { t } = useI18n();
+  const [greeting, setGreeting] = useState({ textKey: 'welcome.goodMorning', icon: <Sun className="h-5 w-5" /> });
   const [weather, setWeather] = useState({ temp: 24, condition: 'Sunny' });
 
   // Set greeting based on time of day
   useEffect(() => {
     const hour = new Date().getHours();
     if (hour < 12) {
-      setGreeting({ text: 'Good morning', icon: <Coffee className="h-5 w-5" /> });
+      setGreeting({ textKey: 'welcome.goodMorning', icon: <Coffee className="h-5 w-5" /> });
     } else if (hour < 17) {
-      setGreeting({ text: 'Good afternoon', icon: <Sun className="h-5 w-5" /> });
+      setGreeting({ textKey: 'welcome.goodAfternoon', icon: <Sun className="h-5 w-5" /> });
     } else {
-      setGreeting({ text: 'Good evening', icon: <Moon className="h-5 w-5" /> });
+      setGreeting({ textKey: 'welcome.goodEvening', icon: <Moon className="h-5 w-5" /> });
     }
   }, []);
 
@@ -43,13 +45,13 @@ export function WelcomeBanner() {
   const getRoleSpecificSubtitle = () => {
     switch (user?.role) {
       case 'teacher':
-        return 'Manage your classes and students';
+        return t('welcome.subtitles.teacher');
       case 'admin':
-        return 'Oversee school operations and resources';
+        return t('welcome.subtitles.admin');
       case 'principal':
-        return 'Lead your educational institution';
+        return t('welcome.subtitles.principal');
       default:
-        return 'Access your account';
+        return t('welcome.subtitles.default');
     }
   };
 
@@ -76,7 +78,7 @@ export function WelcomeBanner() {
                 {greeting.icon}
               </div>
               <h1 className="text-2xl font-bold">
-                {greeting.text}, {user?.full_name?.split(' ')[0] || 'User'}!
+                {t(greeting.textKey)}, {user?.full_name?.split(' ')[0] || t('welcome.user')}!
               </h1>
             </div>
             <p className="text-muted-foreground">
@@ -91,7 +93,7 @@ export function WelcomeBanner() {
               </div>
               <div>
                 <div className="font-medium">{weather.temp}°C</div>
-                <div className="text-muted-foreground text-xs">{weather.condition}</div>
+                <div className="text-muted-foreground text-xs">{t(`welcome.weather.${weather.condition.toLowerCase().replace(/\s+/g, '')}`, weather.condition)}</div>
               </div>
             </div>
             
@@ -100,8 +102,8 @@ export function WelcomeBanner() {
                 {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
               </div>
               <div>
-                <div className="font-medium capitalize">{theme} Mode</div>
-                <div className="text-muted-foreground text-xs">Theme</div>
+                <div className="font-medium capitalize">{theme} {t('welcome.mode')}</div>
+                <div className="text-muted-foreground text-xs">{t('welcome.theme')}</div>
               </div>
             </div>
           </div>

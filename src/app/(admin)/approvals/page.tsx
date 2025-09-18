@@ -18,6 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { useI18n } from '@/lib/i18n/context';
 import { apiClient, ApiResponse } from '@/lib/api/client';
 
 // Define response types for approval/rejection
@@ -34,6 +35,7 @@ interface RejectionResponse {
 export default function ApprovalsPage() {
   const { token, user } = useAuth();
   const { toast } = useToast();
+  const { t } = useI18n();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export default function ApprovalsPage() {
       // Handle Blob response (shouldn't happen for this endpoint)
       if (response instanceof Blob) {
         console.error('Unexpected Blob response');
-        setError('Unexpected response format');
+        setError(t('approvals.unexpectedFormat'));
         return;
       }
 
@@ -66,15 +68,15 @@ export default function ApprovalsPage() {
         
         setEvents(sortedEvents);
       } else {
-        setError('Failed to fetch events');
+        setError(t('approvals.fetchFailed'));
       }
     } catch (err) {
-      setError('Failed to fetch events');
+      setError(t('approvals.fetchFailed'));
       console.error('Error fetching events:', err);
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   // Handle approval
   const handleApprove = async (eventId: string) => {
@@ -92,8 +94,8 @@ export default function ApprovalsPage() {
       if (response instanceof Blob) {
         console.error('Unexpected Blob response');
         toast({
-          title: "Error",
-          description: "Unexpected response format.",
+          title: t('timetable.toasts.error'),
+          description: t('approvals.unexpectedFormat'),
           variant: "error",
         });
         return;
@@ -103,20 +105,20 @@ export default function ApprovalsPage() {
         // Remove the approved event from the list
         setEvents(events.filter(event => event.id !== eventId));
         toast({
-          title: "Event Approved",
-          description: "The event has been successfully approved.",
+          title: t('approvals.approvedTitle'),
+          description: t('approvals.approvedDesc'),
         });
       } else {
         toast({
-          title: "Error",
-          description: response.message || "Failed to approve the event.",
+          title: t('timetable.toasts.error'),
+          description: response.message || t('approvals.approveFailed'),
           variant: "error",
         });
       }
     } catch (err) {
       toast({
-        title: "Error",
-        description: "Failed to approve the event.",
+        title: t('timetable.toasts.error'),
+        description: t('approvals.approveFailed'),
         variant: "error",
       });
       console.error('Error approving event:', err);
@@ -141,8 +143,8 @@ export default function ApprovalsPage() {
       if (response instanceof Blob) {
         console.error('Unexpected Blob response');
         toast({
-          title: "Error",
-          description: "Unexpected response format.",
+          title: t('timetable.toasts.error'),
+          description: t('approvals.unexpectedFormat'),
           variant: "error",
         });
         return;
@@ -152,20 +154,20 @@ export default function ApprovalsPage() {
         // Remove the rejected event from the list
         setEvents(events.filter(event => event.id !== eventId));
         toast({
-          title: "Event Rejected",
-          description: "The event has been rejected.",
+          title: t('approvals.rejectedTitle'),
+          description: t('approvals.rejectedDesc'),
         });
       } else {
         toast({
-          title: "Error",
-          description: response.message || "Failed to reject the event.",
+          title: t('timetable.toasts.error'),
+          description: response.message || t('approvals.rejectFailed'),
           variant: "error",
         });
       }
     } catch (err) {
       toast({
-        title: "Error",
-        description: "Failed to reject the event.",
+        title: t('timetable.toasts.error'),
+        description: t('approvals.rejectFailed'),
         variant: "error",
       });
       console.error('Error rejecting event:', err);
@@ -194,11 +196,11 @@ export default function ApprovalsPage() {
       <div className="container mx-auto p-6">
         <Card>
           <CardHeader>
-            <CardTitle>Approvals</CardTitle>
+            <CardTitle>{t('approvals.title')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-center py-8 text-muted-foreground">
-              Loading approvals...
+              {t('approvals.loading')}
             </div>
           </CardContent>
         </Card>
@@ -211,11 +213,11 @@ export default function ApprovalsPage() {
       <div className="container mx-auto p-6">
         <Card>
           <CardHeader>
-            <CardTitle>Approvals</CardTitle>
+            <CardTitle>{t('approvals.title')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-center py-8 text-muted-foreground">
-              Error: {error}
+              {t('approvals.error')}: {error}
             </div>
           </CardContent>
         </Card>
@@ -228,23 +230,23 @@ export default function ApprovalsPage() {
       {/* Approvals Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Approvals</CardTitle>
+          <CardTitle>{t('approvals.title')}</CardTitle>
         </CardHeader>
         <CardContent>
           {events.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No pending approvals found.
+              {t('approvals.none')}
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Scope</TableHead>
-                  <TableHead>Creator</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t('approvals.columns.title')}</TableHead>
+                  <TableHead>{t('approvals.columns.description')}</TableHead>
+                  <TableHead>{t('approvals.columns.scope')}</TableHead>
+                  <TableHead>{t('approvals.columns.creator')}</TableHead>
+                  <TableHead>{t('approvals.columns.date')}</TableHead>
+                  <TableHead className="text-right">{t('approvals.columns.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -261,10 +263,10 @@ export default function ApprovalsPage() {
                             : 'bg-purple-100 text-purple-800'
                       }`}>
                         {event.event_type === 'school_wide' 
-                          ? 'School Wide' 
+                          ? t('approvals.scope.school') 
                           : event.event_type === 'class_specific' 
-                            ? 'Class Specific'
-                            : 'Teacher Specific'}
+                            ? t('approvals.scope.class')
+                            : t('approvals.scope.teacher')}
                       </span>
                     </TableCell>
                                             <TableCell>{event.creator?.full_name || event.creator_name || event.created_by}</TableCell>

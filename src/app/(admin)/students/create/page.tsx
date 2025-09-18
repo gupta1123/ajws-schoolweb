@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Calendar, X, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/lib/i18n/context';
 
 import { studentServices, CreateStudentRequest } from '@/lib/api/students';
 import { academicServices } from '@/lib/api/academic';
@@ -18,6 +19,7 @@ import { academicServices } from '@/lib/api/academic';
 export default function CreateStudentPage() {
   const { user, token } = useAuth();
   const router = useRouter();
+  const { t } = useI18n();
   const [formData, setFormData] = useState({
     fullName: '',
     admissionNumber: '',
@@ -74,8 +76,8 @@ export default function CreateStudentPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only admins and principals can access this page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="text-gray-600">{t('access.adminsOnly', 'Only admins and principals can access this page.')}</p>
         </div>
       </div>
     );
@@ -145,52 +147,52 @@ export default function CreateStudentPage() {
               variant="ghost"
               onClick={() => router.back()}
             >
-              ← Back to Students
+              ← {t('students.backToList', 'Back to Students')}
             </Button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Student Information</CardTitle>
+                <CardTitle>{t('students.form.title', 'Student Information')}</CardTitle>
                 <CardDescription>
-                  Enter the student&apos;s personal and academic details
+                  {t('students.form.subtitle', "Enter the student's personal and academic details")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
+                  <Label htmlFor="fullName">{t('students.form.labels.fullName', 'Full Name')}</Label>
                   <Input
                     id="fullName"
                     name="fullName"
                     value={formData.fullName}
                     onChange={handleInputChange}
-                    placeholder="Enter student&apos;s full name"
+                    placeholder={t('students.form.placeholders.fullName', "Enter student's full name")}
                     required
                   />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="admissionNumber">Admission Number</Label>
+                    <Label htmlFor="admissionNumber">{t('students.form.labels.admissionNumber', 'Admission Number')}</Label>
                     <Input
                       id="admissionNumber"
                       name="admissionNumber"
                       value={formData.admissionNumber}
                       onChange={handleInputChange}
-                      placeholder="e.g., 2025001"
+                      placeholder={t('students.form.placeholders.admissionNumber', 'e.g., 2025001')}
                       required
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="rollNumber">Roll Number</Label>
+                    <Label htmlFor="rollNumber">{t('students.form.labels.rollNumber', 'Roll Number')}</Label>
                     <Input
                       id="rollNumber"
                       name="rollNumber"
                       value={formData.rollNumber}
                       onChange={handleInputChange}
-                      placeholder="e.g., 501"
+                      placeholder={t('students.form.placeholders.rollNumber', 'e.g., 501')}
                       required
                     />
                   </div>
@@ -198,7 +200,7 @@ export default function CreateStudentPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                    <Label htmlFor="dateOfBirth">{t('students.form.labels.dateOfBirth', 'Date of Birth')}</Label>
                     <div className="relative">
                       <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -214,7 +216,7 @@ export default function CreateStudentPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="admissionDate">Admission Date</Label>
+                    <Label htmlFor="admissionDate">{t('students.form.labels.admissionDate', 'Admission Date')}</Label>
                     <div className="relative">
                       <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -231,11 +233,11 @@ export default function CreateStudentPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="classDivisionId">Class Division</Label>
+                  <Label htmlFor="classDivisionId">{t('students.form.labels.classDivision', 'Class Division')}</Label>
                   {loadingClasses ? (
                     <div className="flex items-center space-x-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="text-sm text-gray-500">Loading classes...</span>
+                      <span className="text-sm text-gray-500">{t('students.form.loadingClasses', 'Loading classes...')}</span>
                     </div>
                   ) : (
                     <select
@@ -246,10 +248,10 @@ export default function CreateStudentPage() {
                       className="border rounded-md px-3 py-2 w-full"
                       required
                     >
-                      <option value="">Select a class</option>
+                      <option value="">{t('students.form.placeholders.selectClass', 'Select a class')}</option>
                       {classDivisions.map(division => (
                         <option key={division.id} value={division.id}>
-                          {division.level?.name || division.class_level?.name} - Section {division.division}
+                          {division.level?.name || division.class_level?.name} - {t('timetable.section', 'Section')} {division.division}
                         </option>
                       ))}
                     </select>
@@ -268,16 +270,16 @@ export default function CreateStudentPage() {
                 disabled={isLoading}
               >
                 <X className="mr-2 h-4 w-4" />
-                Cancel
+                {t('actions.cancel', 'Cancel')}
               </Button>
               <Button type="submit" disabled={isLoading || loadingClasses}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Adding...
+                    {t('actions.adding', 'Adding...')}
                   </>
                 ) : (
-                  'Add Student'
+                  t('students.addStudent', 'Add Student')
                 )}
               </Button>
             </div>

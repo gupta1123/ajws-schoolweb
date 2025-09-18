@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth/context";
 import { ThemeProvider } from "@/lib/theme/context";
+import { I18nProvider } from "@/lib/i18n/context";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -31,14 +32,16 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
       >
-        <ThemeProvider>
-          <AuthProvider>
-            <AppLayout>
-              {children}
-            </AppLayout>
-            <Toaster />
-          </AuthProvider>
-        </ThemeProvider>
+        <I18nProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <AppLayout>
+                {children}
+              </AppLayout>
+              <Toaster />
+            </AuthProvider>
+          </ThemeProvider>
+        </I18nProvider>
       </body>
     </html>
   );

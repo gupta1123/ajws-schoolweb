@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth/context';
+import { useI18n } from '@/lib/i18n/context';
 import { createAnnouncementsAPI } from '@/lib/api/announcements';
 import { classDivisionsServices } from '@/lib/api/class-divisions';
 
@@ -29,17 +30,18 @@ const priorities = [
 ];
 
 const targetRoles = [
-  { value: 'teacher', label: 'Teachers' },
-  { value: 'parent', label: 'Parents' },
-  { value: 'student', label: 'Students' },
-  { value: 'admin', label: 'Administrators' },
-];
+  { value: 'teacher' },
+  { value: 'parent' },
+  { value: 'student' },
+  { value: 'admin' },
+] as const;
 
 export default function AdminCreateAnnouncementPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
+  const { t } = useI18n();
 
   // Class selection state
   const [availableClasses, setAvailableClasses] = useState<Array<{
@@ -68,8 +70,8 @@ export default function AdminCreateAnnouncementPage() {
   const handleCreateAnnouncement = async () => {
     if (!formData.title.trim() || !formData.content.trim() || !formData.publish_date || !formData.publish_time || !formData.expires_date || !formData.expires_time) {
       toast({
-        title: 'Validation Error',
-        description: 'Please fill in all required fields',
+        title: t('announcements.create.validation', 'Validation Error'),
+        description: t('announcements.create.fillAll', 'Please fill in all required fields'),
         variant: 'error',
       });
       return;
@@ -77,8 +79,8 @@ export default function AdminCreateAnnouncementPage() {
 
     if (formData.target_roles.length === 0) {
       toast({
-        title: 'Validation Error',
-        description: 'Please select at least one target role',
+        title: t('announcements.create.validation', 'Validation Error'),
+        description: t('announcements.create.selectOneRole', 'Please select at least one target role'),
         variant: 'error',
       });
       return;
@@ -103,8 +105,8 @@ export default function AdminCreateAnnouncementPage() {
 
       if (response.status === 'success') {
         toast({
-          title: 'Success',
-          description: 'Announcement created and auto-approved successfully',
+          title: t('common.success', 'Success'),
+          description: t('announcements.create.autoApproved', 'Announcement created and auto-approved successfully'),
         });
         router.push('/admin/announcements');
       } else {
@@ -113,8 +115,8 @@ export default function AdminCreateAnnouncementPage() {
     } catch (error) {
       console.error('Error creating announcement:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to create announcement',
+        title: t('common.error', 'Error'),
+        description: t('announcements.create.failed', 'Failed to create announcement'),
         variant: 'error',
       });
     } finally {
@@ -221,12 +223,12 @@ export default function AdminCreateAnnouncementPage() {
           className="flex items-center gap-2"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back
+          {t('actions.back', 'Back')}
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Create Announcement</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('announcements.create.title', 'Create Announcement')}</h1>
           <p className="text-muted-foreground">
-            Create an announcement that will be automatically approved for publication
+            {t('announcements.create.subtitleAdmin', 'Create an announcement that will be automatically approved for publication')}
           </p>
         </div>
       </div>
@@ -239,37 +241,37 @@ export default function AdminCreateAnnouncementPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BookOpen className="w-5 h-5" />
-                Basic Information
+                {t('announcements.create.basicInfo', 'Basic Information')}
               </CardTitle>
               <CardDescription>
-                Provide the essential details for your announcement
+                {t('announcements.create.basicInfoDesc', 'Provide the essential details for your announcement')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title">Title *</Label>
+                <Label htmlFor="title">{t('announcements.create.titleLabel', 'Title *')}</Label>
                 <Input
                   id="title"
                   value={formData.title}
                   onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="Enter announcement title"
+                  placeholder={t('announcements.create.titlePlaceholder', 'Enter announcement title')}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="content">Content *</Label>
+                <Label htmlFor="content">{t('announcements.create.contentLabel', 'Content *')}</Label>
                 <Textarea
                   id="content"
                   value={formData.content}
                   onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-                  placeholder="Enter announcement content"
+                  placeholder={t('announcements.create.contentPlaceholder', 'Enter announcement content')}
                   rows={6}
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="type">Type *</Label>
+                  <Label htmlFor="type">{t('announcements.create.typeLabel', 'Type *')}</Label>
                   <Select
                     value={formData.announcement_type}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, announcement_type: value }))}
@@ -291,7 +293,7 @@ export default function AdminCreateAnnouncementPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="priority">Priority</Label>
+                  <Label htmlFor="priority">{t('announcements.create.priorityLabel', 'Priority')}</Label>
                   <Select
                     value={formData.priority}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value as 'low' | 'high' }))}
@@ -317,16 +319,16 @@ export default function AdminCreateAnnouncementPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
-                Scheduling
+                {t('announcements.create.scheduling', 'Scheduling')}
               </CardTitle>
               <CardDescription>
-                Set when the announcement should be published and expire
+                {t('announcements.create.schedulingDesc', 'Set when the announcement should be published and expire')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="publish_date">Publish Date *</Label>
+                  <Label htmlFor="publish_date">{t('announcements.create.publishDate', 'Publish Date *')}</Label>
                   <Input
                     id="publish_date"
                     type="date"
@@ -336,7 +338,7 @@ export default function AdminCreateAnnouncementPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="publish_time">Publish Time *</Label>
+                  <Label htmlFor="publish_time">{t('announcements.create.publishTime', 'Publish Time *')}</Label>
                   <Input
                     id="publish_time"
                     type="time"
@@ -348,7 +350,7 @@ export default function AdminCreateAnnouncementPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="expires_date">Expiry Date *</Label>
+                  <Label htmlFor="expires_date">{t('announcements.create.expiresDate', 'Expiry Date *')}</Label>
                   <Input
                     id="expires_date"
                     type="date"
@@ -358,7 +360,7 @@ export default function AdminCreateAnnouncementPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="expires_time">Expiry Time *</Label>
+                  <Label htmlFor="expires_time">{t('announcements.create.expiresTime', 'Expiry Time *')}</Label>
                   <Input
                     id="expires_time"
                     type="time"
@@ -375,15 +377,15 @@ export default function AdminCreateAnnouncementPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
-                Target Audience
+                {t('announcements.create.targetAudience', 'Target Audience')}
               </CardTitle>
               <CardDescription>
-                Select who should receive this announcement
+                {t('announcements.create.targetAudienceDesc', 'Select who should receive this announcement')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
-                <Label>Target Roles *</Label>
+                <Label>{t('announcements.create.targetRoles', 'Target Roles *')}</Label>
                 <div className="flex flex-wrap gap-2">
                   {targetRoles.map((role) => (
                     <Button
@@ -393,7 +395,10 @@ export default function AdminCreateAnnouncementPage() {
                       onClick={() => handleRoleToggle(role.value)}
                       className="h-8"
                     >
-                      {role.label}
+                      {role.value === 'teacher' && t('announcements.roles.teacher', 'Teachers')}
+                      {role.value === 'parent' && t('announcements.roles.parent', 'Parents')}
+                      {role.value === 'student' && t('announcements.roles.student', 'Students')}
+                      {role.value === 'admin' && t('announcements.roles.admin', 'Administrators')}
                     </Button>
                   ))}
                 </div>
@@ -405,11 +410,11 @@ export default function AdminCreateAnnouncementPage() {
               {/* Class Selection - Only show when students are selected */}
               {formData.target_roles.includes('student') && (
                 <div className="space-y-3 border-t pt-4">
-                  <Label>Target Classes (Optional)</Label>
+                  <Label>{t('announcements.create.targetClasses', 'Target Classes (Optional)')}</Label>
                   {classesLoading ? (
                     <div className="flex items-center justify-center gap-3 py-4">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                      <span className="text-sm text-muted-foreground">Loading classes...</span>
+                      <span className="text-sm text-muted-foreground">{t('announcements.create.loadingClasses', 'Loading classes...')}</span>
                     </div>
                   ) : availableClasses.length > 0 ? (
                     <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
@@ -437,17 +442,17 @@ export default function AdminCreateAnnouncementPage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground py-4">No classes available</p>
+                    <p className="text-sm text-muted-foreground py-4">{t('announcements.create.noClasses', 'No classes available')}</p>
                   )}
 
                   {formData.target_classes.length > 0 && (
                     <p className="text-sm text-muted-foreground">
-                      Selected: {formData.target_classes.length} class(es)
+                      {t('announcements.create.selectedClasses', 'Selected:')} {formData.target_classes.length} {t('announcements.create.classesSuffix', 'class(es)')}
                     </p>
                   )}
 
                   <p className="text-xs text-muted-foreground">
-                    Leave empty to send to all students, or select specific classes for targeted announcements.
+                    {t('announcements.create.classesHelp', 'Leave empty to send to all students, or select specific classes for targeted announcements.')}
                   </p>
                 </div>
               )}
@@ -462,7 +467,7 @@ export default function AdminCreateAnnouncementPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 {React.createElement(getTypeIcon(formData.announcement_type), { className: "w-5 h-5" })}
-                Type Preview
+                {t('announcements.create.typePreview', 'Type Preview')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -497,7 +502,7 @@ export default function AdminCreateAnnouncementPage() {
                   ) : (
                     <>
                       <Save className="w-4 h-4" />
-                      Create Announcement
+                      {t('announcements.create.cta', 'Create Announcement')}
                     </>
                   )}
                 </Button>
@@ -507,7 +512,7 @@ export default function AdminCreateAnnouncementPage() {
                   className="w-full"
                   disabled={loading}
                 >
-                  Cancel
+                  {t('actions.cancel', 'Cancel')}
                 </Button>
               </div>
             </CardContent>

@@ -34,6 +34,7 @@ import {
   CheckExistingThreadPayload
 } from '@/lib/api/messages';
 import { useAuth } from '@/lib/auth/context';
+import { useI18n } from '@/lib/i18n/context';
 import { ChatWebSocket, WebSocketMessage } from '@/lib/api/websocket';
 import { useChatMessages } from '@/hooks/use-chat-threads';
 import { ChatMessage as ApiChatMessage } from '@/lib/api/chat-threads';
@@ -268,6 +269,7 @@ interface ChatInterfaceProps {
 
 export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData, activeTab: externalActiveTab }: ChatInterfaceProps) {
   const { token, user } = useAuth();
+  const { t } = useI18n();
   const [contacts, setContacts] = useState<ChatContact[]>([]);
   const [activeChat, setActiveChat] = useState<ChatContact | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -1157,7 +1159,7 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
             <div className="p-4 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
               <p className="mt-2 text-sm text-muted-foreground">
-                {loading ? 'Loading chats...' : 'Refreshing groups...'}
+                {loading ? t('messages.loading', 'Loading chats...') : t('messages.refreshingGroups', 'Refreshing groups...')}
               </p>
             </div>
           ) : filteredContacts.length === 0 ? (
@@ -1332,7 +1334,7 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
                           ) : contact.teacherData ? (
                             <div className="mt-1">
                               <p className="text-sm text-muted-foreground truncate">
-                                Teacher • {contact.teacherData.full_name}
+                                {t('common.teacher', 'Teacher')} • {contact.teacherData.full_name}
                               </p>
                               <p className="text-xs text-muted-foreground truncate">
                                 {contact.lastMessage}
@@ -1463,7 +1465,7 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
                     <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">Loading chat...</p>
+                    <p className="text-sm text-muted-foreground">{t('messages.loadingChat', 'Loading chat...')}</p>
                   </div>
                 </div>
               ) : (
@@ -1518,7 +1520,7 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
             <div className="p-4 border-t">
               <div className="flex items-center gap-2">
                 <Input
-                  placeholder={selectingParent ? "Loading chat..." : "Type a message..."}
+                  placeholder={selectingParent ? t('messages.loadingChat', 'Loading chat...') : t('messages.typeMessage', 'Type a message...')}
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyDown={handleKeyPress}

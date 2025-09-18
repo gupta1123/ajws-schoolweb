@@ -22,12 +22,14 @@ import {
   Search,
   FileText
 } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/context';
 
 export default function AttendanceDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, token } = useAuth();
+  const { t } = useI18n();
 
   const classId = params.classId as string;
   const dateParam = searchParams.get('date');
@@ -77,8 +79,8 @@ export default function AttendanceDetailsPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only admins and principals can access attendance details.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="text-gray-600">{t('attendanceMgmt.accessDetails', 'Only admins and principals can access attendance details.')}</p>
         </div>
       </div>
     );
@@ -95,15 +97,15 @@ export default function AttendanceDetailsPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'full_day':
-        return <Badge className="bg-green-100 text-green-800">Present</Badge>;
+        return <Badge className="bg-green-100 text-green-800">{t('attendanceMgmt.status.present', 'Present')}</Badge>;
       case 'absent':
-        return <Badge className="bg-red-100 text-red-800">Absent</Badge>;
+        return <Badge className="bg-red-100 text-red-800">{t('attendanceMgmt.status.absent', 'Absent')}</Badge>;
       case 'late':
-        return <Badge className="bg-yellow-100 text-yellow-800">Late</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800">{t('attendanceMgmt.status.late', 'Late')}</Badge>;
       case 'half_day':
-        return <Badge className="bg-orange-100 text-orange-800">Half Day</Badge>;
+        return <Badge className="bg-orange-100 text-orange-800">{t('attendanceMgmt.status.halfDay', 'Half Day')}</Badge>;
       default:
-        return <Badge variant="secondary">Unknown</Badge>;
+        return <Badge variant="secondary">{t('attendanceMgmt.status.unknown', 'Unknown')}</Badge>;
     }
   };
 
@@ -191,7 +193,7 @@ export default function AttendanceDetailsPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="hover:shadow-md transition-shadow border-l-4 border-l-primary">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Students</CardTitle>
+          <CardTitle className="text-sm font-medium text-muted-foreground">{t('attendanceMgmt.details.totalStudents', 'Total Students')}</CardTitle>
               <Users className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
@@ -201,7 +203,7 @@ export default function AttendanceDetailsPage() {
 
           <Card className="hover:shadow-md transition-shadow border-l-4 border-l-green-500">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Present</CardTitle>
+          <CardTitle className="text-sm font-medium text-muted-foreground">{t('attendanceMgmt.status.present', 'Present')}</CardTitle>
               <CheckCircle className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
@@ -211,7 +213,7 @@ export default function AttendanceDetailsPage() {
 
           <Card className="hover:shadow-md transition-shadow border-l-4 border-l-red-500">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Absent</CardTitle>
+          <CardTitle className="text-sm font-medium text-muted-foreground">{t('attendanceMgmt.status.absent', 'Absent')}</CardTitle>
               <XCircle className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
@@ -225,13 +227,13 @@ export default function AttendanceDetailsPage() {
       <Card className="hover:shadow-md transition-shadow">
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <CardTitle className="text-lg font-semibold">Student Attendance Records</CardTitle>
+            <CardTitle className="text-lg font-semibold">{t('attendanceMgmt.details.recordsTitle', 'Student Attendance Records')}</CardTitle>
 
             <div className="flex gap-2 w-full sm:w-auto">
               <div className="relative flex-1 sm:flex-none">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search students..."
+                  placeholder={t('attendanceMgmt.details.searchStudents', 'Search students...')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 w-full sm:w-64"
@@ -245,18 +247,18 @@ export default function AttendanceDetailsPage() {
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2 text-muted-foreground">Loading attendance data...</span>
+              <span className="ml-2 text-muted-foreground">{t('attendanceMgmt.details.loading', 'Loading attendance data...')}</span>
             </div>
           ) : attendanceData && filteredStudents.length > 0 ? (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Admission No.</TableHead>
-                    <TableHead>Student Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Remarks</TableHead>
-                    <TableHead>Marked By</TableHead>
+                    <TableHead>{t('attendanceMgmt.details.admissionNo', 'Admission No.')}</TableHead>
+                    <TableHead>{t('attendanceMgmt.details.studentName', 'Student Name')}</TableHead>
+                    <TableHead>{t('attendanceMgmt.cols.status', 'Status')}</TableHead>
+                    <TableHead>{t('attendanceMgmt.details.remarks', 'Remarks')}</TableHead>
+                    <TableHead>{t('attendanceMgmt.details.markedBy', 'Marked By')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -288,13 +290,13 @@ export default function AttendanceDetailsPage() {
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-              <p>No attendance records found for this date.</p>
+              <p>{t('attendanceMgmt.details.empty', 'No attendance records found for this date.')}</p>
             </div>
           )}
 
           {filteredStudents.length > 0 && (
             <div className="mt-4 text-sm text-muted-foreground text-center">
-              Showing {filteredStudents.length} of {attendanceData?.student_records.length || 0} students
+              {t('pagination.showing', 'Showing')} {filteredStudents.length} {t('pagination.of', 'of')} {attendanceData?.student_records.length || 0} {t('attendanceMgmt.details.studentsLower', 'students')}
             </div>
           )}
         </CardContent>

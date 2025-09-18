@@ -17,6 +17,7 @@ import {
   GraduationCap,
   Building2
 } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/context';
 
 // Lazy load heavy components to improve initial load performance
 const ClassOverviewCard = dynamic(() => import('@/components/dashboard/class-overview-card').then(mod => mod.ClassOverviewCard), {
@@ -35,30 +36,31 @@ const UpcomingBirthdays = dynamic(() => import('@/components/dashboard/upcoming-
 
 const DashboardPage = () => {
   const { user } = useAuth();
+  const { t } = useI18n();
 
   // Memoize admin cards to prevent re-creation on every render
   const adminQuickAccessCards = useMemo(() => [
     {
-      title: 'Students',
+      title: t('dashboard.cards.students'),
       icon: <GraduationCap className="h-5 w-5" />,
       href: '/students'
     },
     {
-      title: 'Parents',
+      title: t('dashboard.cards.parents'),
       icon: <UserCheck className="h-5 w-5" />,
       href: '/parents'
     },
     {
-      title: 'Staff',
+      title: t('dashboard.cards.staff'),
       icon: <User className="h-5 w-5" />,
       href: '/staff'
     },
     {
-      title: 'Academic',
+      title: t('dashboard.cards.academic'),
       icon: <Building2 className="h-5 w-5" />,
       href: '/academic'
     }
-  ], []);
+  ], [t]);
 
   return (
     <ProtectedRoute>
@@ -90,7 +92,7 @@ const DashboardPage = () => {
             <div className="lg:col-span-2 space-y-6">
               {/* Quick Actions */}
               <div>
-                <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
+                <h2 className="text-xl font-semibold mb-4">{t('dashboard.quickActions')}</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {adminQuickAccessCards.map((card, index) => (
                     <Link key={index} href={card.href}>

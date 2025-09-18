@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/lib/i18n/context';
 import { useRouter } from 'next/navigation';
 import { staffServices } from '@/lib/api';
 import type { Staff, UpdateStaffRequest } from '@/types/staff';
@@ -18,6 +19,7 @@ import { Loader2, AlertTriangle, User, Phone, Shield, ArrowLeft, Save, X } from 
 export default function EditStaffPage({ params }: { params: Promise<{ id: string }> }) {
   const { user, token } = useAuth();
   const router = useRouter();
+  const { t } = useI18n();
   const [staff, setStaff] = useState<Staff | null>(null);
   const [staffId, setStaffId] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -160,9 +162,9 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
                 <AlertTriangle className="mx-auto h-12 w-12 text-red-400 mb-4" />
-                <h2 className="text-xl font-semibold mb-2">Error Loading Staff Details</h2>
-                <p className="text-gray-600 mb-4">{error || 'Staff member not found'}</p>
-                <Button onClick={() => router.back()}>Go Back</Button>
+                <h2 className="text-xl font-semibold mb-2">{t('staff.detail.errorTitle', 'Error Loading Staff Details')}</h2>
+                <p className="text-gray-600 mb-4">{error || t('staff.detail.notFound', 'Staff member not found')}</p>
+                <Button onClick={() => router.back()}>{t('actions.back', 'Go Back')}</Button>
               </div>
             </div>
           </main>
@@ -182,11 +184,11 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
               className="mb-4 flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back to Staff Details
+              {t('staff.backToDetail', 'Back to Staff Details')}
             </Button>
-            <h1 className="text-3xl font-bold mb-2">Edit Staff Member</h1>
+            <h1 className="text-3xl font-bold mb-2">{t('staff.edit.title', 'Edit Staff Member')}</h1>
             <p className="text-gray-600 dark:text-gray-300">
-              Update staff member information
+              {t('staff.edit.subtitle', 'Update staff member information')}
             </p>
           </div>
 
@@ -206,9 +208,9 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
           <Card>
             <form onSubmit={handleSubmit}>
               <CardHeader>
-                <CardTitle>Staff Information</CardTitle>
+                <CardTitle>{t('staff.form.title', 'Staff Information')}</CardTitle>
                 <CardDescription>
-                  Update the staff member&apos;s personal and professional information
+                  {t('staff.form.subtitleEdit', "Update the staff member's personal and professional information")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -216,11 +218,11 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b">
                     <User className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-semibold text-foreground">Personal Information</h3>
+                    <h3 className="text-sm font-semibold text-foreground">{t('staff.form.personalInfo', 'Personal Information')}</h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="fullName" className="text-sm font-medium">Full Name *</Label>
+                      <Label htmlFor="fullName" className="text-sm font-medium">{t('staff.form.labels.fullName', 'Full Name')} *</Label>
                       <div className="relative">
                         <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
@@ -228,7 +230,7 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
                           name="fullName"
                           value={formData.fullName}
                           onChange={handleChange}
-                          placeholder="Enter full name"
+                          placeholder={t('staff.form.placeholders.fullName', 'Enter full name')}
                           className="pl-10"
                           required
                         />
@@ -236,7 +238,7 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="phone" className="text-sm font-medium">Phone Number *</Label>
+                      <Label htmlFor="phone" className="text-sm font-medium">{t('staff.form.labels.phoneNumber', 'Phone Number')} *</Label>
                       <div className="relative">
                         <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
@@ -244,7 +246,7 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
                           name="phone"
                           value={formData.phone}
                           onChange={handleChange}
-                          placeholder="Enter phone number"
+                          placeholder={t('staff.form.placeholders.phone', 'Enter phone number')}
                           className="pl-10"
                           required
                         />
@@ -257,11 +259,11 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b">
                     <Shield className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-semibold text-foreground">Professional Information</h3>
+                    <h3 className="text-sm font-semibold text-foreground">{t('staff.form.professionalInfo', 'Professional Information')}</h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="role" className="text-sm font-medium">Role *</Label>
+                      <Label htmlFor="role" className="text-sm font-medium">{t('staff.form.labels.role', 'Role')} *</Label>
                       <div className="relative">
                         <Shield className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
                         <Select
@@ -270,14 +272,14 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
                           onValueChange={(value) => handleSelectChange('role', value)}
                         >
                           <SelectTrigger className="pl-10">
-                            <SelectValue placeholder="Select a role" />
+                            <SelectValue placeholder={t('staff.form.placeholders.selectRole', 'Select a role')} />
                           </SelectTrigger>
                           <SelectContent>
                             {availableRoles.map(role => (
                               <SelectItem key={role} value={role}>
                                 <div className="flex items-center gap-2">
                                   <Shield className="h-4 w-4" />
-                                  {role.charAt(0).toUpperCase() + role.slice(1)}
+                                  {t(`common.${role}`, role.charAt(0).toUpperCase() + role.slice(1))}
                                 </div>
                               </SelectItem>
                             ))}
@@ -287,26 +289,26 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="isActive" className="text-sm font-medium">Account Status</Label>
+                      <Label htmlFor="isActive" className="text-sm font-medium">{t('staff.form.labels.accountStatus', 'Account Status')}</Label>
                       <Select
                         name="isActive"
                         value={formData.isActive ? 'active' : 'inactive'}
                         onValueChange={(value) => handleSelectChange('isActive', value === 'active' ? 'true' : 'false')}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
+                          <SelectValue placeholder={t('staff.form.placeholders.selectStatus', 'Select status')} />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="active">
                             <div className="flex items-center gap-2">
                               <div className="w-2 h-2 bg-green-500 rounded-full" />
-                              Active
+                              {t('academicSetup.status.active', 'Active')}
                             </div>
                           </SelectItem>
                           <SelectItem value="inactive">
                             <div className="flex items-center gap-2">
                               <div className="w-2 h-2 bg-gray-400 rounded-full" />
-                              Inactive
+                              {t('academicSetup.status.inactive', 'Inactive')}
                             </div>
                           </SelectItem>
                         </SelectContent>
@@ -323,7 +325,7 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
                   className="flex items-center gap-2"
                 >
                   <X className="h-4 w-4" />
-                  Cancel
+                  {t('actions.cancel', 'Cancel')}
                 </Button>
                 <Button
                   type="submit"
@@ -333,12 +335,12 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
                   {saving ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Updating...
+                      {t('actions.updating', 'Updating...')}
                     </>
                   ) : (
                     <>
                       <Save className="h-4 w-4" />
-                      Update Staff Member
+                      {t('staff.edit.submit', 'Update Staff Member')}
                     </>
                   )}
                 </Button>

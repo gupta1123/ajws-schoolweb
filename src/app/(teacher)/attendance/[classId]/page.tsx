@@ -24,12 +24,13 @@ import { useRouter } from 'next/navigation';
 
 import { useAttendance } from '@/hooks/use-attendance';
 import { toast } from '@/hooks/use-toast';
+import { useI18n } from '@/lib/i18n/context';
 
 // Custom date formatter for "11 Aug '25" format
-const formatDateCustom = (dateString: string): string => {
+const formatDateCustom = (dateString: string, lang: string): string => {
   const date = new Date(dateString);
   const day = date.getDate();
-  const month = date.toLocaleDateString('en-US', { month: 'short' });
+  const month = date.toLocaleDateString(lang, { month: 'short' });
   const year = date.getFullYear().toString().slice(-2);
   return `${day} ${month} '${year}`;
 };
@@ -37,6 +38,7 @@ const formatDateCustom = (dateString: string): string => {
 export default function ClassAttendancePage({ params, searchParams }: { params: Promise<{ classId: string }>, searchParams: Promise<{ date?: string }> }) {
   const { user } = useAuth();
   const router = useRouter();
+  const { t, lang } = useI18n();
   const [searchTerm, setSearchTerm] = useState('');
   const [classId, setClassId] = useState<string>('');
   const [date, setDate] = useState<string>('');
@@ -92,8 +94,8 @@ export default function ClassAttendancePage({ params, searchParams }: { params: 
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only teachers can access this page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="text-gray-600">{t('access.teachersOnlyPage', 'Only teachers can access this page.')}</p>
         </div>
       </div>
     );
@@ -160,7 +162,7 @@ export default function ClassAttendancePage({ params, searchParams }: { params: 
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-              <p>Loading class attendance...</p>
+              <p>{t('attendanceTeacher.detail.loading', 'Loading class attendance...')}</p>
             </div>
           </div>
         </div>
@@ -175,10 +177,10 @@ export default function ClassAttendancePage({ params, searchParams }: { params: 
         <div className="container max-w-6xl mx-auto py-8">
           <div className="text-center">
             <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-red-500" />
-            <h2 className="text-2xl font-bold mb-2">Error Loading Attendance</h2>
+            <h2 className="text-2xl font-bold mb-2">{t('attendanceTeacher.detail.errorTitle', 'Error Loading Attendance')}</h2>
             <p className="text-gray-600 mb-4">{error}</p>
             <Button onClick={() => loadClassAttendance(classId, date)}>
-              Try Again
+              {t('timetableTeacher.tryAgain', 'Try Again')}
             </Button>
           </div>
         </div>
@@ -196,18 +198,18 @@ export default function ClassAttendancePage({ params, searchParams }: { params: 
             className="mb-4"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Attendance
+            {t('attendanceTeacher.detail.back', 'Back to Attendance')}
           </Button>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold mb-2">{className || 'Loading Class...'}</h1>
               <p className="text-gray-600 dark:text-gray-300">
-                Taking attendance for {formatDateCustom(date)}
+                {t('attendanceTeacher.detail.takingFor', 'Taking attendance for')} {formatDateCustom(date, lang)}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-muted-foreground" />
-              <span className="font-medium">{formatDateCustom(date)}</span>
+              <span className="font-medium">{formatDateCustom(date, lang)}</span>
             </div>
           </div>
         </div>
@@ -217,9 +219,9 @@ export default function ClassAttendancePage({ params, searchParams }: { params: 
             <CardHeader>
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                  <CardTitle>Student List</CardTitle>
+                  <CardTitle>{t('attendanceTeacher.detail.studentList', 'Student List')}</CardTitle>
                   <CardDescription>
-                    Mark attendance for each student
+                    {t('attendanceTeacher.detail.markEach', 'Mark attendance for each student')}
                   </CardDescription>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -233,14 +235,14 @@ export default function ClassAttendancePage({ params, searchParams }: { params: 
                       }
                     }}
                   >
-                    {mode === 'absentFirst' ? 'Normal Mode' : 'Absent First'}
+                    {mode === 'absentFirst' ? t('attendanceTeacher.detail.normalMode', 'Normal Mode') : t('attendanceTeacher.detail.absentFirst', 'Absent First')}
                   </Button>
                   <Button 
                     variant="outline" 
                     size="sm"
                     onClick={markAllPresent}
                   >
-                    Mark All Present
+                    {t('attendanceTeacher.detail.markAllPresent', 'Mark All Present')}
                   </Button>
                 </div>
               </div>
@@ -250,7 +252,7 @@ export default function ClassAttendancePage({ params, searchParams }: { params: 
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search students..."
+                    placeholder={t('attendanceMgmt.details.searchStudents', 'Search students...')}
                     className="pl-10"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -262,9 +264,9 @@ export default function ClassAttendancePage({ params, searchParams }: { params: 
                     value={filter}
                     onChange={(e) => setFilter(e.target.value as 'all' | 'present' | 'absent')}
                   >
-                    <option value="all">All Students</option>
-                    <option value="present">Present</option>
-                    <option value="absent">Absent</option>
+                    <option value="all">{t('attendanceTeacher.detail.allStudents', 'All Students')}</option>
+                    <option value="present">{t('attendanceMgmt.status.present', 'Present')}</option>
+                    <option value="absent">{t('attendanceMgmt.status.absent', 'Absent')}</option>
                   </select>
                   <Button variant="outline" size="icon">
                     <Filter className="h-4 w-4" />
@@ -275,16 +277,16 @@ export default function ClassAttendancePage({ params, searchParams }: { params: 
               {filteredStudents.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <User className="h-8 w-8 mx-auto mb-2" />
-                  <p>No students found matching your criteria</p>
+                  <p>{t('attendanceMgmt.details.empty', 'No students found matching your criteria')}</p>
                 </div>
               ) : (
                 <div className="rounded-md border">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b bg-muted/50">
-                        <th className="text-left p-4 font-medium">Student</th>
-                        <th className="text-center p-4 font-medium">Present</th>
-                        <th className="text-center p-4 font-medium">Absent</th>
+                        <th className="text-left p-4 font-medium">{t('attendanceMgmt.details.studentName', 'Student')}</th>
+                        <th className="text-center p-4 font-medium">{t('attendanceMgmt.status.present', 'Present')}</th>
+                        <th className="text-center p-4 font-medium">{t('attendanceMgmt.status.absent', 'Absent')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -301,7 +303,7 @@ export default function ClassAttendancePage({ params, searchParams }: { params: 
                               <div>
                                 <div className="font-medium">{student.full_name}</div>
                                 <div className="text-sm text-muted-foreground">
-                                  Roll #{student.rollNumber || student.admission_number}
+                                  {t('attendanceTeacher.detail.roll', 'Roll #')}{student.rollNumber || student.admission_number}
                                 </div>
                               </div>
                             </div>
@@ -335,7 +337,7 @@ export default function ClassAttendancePage({ params, searchParams }: { params: 
               
               <div className="flex justify-end gap-2 mt-6">
                 <Button variant="outline" onClick={() => router.back()}>
-                  Cancel
+                  {t('actions.cancel', 'Cancel')}
                 </Button>
                 <Button 
                   onClick={handleSubmit}
@@ -345,12 +347,12 @@ export default function ClassAttendancePage({ params, searchParams }: { params: 
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Saving...
+                      {t('attendanceTeacher.detail.saving', 'Saving...')}
                     </>
                   ) : (
                     <>
                       <Save className="h-4 w-4" />
-                      Save Attendance
+                      {t('attendanceTeacher.detail.saveAttendance', 'Save Attendance')}
                     </>
                   )}
                 </Button>

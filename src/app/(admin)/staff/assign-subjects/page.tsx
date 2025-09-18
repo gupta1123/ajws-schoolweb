@@ -27,11 +27,13 @@ import {
   User,
   GraduationCap
 } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/context';
 
 export default function AssignSubjectsPage() {
   const { user, token } = useAuth();
   const router = useRouter();
   const { assignSubjectsToTeacher } = useStaff();
+  const { t } = useI18n();
 
   // State for teachers and selected teacher
   const [teachers, setTeachers] = useState<Staff[]>([]);
@@ -186,8 +188,8 @@ export default function AssignSubjectsPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only admins and principals can access this page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="text-gray-600">{t('access.adminsOnly', 'Only admins and principals can access this page.')}</p>
         </div>
       </div>
     );
@@ -200,7 +202,7 @@ export default function AssignSubjectsPage() {
           <div className="flex items-center justify-center py-12">
             <div className="flex items-center gap-2">
               <Loader2 className="h-5 w-5 animate-spin" />
-              <span>Loading teachers...</span>
+              <span>{t('staff.loadingTeachers', 'Loading teachers...')}</span>
             </div>
           </div>
         </div>
@@ -219,7 +221,7 @@ export default function AssignSubjectsPage() {
             className="mb-4 flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Staff
+            {t('staff.backToList', 'Back to Staff')}
           </Button>
 
           <div className="flex items-center gap-4 mb-2">
@@ -227,9 +229,9 @@ export default function AssignSubjectsPage() {
               <BookMarked className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">Assign Subjects to Teachers</h1>
+              <h1 className="text-3xl font-bold">{t('staff.assign.pageTitle', 'Assign Subjects to Teachers')}</h1>
               <p className="text-muted-foreground">
-                Select a teacher and assign subjects they will teach
+                {t('staff.assign.pageSubtitle', 'Select a teacher and assign subjects they will teach')}
               </p>
             </div>
           </div>
@@ -254,21 +256,21 @@ export default function AssignSubjectsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5" />
-                Select Teacher
+                {t('staff.assign.selectTeacherTitle', 'Select Teacher')}
               </CardTitle>
               <CardDescription>
-                Choose the teacher to assign subjects to
+                {t('staff.assign.selectTeacherSubtitle', 'Choose the teacher to assign subjects to')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="teacher-select">Teacher *</Label>
+                <Label htmlFor="teacher-select">{t('staff.assign.teacherLabel', 'Teacher *')}</Label>
                 <Select
                   value={selectedTeacherId}
                   onValueChange={setSelectedTeacherId}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a teacher" />
+                    <SelectValue placeholder={t('academicSetup.placeholders.selectTeacher', 'Select a teacher')} />
                   </SelectTrigger>
                   <SelectContent>
                     {teachers.map((teacher) => (
@@ -310,7 +312,7 @@ export default function AssignSubjectsPage() {
                   {/* Current subjects */}
                   {selectedTeacher.teaching_details?.subjects_taught && selectedTeacher.teaching_details.subjects_taught.length > 0 && (
                     <div className="mt-3">
-                      <p className="text-sm font-medium mb-2">Currently assigned subjects:</p>
+                      <p className="text-sm font-medium mb-2">{t('staff.detail.currentlyAssigned', 'Currently assigned subjects:')}</p>
                       <div className="flex flex-wrap gap-1">
                         {selectedTeacher.teaching_details.subjects_taught.map((subject, index) => (
                           <Badge key={index} variant="secondary" className="text-xs">
@@ -330,16 +332,16 @@ export default function AssignSubjectsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <GraduationCap className="h-5 w-5" />
-                Assign Subjects
+                {t('staff.assignSubjects', 'Assign Subjects')}
               </CardTitle>
               <CardDescription>
-                Choose subjects to assign to the selected teacher
+                {t('staff.assign.subjectsSubtitle', 'Choose subjects to assign to the selected teacher')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Assignment Mode */}
               <div className="space-y-2">
-                <Label>Assignment Mode</Label>
+                <Label>{t('staff.assign.assignmentMode', 'Assignment Mode')}</Label>
                 <Select
                   value={assignmentMode}
                   onValueChange={(value: 'replace' | 'append') => setAssignmentMode(value)}
@@ -351,32 +353,31 @@ export default function AssignSubjectsPage() {
                     <SelectItem value="replace">
                       <div className="flex items-center gap-2">
                         <CheckCircle className="w-4 h-4 text-green-500" />
-                        Replace existing subjects
+                        {t('staff.assign.replace', 'Replace existing subjects')}
                       </div>
                     </SelectItem>
                     <SelectItem value="append">
                       <div className="flex items-center gap-2">
                         <CheckCircle className="w-4 h-4 text-blue-500" />
-                        Add to existing subjects
+                        {t('staff.assign.add', 'Add to existing subjects')}
                       </div>
                     </SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
                   {assignmentMode === 'replace'
-                    ? 'This will replace all existing subjects with the selected ones.'
-                    : 'This will add the selected subjects to the existing ones.'
-                  }
+                    ? t('staff.assign.replaceHelp', 'This will replace all existing subjects with the selected ones.')
+                    : t('staff.assign.addHelp', 'This will add the selected subjects to the existing ones.')}
                 </p>
               </div>
 
               {/* Subject Selection */}
               <div className="space-y-3">
-                <Label>Select Subjects *</Label>
+                <Label>{t('staff.assign.selectSubjects', 'Select Subjects *')}</Label>
                 {availableSubjectsLoading ? (
                   <div className="flex items-center justify-center gap-3 py-8">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                    <span className="text-muted-foreground">Loading subjects...</span>
+                    <span className="text-muted-foreground">{t('academicSetup.loading.subjects', 'Loading subjects...')}</span>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-3 border rounded-lg bg-muted/30">
@@ -402,7 +403,7 @@ export default function AssignSubjectsPage() {
                 {/* Selected subjects preview */}
                 {selectedSubjects.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-sm font-medium">Selected subjects:</p>
+                    <p className="text-sm font-medium">{t('staff.assign.selectedSubjects', 'Selected subjects')}:</p>
                     <div className="flex flex-wrap gap-1">
                       {selectedSubjects.map((subject) => (
                         <Badge key={subject} variant="default" className="text-xs">
@@ -424,7 +425,7 @@ export default function AssignSubjectsPage() {
             onClick={() => router.back()}
             disabled={assignmentLoading}
           >
-            Cancel
+            {t('actions.cancel', 'Cancel')}
           </Button>
           <Button
             onClick={handleSubjectAssignment}
@@ -434,12 +435,12 @@ export default function AssignSubjectsPage() {
             {assignmentLoading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Assigning...
+                {t('actions.assigning', 'Assigning...')}
               </>
             ) : (
               <>
                 <BookMarked className="h-4 w-4" />
-                Assign {selectedSubjects.length} Subject{selectedSubjects.length !== 1 ? 's' : ''}
+                {t('staff.assign.assignSelected', 'Assign Selected')}
               </>
             )}
           </Button>

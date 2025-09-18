@@ -16,23 +16,30 @@ import {
   Calendar,
   Loader2
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTimetable } from '@/hooks/use-timetable';
+import { useI18n } from '@/lib/i18n/context';
 
-const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAY_KEYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
 
 export default function TimetablePage() {
   const { user } = useAuth();
   const { timetableData, loading, error, refreshTimetable } = useTimetable();
   const [selectedDay, setSelectedDay] = useState('Monday');
+  const { t } = useI18n();
+
+  const dayLabels = useMemo(
+    () => DAY_KEYS.map((d) => ({ key: d, label: t(`days.${d.toLowerCase()}`, d) })),
+    [t]
+  );
 
   // Only allow teachers to access this page
   if (user?.role !== 'teacher') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only teachers can access this page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="text-gray-600">{t('access.teachersOnlyPage', 'Only teachers can access this page.')}</p>
         </div>
       </div>
     );
@@ -57,7 +64,7 @@ export default function TimetablePage() {
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-              <p className="text-gray-600">Loading your timetable...</p>
+              <p className="text-gray-600">{t('timetableTeacher.loading', 'Loading your timetable...')}</p>
             </div>
           </div>
         </div>
@@ -72,11 +79,11 @@ export default function TimetablePage() {
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <AlertCircle className="h-8 w-8 mx-auto mb-4 text-destructive" />
-              <h2 className="text-xl font-semibold mb-2">Error Loading Timetable</h2>
+              <h2 className="text-xl font-semibold mb-2">{t('timetableTeacher.errorTitle', 'Error Loading Timetable')}</h2>
               <p className="text-gray-600 mb-4">{error}</p>
               <Button onClick={refreshTimetable} variant="outline">
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Try Again
+                {t('timetableTeacher.tryAgain', 'Try Again')}
               </Button>
             </div>
           </div>
@@ -91,14 +98,14 @@ export default function TimetablePage() {
         <div className="mb-8">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h1 className="text-3xl font-bold mb-2">My Timetable</h1>
+              <h1 className="text-3xl font-bold mb-2">{t('timetableTeacher.title', 'My Timetable')}</h1>
               <p className="text-gray-600 dark:text-gray-300">
-                Your weekly teaching schedule
+                {t('timetableTeacher.subtitle', 'Your weekly teaching schedule')}
               </p>
             </div>
             <Button onClick={refreshTimetable} variant="outline" size="sm">
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              {t('actions.refresh', 'Refresh')}
             </Button>
           </div>
         </div>
@@ -108,27 +115,27 @@ export default function TimetablePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
-                Weekly Schedule
+                {t('timetableTeacher.weekly', 'Weekly Schedule')}
               </CardTitle>
               <CardDescription>
-                {timetableData?.teacher?.full_name || 'Teacher'}&apos;s teaching timetable for the week
+                {(timetableData?.teacher?.full_name || t('common.teacher', 'Teacher')) + ' ' + t('timetableTeacher.forWeek', "teaching timetable for the week")}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2 mb-6">
-                {DAYS_OF_WEEK.map((day) => {
-                  const hasClasses = timetableData?.timetable && timetableData.timetable[day]?.length > 0;
+                {dayLabels.map(({ key, label }) => {
+                  const hasClasses = timetableData?.timetable && timetableData.timetable[key]?.length > 0;
                   return (
                     <Button
-                      key={day}
-                      variant={selectedDay === day ? 'default' : 'outline'}
-                      onClick={() => setSelectedDay(day)}
+                      key={key}
+                      variant={selectedDay === key ? 'default' : 'outline'}
+                      onClick={() => setSelectedDay(key)}
                       className={`relative ${hasClasses ? 'border-green-200' : ''}`}
                     >
-                      {day}
+                      {label}
                       {hasClasses && (
                         <Badge variant="secondary" className="ml-2 h-5 w-5 p-0 text-xs">
-                          {timetableData?.timetable[day]?.length}
+                          {timetableData?.timetable[key]?.length}
                         </Badge>
                       )}
                     </Button>
@@ -139,18 +146,18 @@ export default function TimetablePage() {
               {currentDayTimetable.length === 0 ? (
                 <div className="text-center py-12">
                   <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">No Classes Scheduled</h3>
-                  <p className="text-gray-600">You have no classes scheduled for {selectedDay}.</p>
+                  <h3 className="text-lg font-semibold mb-2">{t('timetableTeacher.noClasses', 'No Classes Scheduled')}</h3>
+                  <p className="text-gray-600">{t('timetableTeacher.noClassesDesc', 'You have no classes scheduled for {day}').replace('{day}', t(`days.${selectedDay.toLowerCase()}`, selectedDay))}</p>
                 </div>
               ) : (
                 <div className="rounded-md border">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b bg-muted/50">
-                        <th className="text-left p-4 font-medium">Period</th>
-                        <th className="text-left p-4 font-medium">Time</th>
-                        <th className="text-left p-4 font-medium">Subject</th>
-                        <th className="text-left p-4 font-medium">Class</th>
+                        <th className="text-left p-4 font-medium">{t('timetableTeacher.table.period', 'Period')}</th>
+                        <th className="text-left p-4 font-medium">{t('timetableTeacher.table.time', 'Time')}</th>
+                        <th className="text-left p-4 font-medium">{t('timetableTeacher.table.subject', 'Subject')}</th>
+                        <th className="text-left p-4 font-medium">{t('timetableTeacher.table.class', 'Class')}</th>
                       </tr>
                     </thead>
                     <tbody>

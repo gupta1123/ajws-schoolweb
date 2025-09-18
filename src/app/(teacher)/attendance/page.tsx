@@ -19,6 +19,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { attendanceApi } from '@/lib/api/attendance';
+import { useI18n } from '@/lib/i18n/context';
 
 
 
@@ -34,6 +35,7 @@ interface ClassData {
 export default function AttendancePage() {
   const { user, token } = useAuth();
   const router = useRouter();
+  const { t } = useI18n();
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -87,8 +89,8 @@ export default function AttendancePage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only teachers can access this page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="text-gray-600">{t('access.teachersOnlyPage', 'Only teachers can access this page.')}</p>
         </div>
       </div>
     );
@@ -118,7 +120,7 @@ export default function AttendancePage() {
       <div className="space-y-6">
         {/* Header with refresh button */}
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Attendance Management</h1>
+          <h1 className="text-3xl font-bold">{t('attendanceTeacher.title', 'Attendance Management')}</h1>
           <Button
             variant="outline"
             onClick={handleRefresh}
@@ -126,7 +128,7 @@ export default function AttendancePage() {
             className="flex items-center gap-2"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+            {t('actions.refresh', 'Refresh')}
           </Button>
         </div>
 
@@ -134,16 +136,16 @@ export default function AttendancePage() {
               <div className="lg:col-span-2 space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Take Attendance</CardTitle>
+                    <CardTitle>{t('attendanceTeacher.take.title', 'Take Attendance')}</CardTitle>
                     <CardDescription>
-                      Select a class and date to take attendance
+                      {t('attendanceTeacher.take.desc', 'Select a class and date to take attendance')}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label htmlFor="date" className="text-sm font-medium">
-                          Date
+                          {t('attendanceTeacher.labels.date', 'Date')}
                         </label>
                         <div className="relative">
                           <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -160,7 +162,7 @@ export default function AttendancePage() {
 
                       <div className="space-y-2">
                         <label htmlFor="class" className="text-sm font-medium">
-                          Class
+                          {t('attendanceTeacher.labels.class', 'Class')}
                         </label>
                         <select
                           id="class"
@@ -168,10 +170,10 @@ export default function AttendancePage() {
                           onChange={(e) => setSelectedClass(e.target.value)}
                           className="w-full border rounded-md px-3 py-2"
                         >
-                          <option value="">Select a class</option>
+                          <option value="">{t('attendanceTeacher.labels.selectClass', 'Select a class')}</option>
                           {classes.map((cls) => (
                             <option key={cls.id} value={cls.id}>
-                              {cls.name} - Section {cls.division}
+                              {cls.name} - {t('timetable.section', 'Section')} {cls.division}
                             </option>
                           ))}
                         </select>
@@ -183,16 +185,16 @@ export default function AttendancePage() {
                       disabled={!selectedClass || !date || loading}
                       className="w-full"
                     >
-                      {loading ? 'Loading...' : 'Take Attendance'}
+                      {loading ? t('attendanceTeacher.loading', 'Loading...') : t('attendanceTeacher.take.cta', 'Take Attendance')}
                     </Button>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Class Overview</CardTitle>
+                    <CardTitle>{t('attendanceTeacher.classes.title', 'Class Overview')}</CardTitle>
                     <CardDescription>
-                      View your assigned classes and their details
+                      {t('attendanceTeacher.classes.desc', 'View your assigned classes and their details')}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -200,7 +202,7 @@ export default function AttendancePage() {
                       <div className="relative flex-1">
                         <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                         <Input
-                          placeholder="Search classes..."
+                          placeholder={t('attendanceTeacher.classes.searchPlaceholder', 'Search classes...')}
                           className="pl-10"
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
@@ -208,35 +210,35 @@ export default function AttendancePage() {
                       </div>
                       <Button variant="outline">
                         <Filter className="mr-2 h-4 w-4" />
-                        Filter
+                        {t('attendanceTeacher.classes.filter', 'Filter')}
                       </Button>
                     </div>
 
                     {loading ? (
                       <div className="text-center py-8">
                         <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2" />
-                        <p>Loading classes...</p>
+                        <p>{t('classes.loading', 'Loading classes...')}</p>
                       </div>
                     ) : filteredClasses.length === 0 ? (
                       <div className="text-center py-8 text-gray-500">
                         <Users className="h-8 w-8 mx-auto mb-2" />
-                        <p>No classes found</p>
+                        <p>{t('classes.emptyTitle', 'No classes found')}</p>
                       </div>
                     ) : (
                       <div className="rounded-md border">
                         <table className="w-full">
                           <thead>
                             <tr className="border-b">
-                              <th className="text-left p-4 font-medium">Class</th>
-                              <th className="text-left p-4 font-medium">Students</th>
-                              <th className="text-right p-4 font-medium">Actions</th>
+                              <th className="text-left p-4 font-medium">{t('attendanceMgmt.cols.class', 'Class')}</th>
+                              <th className="text-left p-4 font-medium">{t('attendanceMgmt.details.totalStudents', 'Total Students')}</th>
+                              <th className="text-right p-4 font-medium">{t('academicSetup.cols.actions', 'Actions')}</th>
                             </tr>
                           </thead>
                           <tbody>
                             {filteredClasses.map((cls) => (
                               <tr key={cls.id} className="border-b hover:bg-muted/50">
                                 <td className="p-4">
-                                  <div className="font-medium">{cls.name} - Section {cls.division}</div>
+                                  <div className="font-medium">{cls.name} - {t('timetable.section', 'Section')} {cls.division}</div>
                                 </td>
                                 <td className="p-4">
                                   <div className="font-medium">{cls.studentCount}</div>
@@ -251,7 +253,7 @@ export default function AttendancePage() {
                                       router.push(`/attendance/${cls.id}?date=${new Date().toISOString().split('T')[0]}`);
                                     }}
                                   >
-                                    Take Attendance
+                                    {t('attendanceTeacher.take.cta', 'Take Attendance')}
                                   </Button>
                                 </td>
                               </tr>
@@ -271,10 +273,10 @@ export default function AttendancePage() {
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                        Action Required
+                        {t('attendanceMgmt.actionRequired', 'Action Required')}
                       </CardTitle>
                       <CardDescription>
-                        Your assigned classes - ready for attendance marking
+                        {t('attendanceTeacher.unmarked.desc', 'Your assigned classes - ready for attendance marking')}
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -283,9 +285,9 @@ export default function AttendancePage() {
                           <div key={cls.id} className="p-3 border rounded-lg">
                             <div className="flex justify-between items-start">
                               <div>
-                                <h3 className="font-medium">{cls.name} - Section {cls.division}</h3>
+                                <h3 className="font-medium">{cls.name} - {t('timetable.section', 'Section')} {cls.division}</h3>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                                  {cls.studentCount} students
+                                  {cls.studentCount} {t('dashboard.teacher.classOverview.students', 'students')}
                                 </p>
                               </div>
                               <Button
@@ -296,14 +298,14 @@ export default function AttendancePage() {
                                   router.push(`/attendance/${cls.id}?date=${new Date().toISOString().split('T')[0]}`);
                                 }}
                               >
-                                Mark Now
+                                {t('attendanceTeacher.unmarked.markNow', 'Mark Now')}
                               </Button>
                             </div>
                           </div>
                         ))}
                         {unmarkedClasses.length > 3 && (
                           <p className="text-sm text-gray-500 text-center">
-                            +{unmarkedClasses.length - 3} more classes need attention
+                            +{unmarkedClasses.length - 3} {t('attendanceTeacher.unmarked.moreClasses', 'more classes need attention')}
                           </p>
                         )}
                       </div>

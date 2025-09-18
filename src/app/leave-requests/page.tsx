@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/table';
 import { Search, Check, X, Calendar, User, Filter, AlertTriangle, Loader2, BookOpen } from 'lucide-react';
 import { useState, useEffect, Suspense } from 'react';
+import { useI18n } from '@/lib/i18n/context';
 import Link from 'next/link';
 import { useTheme } from '@/lib/theme/context';
 import { useLeaveRequests } from '@/hooks/use-leave-requests';
@@ -27,6 +28,7 @@ import { formatDate } from '@/lib/utils';
 // Simple status badge component with theme support
 const StatusBadge = ({ status }: { status: string }) => {
   const { colorScheme } = useTheme();
+  const { t } = useI18n();
   
   // Get theme-aware colors
   const getThemeColors = () => {
@@ -66,9 +68,9 @@ const StatusBadge = ({ status }: { status: string }) => {
   
   const themeColors = getThemeColors();
   const statusConfig = {
-    pending: { text: 'Pending', className: themeColors.pending },
-    approved: { text: 'Approved', className: themeColors.approved },
-    rejected: { text: 'Rejected', className: themeColors.rejected }
+    pending: { text: t('leave.status.pending', 'Pending'), className: themeColors.pending },
+    approved: { text: t('leave.status.approved', 'Approved'), className: themeColors.approved },
+    rejected: { text: t('leave.status.rejected', 'Rejected'), className: themeColors.rejected }
   };
   
   const config = statusConfig[status as keyof typeof statusConfig] || { text: status, className: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200' };
@@ -84,6 +86,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 function LeaveRequestsContent() {
   const { user, token, isAuthenticated, loading: authLoading } = useAuth();
   const { colorScheme } = useTheme();
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -180,7 +183,7 @@ function LeaveRequestsContent() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>Loading authentication...</p>
+          <p>{t('leave.loadingAuth')}</p>
         </div>
       </div>
     );
@@ -192,8 +195,8 @@ function LeaveRequestsContent() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Authentication Required</h2>
-          <p className="text-gray-600 mb-4">Please log in to access the leave requests page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('auth.required', 'Authentication Required')}</h2>
+          <p className="text-gray-600 mb-4">{t('leave.loginToAccess')}</p>
           <div className="mb-4 p-4 bg-gray-100 rounded text-left text-sm">
             <p><strong>Debug Info:</strong></p>
             <p>Authenticated: {isAuthenticated ? 'Yes' : 'No'}</p>
@@ -201,7 +204,7 @@ function LeaveRequestsContent() {
             <p>User: {user ? `${user.full_name} (${user.role})` : 'None'}</p>
           </div>
           <Link href="/login">
-            <Button>Go to Login</Button>
+            <Button>{t('leave.goToLogin')}</Button>
           </Link>
         </div>
       </div>
@@ -214,8 +217,8 @@ function LeaveRequestsContent() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">You don&apos;t have permission to access leave requests.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="text-gray-600">{t('leave.noPermission')}</p>
         </div>
       </div>
     );
@@ -256,16 +259,16 @@ function LeaveRequestsContent() {
       console.log('Approving leave request:', requestId);
       const success = await approveLeaveRequest(requestId);
       if (success) {
-        setActionMessage({ type: 'success', message: 'Leave request approved successfully!' });
+        setActionMessage({ type: 'success', message: t('leave.actions.approveSuccess') });
         // Clear message after 3 seconds
         setTimeout(() => setActionMessage(null), 3000);
       } else {
-        setActionMessage({ type: 'error', message: 'Failed to approve leave request' });
+        setActionMessage({ type: 'error', message: t('leave.actions.approveError') });
         setTimeout(() => setActionMessage(null), 3000);
       }
     } catch (error) {
       console.error('Error approving request:', error);
-      setActionMessage({ type: 'error', message: 'Error occurred while approving request' });
+      setActionMessage({ type: 'error', message: t('leave.actions.approveGenericError') });
       setTimeout(() => setActionMessage(null), 3000);
     } finally {
       setProcessingRequests(prev => {
@@ -278,22 +281,22 @@ function LeaveRequestsContent() {
 
   const handleRejectRequest = async (requestId: string) => {
     try {
-      const rejectionReason = prompt('Please provide a reason for rejection:');
+      const rejectionReason = prompt(t('leave.actions.rejectionReason'));
       if (rejectionReason !== null) {
         setProcessingRequests(prev => new Set(prev).add(requestId));
         console.log('Rejecting leave request:', requestId, 'Reason:', rejectionReason);
         const success = await rejectLeaveRequest(requestId, rejectionReason);
         if (success) {
-          setActionMessage({ type: 'success', message: 'Leave request rejected successfully!' });
+          setActionMessage({ type: 'success', message: t('leave.actions.rejectSuccess') });
           setTimeout(() => setActionMessage(null), 3000);
         } else {
-          setActionMessage({ type: 'error', message: 'Failed to reject leave request' });
+          setActionMessage({ type: 'error', message: t('leave.actions.rejectError') });
           setTimeout(() => setActionMessage(null), 3000);
         }
       }
     } catch (error) {
       console.error('Error rejecting request:', error);
-      setActionMessage({ type: 'error', message: 'Error occurred while rejecting request' });
+      setActionMessage({ type: 'error', message: t('leave.actions.rejectGenericError') });
       setTimeout(() => setActionMessage(null), 3000);
     } finally {
       setProcessingRequests(prev => {
@@ -332,17 +335,17 @@ function LeaveRequestsContent() {
             {urgentCount > 0 && (
               <div className="flex items-center gap-1 bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm">
                 <AlertTriangle className="h-4 w-4" />
-                {urgentCount} urgent
+                {urgentCount} {t('leave.urgent')}
               </div>
             )}
             {pendingCount > 0 && (
               <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">
-                {pendingCount} pending
+                {pendingCount} {t('leave.kpi.pending')}
               </div>
             )}
           </div>
           <div className="text-sm text-muted-foreground">
-            Logged in as: <span className="font-medium">{user?.role}</span>
+            {t('leave.loggedInAs')} <span className="font-medium">{user?.role}</span>
           </div>
         </div>
 
@@ -354,7 +357,7 @@ function LeaveRequestsContent() {
                 <User className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Total Requests</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('leave.kpi.total')}</p>
                 <p className="text-2xl font-bold">{leaveRequests.length}</p>
               </div>
             </CardContent>
@@ -365,7 +368,7 @@ function LeaveRequestsContent() {
                 <Calendar className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Pending</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('leave.kpi.pending')}</p>
                 <p className="text-2xl font-bold">{pendingCount}</p>
               </div>
             </CardContent>
@@ -376,7 +379,7 @@ function LeaveRequestsContent() {
                 <Check className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Approved</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('leave.kpi.approved')}</p>
                 <p className="text-2xl font-bold">{leaveRequests.filter(r => r.status === 'approved').length}</p>
               </div>
             </CardContent>
@@ -387,7 +390,7 @@ function LeaveRequestsContent() {
                 <X className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Rejected</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('leave.kpi.rejected')}</p>
                 <p className="text-2xl font-bold">{leaveRequests.filter(r => r.status === 'rejected').length}</p>
               </div>
             </CardContent>
@@ -416,14 +419,13 @@ function LeaveRequestsContent() {
         <div className="grid gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Leave Requests</CardTitle>
+              <CardTitle>{t('leave.title')}</CardTitle>
               <CardDescription>
                 {user?.role === 'admin' || user?.role === 'principal'
-                  ? 'Approve or reject leave requests from parents'
+                  ? t('leave.subtitle.admin')
                   : user?.role === 'teacher'
-                  ? 'View and manage leave requests for your assigned classes'
-                  : 'View leave requests for your assigned classes'
-                }
+                  ? t('leave.subtitle.teacher')
+                  : t('leave.subtitle.default')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -432,7 +434,7 @@ function LeaveRequestsContent() {
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input 
-                    placeholder="Search requests..." 
+                    placeholder={t('leave.searchPlaceholder')} 
                     className="pl-8" 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -445,7 +447,7 @@ function LeaveRequestsContent() {
                     className="flex items-center gap-2"
                   >
                     <Filter className="h-4 w-4" />
-                    Filters
+                    {t('leave.filters.title')}
                   </Button>
                 </div>
               </div>
@@ -454,33 +456,33 @@ function LeaveRequestsContent() {
               {showFilters && (
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 p-4 bg-muted/30 rounded-lg">
                   <div>
-                    <label className="text-sm font-medium mb-1 block">Status</label>
+                    <label className="text-sm font-medium mb-1 block">{t('leave.filters.status')}</label>
                     <select 
                       className="border rounded-md px-3 py-2 text-sm w-full"
                       value={statusFilter}
                       onChange={(e) => setStatusFilter(e.target.value)}
                     >
-                      <option value="all">All Statuses</option>
-                      <option value="pending">Pending</option>
-                      <option value="approved">Approved</option>
-                      <option value="rejected">Rejected</option>
+                      <option value="all">{t('leave.filters.allStatuses')}</option>
+                      <option value="pending">{t('leave.status.pending')}</option>
+                      <option value="approved">{t('leave.status.approved')}</option>
+                      <option value="rejected">{t('leave.status.rejected')}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-1 block">Class</label>
+                    <label className="text-sm font-medium mb-1 block">{t('leave.filters.class')}</label>
                     <select 
                       className="border rounded-md px-3 py-2 text-sm w-full"
                       value={classFilter}
                       onChange={(e) => setClassFilter(e.target.value)}
                     >
-                      <option value="all">All Classes</option>
+                      <option value="all">{t('leave.filters.allClasses')}</option>
                       {availableClasses.map(className => (
                         <option key={className} value={className}>{className}</option>
                       ))}
                     </select>
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-1 block">Start Date</label>
+                    <label className="text-sm font-medium mb-1 block">{t('leave.filters.startDate')}</label>
                     <Input
                       type="date"
                       value={dateRange.start}
@@ -489,7 +491,7 @@ function LeaveRequestsContent() {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-1 block">End Date</label>
+                    <label className="text-sm font-medium mb-1 block">{t('leave.filters.endDate')}</label>
                     <Input
                       type="date"
                       value={dateRange.end}
@@ -505,19 +507,19 @@ function LeaveRequestsContent() {
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    <span className="ml-2 text-muted-foreground">Loading leave requests...</span>
+                    <span className="ml-2 text-muted-foreground">{t('leave.loading')}</span>
                   </div>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Student</TableHead>
-                        <TableHead>Class Info</TableHead>
-                        <TableHead>Dates</TableHead>
-                        <TableHead>Reason</TableHead>
-                        <TableHead>Requested Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead>{t('leave.columns.student')}</TableHead>
+                        <TableHead>{t('leave.columns.classInfo')}</TableHead>
+                        <TableHead>{t('leave.columns.dates')}</TableHead>
+                        <TableHead>{t('leave.columns.reason')}</TableHead>
+                        <TableHead>{t('leave.columns.requestedDate')}</TableHead>
+                        <TableHead>{t('leave.columns.status')}</TableHead>
+                        <TableHead className="text-right">{t('leave.columns.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -551,12 +553,12 @@ function LeaveRequestsContent() {
                                       <div className="relative group">
                                         <AlertTriangle className="h-4 w-4 text-red-500" />
                                         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                                          Currently on leave
+                                          {t('leave.currentlyOnLeave')}
                                         </div>
                                       </div>
                                     ) : null;
                                   })()}
-                                  <span>{request.student?.full_name || 'Unknown Student'}</span>
+                                  <span>{request.student?.full_name || t('leave.unknownStudent')}</span>
                                 </div>
                               </TableCell>
                               <TableCell>
@@ -564,18 +566,18 @@ function LeaveRequestsContent() {
                                   <div className="flex items-center gap-1">
                                     <BookOpen className="h-4 w-4 text-muted-foreground" />
                                     <span className="font-medium">
-                                      Class {request.student?.student_academic_records?.[0]?.class_division?.level?.sequence_number || 'N/A'}
+                                      {t('leave.class')} {request.student?.student_academic_records?.[0]?.class_division?.level?.sequence_number || t('students.na', 'N/A')}
                                     </span>
                                   </div>
                                   <div className="text-gray-500 ml-5">
-                                    Division {request.student?.student_academic_records?.[0]?.class_division?.division || 'N/A'}
+                                    {t('leave.division')} {request.student?.student_academic_records?.[0]?.class_division?.division || t('students.na', 'N/A')}
                                   </div>
                                 </div>
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-1">
                                   <Calendar className="h-4 w-4 text-muted-foreground" />
-                                  <span>{formatDate(request.start_date)} to {formatDate(request.end_date)}</span>
+                                  <span>{formatDate(request.start_date)} {t('pagination.to', 'to')} {formatDate(request.end_date)}</span>
                                 </div>
                               </TableCell>
                               <TableCell className="text-gray-500 dark:text-gray-400">
@@ -627,12 +629,12 @@ function LeaveRequestsContent() {
                           <TableCell colSpan={7} className="text-center py-12">
                             <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
-                              No leave requests found
+                              {t('leave.empty.title')}
                             </h3>
                             <p className="text-gray-500 dark:text-gray-400">
                               {searchTerm || statusFilter !== 'all' || classFilter !== 'all' || dateRange.start || dateRange.end
-                                ? 'Try adjusting your filters or search term' 
-                                : 'There are no leave requests at the moment'}
+                                ? t('leave.empty.adjust') 
+                                : t('leave.empty.none')}
                             </p>
                           </TableCell>
                         </TableRow>
@@ -651,12 +653,13 @@ function LeaveRequestsContent() {
 
 // Main page component that wraps the content in Suspense
 export default function LeaveRequestsPage() {
+  const { t } = useI18n();
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-gray-500">Loading leave requests...</p>
+          <p className="text-gray-500">{t('leave.loading')}</p>
         </div>
       </div>
     }>

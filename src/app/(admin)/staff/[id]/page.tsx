@@ -28,6 +28,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import { staffServices } from '@/lib/api/staff';
+import { useI18n } from '@/lib/i18n/context';
 import type { Staff } from '@/types/staff';
 
 interface StaffDetailPageProps {
@@ -77,6 +78,7 @@ interface TeacherClassesResponse {
 export default function StaffDetailPage({ params }: StaffDetailPageProps) {
   const { user, token } = useAuth();
   const router = useRouter();
+  const { t } = useI18n();
 
   const [staffId, setStaffId] = useState<string>('');
   const [staff, setStaff] = useState<Staff | null>(null);
@@ -444,7 +446,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
               className="mb-4 flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back to Staff
+              {t('staff.backToList', 'Back to Staff')}
             </Button>
           </div>
           <div className="flex items-center justify-center h-64">
@@ -452,9 +454,9 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
               <div className="text-red-500 mb-4">
                 <Shield className="h-12 w-12 mx-auto" />
               </div>
-              <h2 className="text-xl font-semibold mb-2">Error Loading Staff Details</h2>
-              <p className="text-gray-600 mb-4">{error || 'Staff member not found'}</p>
-              <Button onClick={() => router.back()}>Go Back</Button>
+              <h2 className="text-xl font-semibold mb-2">{t('staff.detail.errorTitle', 'Error Loading Staff Details')}</h2>
+              <p className="text-gray-600 mb-4">{error || t('staff.detail.notFound', 'Staff member not found')}</p>
+              <Button onClick={() => router.back()}>{t('actions.back', 'Go Back')}</Button>
             </div>
           </div>
         </div>
@@ -479,7 +481,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
             className="mb-4 flex items-center gap-2 text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Staff
+            {t('staff.backToList', 'Back to Staff')}
           </Button>
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -506,7 +508,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
             className="flex items-center gap-2"
           >
             <Shield className="w-4 h-4" />
-            Edit
+            {t('actions.edit', 'Edit')}
           </Button>
 
           <Button
@@ -515,7 +517,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
             className="flex items-center gap-2"
           >
             <AlertTriangle className="w-4 h-4" />
-            Delete
+            {t('actions.delete', 'Delete')}
           </Button>
         </div>
 
@@ -613,7 +615,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
                 <CardTitle className="flex items-center justify-between text-lg">
                   <div className="flex items-center gap-2">
                     <GraduationCap className="h-5 w-5" />
-                    Teaching Subjects
+                    {t('staff.detail.teachingSubjects', 'Teaching Subjects')}
                   </div>
                   <Button
                     variant="outline"
@@ -622,7 +624,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
                     className="flex items-center gap-2"
                   >
                     <Edit className="h-4 w-4" />
-                    Manage Subjects
+                    {t('staff.detail.manageSubjects', 'Manage Subjects')}
                   </Button>
                 </CardTitle>
               </CardHeader>
@@ -630,7 +632,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
                 {subjectsLoading ? (
                   <div className="flex items-center justify-center gap-3 py-8">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                    <span className="text-muted-foreground">Loading subjects...</span>
+                    <span className="text-muted-foreground">{t('academicSetup.loading.subjects', 'Loading subjects...')}</span>
                   </div>
                 ) : teacherSubjects.length > 0 ? (
                   <div className="space-y-4">
@@ -642,13 +644,13 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
                       ))}
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {teacherSubjects.length} subject{teacherSubjects.length !== 1 ? 's' : ''} assigned
+                      {teacherSubjects.length} {t('staff.detail.subjectsAssigned', 'subjects assigned')}
                     </p>
                   </div>
                 ) : (
                   <div className="text-center py-6 bg-muted/30 rounded-lg">
                     <GraduationCap className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-                    <p className="text-sm text-muted-foreground mb-3">No subjects assigned</p>
+                    <p className="text-sm text-muted-foreground mb-3">{t('staff.detail.noSubjects', 'No subjects assigned')}</p>
                     <Button
                       variant="outline"
                       size="sm"
@@ -656,7 +658,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
                       className="flex items-center gap-2"
                     >
                       <Plus className="h-4 w-4" />
-                      Assign Subjects
+                      {t('staff.assignSubjects', 'Assign Subjects')}
                     </Button>
                   </div>
                 )}
@@ -672,17 +674,17 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-red-500" />
-                Delete Staff Member
+                {t('staff.delete.title', 'Delete Staff Member')}
               </DialogTitle>
               <DialogDescription>
-                Are you sure you want to delete &ldquo;{staff?.full_name}&rdquo;? This action cannot be undone.
+                {t('staff.delete.confirm', 'Are you sure you want to delete')} &ldquo;{staff?.full_name}&rdquo;? {t('staff.delete.cannotUndo', 'This action cannot be undone.')}
               </DialogDescription>
             </DialogHeader>
 
             <div className="py-4">
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-sm text-red-800">
-                  <strong>Warning:</strong> Deleting this staff member will also remove all their assignments and cannot be recovered.
+                  <strong>{t('staff.delete.warning', 'Warning')}:</strong> {t('staff.delete.warningDesc', 'Deleting this staff member will also remove all their assignments and cannot be recovered.')}
                 </p>
               </div>
             </div>
@@ -692,7 +694,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
                 variant="outline"
                 onClick={() => setShowDeleteModal(false)}
               >
-                Cancel
+                {t('actions.cancel', 'Cancel')}
               </Button>
               <Button
                 variant="destructive"
@@ -704,7 +706,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
                 className="flex items-center gap-2"
               >
                 <AlertTriangle className="w-4 h-4" />
-                Delete Staff Member
+                {t('staff.delete.title', 'Delete Staff Member')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -716,10 +718,10 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <GraduationCap className="w-5 h-5 text-primary" />
-                Manage Teaching Subjects
+                {t('staff.detail.manageSubjects', 'Manage Teaching Subjects')}
               </DialogTitle>
               <DialogDescription>
-                Select subjects for {staff?.full_name} to teach
+                {t('staff.detail.selectSubjectsFor', 'Select subjects for')} {staff?.full_name} {t('staff.detail.toTeach', 'to teach')}
               </DialogDescription>
             </DialogHeader>
 
@@ -740,7 +742,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
 
               {/* Assignment Mode */}
               <div className="space-y-2">
-                <Label>Assignment Mode</Label>
+                <Label>{t('staff.assign.assignmentMode', 'Assignment Mode')}</Label>
                 <Select
                   value={assignmentMode}
                   onValueChange={(value: 'replace' | 'append') => setAssignmentMode(value)}
@@ -752,32 +754,31 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
                     <SelectItem value="replace">
                       <div className="flex items-center gap-2">
                         <CheckCircle className="w-4 h-4 text-green-500" />
-                        Replace existing subjects
+                        {t('staff.assign.replace', 'Replace existing subjects')}
                       </div>
                     </SelectItem>
                     <SelectItem value="append">
                       <div className="flex items-center gap-2">
                         <CheckCircle className="w-4 h-4 text-blue-500" />
-                        Add to existing subjects
+                        {t('staff.assign.add', 'Add to existing subjects')}
                       </div>
                     </SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
                   {assignmentMode === 'replace'
-                    ? 'This will replace all existing subjects with the selected ones.'
-                    : 'This will add the selected subjects to the existing ones.'
-                  }
+                    ? t('staff.assign.replaceHelp', 'This will replace all existing subjects with the selected ones.')
+                    : t('staff.assign.addHelp', 'This will add the selected subjects to the existing ones.')}
                 </p>
               </div>
 
               {/* Subject Selection */}
               <div className="space-y-3">
-                <Label>Select Subjects *</Label>
+                <Label>{t('staff.assign.selectSubjects', 'Select Subjects *')}</Label>
                 {availableSubjectsLoading ? (
                   <div className="flex items-center justify-center gap-3 py-8">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                    <span className="text-muted-foreground">Loading subjects...</span>
+                    <span className="text-muted-foreground">{t('academicSetup.loading.subjects', 'Loading subjects...')}</span>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-3 border rounded-lg bg-muted/30">
@@ -803,7 +804,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
               {/* Selected subjects preview */}
               {selectedSubjects.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Selected subjects ({selectedSubjects.length}):</p>
+                  <p className="text-sm font-medium">{t('staff.assign.selectedSubjects', 'Selected subjects')}{' '}({selectedSubjects.length}):</p>
                   <div className="flex flex-wrap gap-1">
                     {selectedSubjects.map((subject) => (
                       <Badge key={subject} variant="default" className="text-xs">
@@ -825,7 +826,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
                 }}
                 disabled={subjectAssignmentLoading}
               >
-                Cancel
+                {t('actions.cancel', 'Cancel')}
               </Button>
               <Button
                 onClick={assignSubjectsToTeacher}
@@ -835,12 +836,12 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
                 {subjectAssignmentLoading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Assigning...
+                    {t('actions.assigning', 'Assigning...')}
                   </>
                 ) : (
                   <>
                     <CheckCircle className="h-4 w-4" />
-                    Assign {selectedSubjects.length} Subject{selectedSubjects.length !== 1 ? 's' : ''}
+                    {t('staff.assign.assignSelected', 'Assign Selected')}
                   </>
                 )}
               </Button>

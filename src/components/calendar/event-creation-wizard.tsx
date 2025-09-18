@@ -34,6 +34,7 @@ import { useAuth } from '@/lib/auth/context';
 import type { ClassDivision } from '@/types/academic';
 import type { CalendarEvent } from '@/lib/api/calendar';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/context';
 
 
 interface EventFormData {
@@ -64,6 +65,7 @@ export function EventCreationWizard({
   isLoading 
 }: EventCreationWizardProps) {
   const { token } = useAuth();
+  const { t } = useI18n();
   const [classDivisions, setClassDivisions] = useState<ClassDivision[]>([]);
   const [loadingClassDivisions, setLoadingClassDivisions] = useState(false);
   
@@ -260,16 +262,16 @@ export function EventCreationWizard({
             {isEditMode ? (
               <>
                 <Edit3 className="h-6 w-6" />
-                Edit Event
+                {t('calendar.form.editTitle', 'Edit Event')}
               </>
             ) : (
-              'Create New Event'
+              t('calendar.form.createTitle', 'Create New Event')
             )}
           </CardTitle>
           <CardDescription>
             {isEditMode 
-              ? 'Update the details for this event' 
-              : 'Fill in the details for your new event'}
+              ? t('calendar.form.editSubtitle', 'Update the details for this event') 
+              : t('calendar.form.createSubtitle', 'Fill in the details for your new event')}
           </CardDescription>
         </CardHeader>
         <CardContent className="py-6">
@@ -280,14 +282,14 @@ export function EventCreationWizard({
                 <div className="space-y-2">
                   <Label htmlFor="title" className="text-base font-medium flex items-center gap-2">
                     <Hash className="h-4 w-4" />
-                    Event Title
+                    {t('calendar.form.labels.title', 'Event Title')}
                   </Label>
                   <Input
                     id="title"
                     name="title"
                     value={formData.title}
                     onChange={handleInputChange}
-                    placeholder="e.g., School Assembly, Sports Day, etc."
+                    placeholder={t('calendar.form.placeholders.title', 'e.g., School Assembly, Sports Day, etc.')}
                     required
                     className="h-12 text-base"
                   />
@@ -296,14 +298,14 @@ export function EventCreationWizard({
                 <div className="space-y-2">
                   <Label htmlFor="description" className="text-base font-medium flex items-center gap-2">
                     <FileText className="h-4 w-4" />
-                    Description
+                    {t('calendar.form.labels.description', 'Description')}
                   </Label>
                   <Textarea
                     id="description"
                     name="description"
                     value={formData.description}
                     onChange={handleInputChange}
-                    placeholder="Enter event description"
+                    placeholder={t('calendar.form.placeholders.description', 'Enter event description')}
                     rows={4}
                     className="text-base min-h-[120px]"
                   />
@@ -315,7 +317,7 @@ export function EventCreationWizard({
                     <div className="flex justify-between items-center">
                       <Label className="text-base font-medium flex items-center gap-2">
                         <Users className="h-5 w-5" />
-                        Select Class Divisions
+                        {t('calendar.form.labels.selectClassDivisions', 'Select Class Divisions')}
                       </Label>
                       <Button 
                         type="button" 
@@ -324,17 +326,17 @@ export function EventCreationWizard({
                         onClick={handleSelectAllDivisions}
                         className="h-9 px-3"
                       >
-                        {formData.classDivisionIds.length === classDivisions.length ? 'Deselect All' : 'Select All'}
+                        {formData.classDivisionIds.length === classDivisions.length ? t('calendar.form.actions.deselectAll', 'Deselect All') : t('calendar.form.actions.selectAll', 'Select All')}
                       </Button>
                     </div>
                     
                     {loadingClassDivisions ? (
                       <div className="flex items-center justify-center p-6">
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading classes...
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> {t('calendar.form.loadingClasses', 'Loading classes...')}
                       </div>
                     ) : classDivisions.length === 0 ? (
                       <div className="text-center p-6 text-muted-foreground border rounded-lg">
-                        No classes found.
+                        {t('calendar.form.noClasses', 'No classes found.')}
                       </div>
                     ) : (
                       <div className="space-y-4 max-h-96 overflow-y-auto p-1 rounded-lg border bg-muted/30 dark:bg-muted/10">
@@ -409,7 +411,7 @@ export function EventCreationWizard({
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Info className="h-5 w-5" />
-                    Event Details
+                    {t('calendar.form.section.details', 'Event Details')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-5">
@@ -417,7 +419,7 @@ export function EventCreationWizard({
                   <div className="space-y-2">
                     <Label className="text-sm font-medium flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
-                      Date
+                      {t('calendar.form.labels.date', 'Date')}
                     </Label>
                     <Input
                       type="date"
@@ -434,7 +436,7 @@ export function EventCreationWizard({
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-medium flex items-center gap-2">
                         <Clock className="h-4 w-4" />
-                        Time
+                        {t('calendar.form.labels.time', 'Time')}
                       </Label>
                       <div className="flex items-center space-x-2">
                         <input
@@ -445,14 +447,14 @@ export function EventCreationWizard({
                           onChange={handleInputChange}
                           className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-600"
                         />
-                        <Label htmlFor="sidebar-isFullDay" className="text-sm">Full Day</Label>
+                        <Label htmlFor="sidebar-isFullDay" className="text-sm">{t('calendar.form.labels.fullDay', 'Full Day')}</Label>
                       </div>
                     </div>
                     
                     {!formData.isFullDay && (
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <Label className="text-xs text-muted-foreground">Start</Label>
+                          <Label className="text-xs text-muted-foreground">{t('calendar.form.labels.start', 'Start')}</Label>
                           <Input
                             type="time"
                             name="startTime"
@@ -463,7 +465,7 @@ export function EventCreationWizard({
                           />
                         </div>
                         <div>
-                          <Label className="text-xs text-muted-foreground">End</Label>
+                          <Label className="text-xs text-muted-foreground">{t('calendar.form.labels.end', 'End')}</Label>
                           <Input
                             type="time"
                             name="endTime"
@@ -479,31 +481,31 @@ export function EventCreationWizard({
                   
                   {/* Event Type */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Event Type</Label>
+                    <Label className="text-sm font-medium">{t('calendar.form.labels.eventType', 'Event Type')}</Label>
                     <Select 
                       value={formData.eventType} 
                       onValueChange={(value) => handleSelectChange('eventType', value)}
                     >
                       <SelectTrigger className="h-10 text-base">
-                        <SelectValue placeholder="Select event type" />
+                        <SelectValue placeholder={t('calendar.form.placeholders.eventType', 'Select event type')} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="school_wide">
                           <div className="flex items-center gap-2">
                             <School className="h-4 w-4" />
-                            <span>School Wide</span>
+                            <span>{t('calendar.form.eventType.school_wide', 'School Wide')}</span>
                           </div>
                         </SelectItem>
                         <SelectItem value="class_specific">
                           <div className="flex items-center gap-2">
                             <BookOpen className="h-4 w-4" />
-                            <span>Class Specific</span>
+                            <span>{t('calendar.form.eventType.class_specific', 'Class Specific')}</span>
                           </div>
                         </SelectItem>
                         <SelectItem value="teacher_specific">
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4" />
-                            <span>Teacher Specific</span>
+                            <span>{t('calendar.form.eventType.teacher_specific', 'Teacher Specific')}</span>
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -512,67 +514,67 @@ export function EventCreationWizard({
                   
                   {/* Event Category */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Event Category</Label>
+                    <Label className="text-sm font-medium">{t('calendar.form.labels.category', 'Event Category')}</Label>
                     <Select 
                       value={formData.eventCategory} 
                       onValueChange={(value) => handleSelectChange('eventCategory', value)}
                     >
                       <SelectTrigger className="h-10 text-base">
-                        <SelectValue placeholder="Select category" />
+                        <SelectValue placeholder={t('calendar.form.placeholders.category', 'Select category')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="general">General</SelectItem>
-                        <SelectItem value="academic">Academic</SelectItem>
-                        <SelectItem value="sports">Sports</SelectItem>
-                        <SelectItem value="cultural">Cultural</SelectItem>
-                        <SelectItem value="holiday">Holiday</SelectItem>
-                        <SelectItem value="exam">Exam</SelectItem>
-                        <SelectItem value="meeting">Meeting</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        <SelectItem value="general">{t('calendar.form.category.general', 'General')}</SelectItem>
+                        <SelectItem value="academic">{t('calendar.form.category.academic', 'Academic')}</SelectItem>
+                        <SelectItem value="sports">{t('calendar.form.category.sports', 'Sports')}</SelectItem>
+                        <SelectItem value="cultural">{t('calendar.form.category.cultural', 'Cultural')}</SelectItem>
+                        <SelectItem value="holiday">{t('calendar.form.category.holiday', 'Holiday')}</SelectItem>
+                        <SelectItem value="exam">{t('calendar.form.category.exam', 'Exam')}</SelectItem>
+                        <SelectItem value="meeting">{t('calendar.form.category.meeting', 'Meeting')}</SelectItem>
+                        <SelectItem value="other">{t('calendar.form.category.other', 'Other')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   
                   {/* Event Summary */}
                   <div className="space-y-3 pt-2 border-t dark:border-gray-700">
-                    <h3 className="text-sm font-medium text-muted-foreground">Event Summary</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground">{t('calendar.form.summary.title', 'Event Summary')}</h3>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Date:</span>
+                        <span className="text-muted-foreground">{t('calendar.form.summary.date', 'Date:')}</span>
                         <span className="font-medium">
                           {formData.date 
-                            ? new Date(formData.date).toLocaleDateString('en-US', { 
+                            ? new Date(formData.date).toLocaleDateString(undefined, { 
                                 weekday: 'short', 
                                 month: 'short', 
                                 day: 'numeric' 
                               })
-                            : 'Not selected'}
+                            : t('calendar.form.summary.notSelected', 'Not selected')}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Time:</span>
+                        <span className="text-muted-foreground">{t('calendar.form.summary.time', 'Time:')}</span>
                         <span className="font-medium">
-                          {formData.isFullDay ? 'Full Day' : `${formatTime(formData.startTime)} - ${formatTime(formData.endTime)}`}
+                          {formData.isFullDay ? t('calendar.form.labels.fullDay', 'Full Day') : `${formatTime(formData.startTime)} - ${formatTime(formData.endTime)}`}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Type:</span>
+                        <span className="text-muted-foreground">{t('calendar.form.summary.type', 'Type:')}</span>
                         <span className="font-medium">
-                          {formData.eventType === 'school_wide' ? 'School Wide' : formData.eventType === 'class_specific' ? 'Class Specific' : 'Teacher Specific'}
+                          {formData.eventType === 'school_wide' ? t('calendar.form.eventType.school_wide', 'School Wide') : formData.eventType === 'class_specific' ? t('calendar.form.eventType.class_specific', 'Class Specific') : t('calendar.form.eventType.teacher_specific', 'Teacher Specific')}
                         </span>
                       </div>
                       {formData.eventType === 'class_specific' && (
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Classes:</span>
+                          <span className="text-muted-foreground">{t('calendar.form.summary.classes', 'Classes:')}</span>
                           <span className="font-medium">
-                            {formData.classDivisionIds.length} selected
+                            {formData.classDivisionIds.length} {t('calendar.form.summary.selected', 'selected')}
                           </span>
                         </div>
                       )}
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Category:</span>
+                        <span className="text-muted-foreground">{t('calendar.form.summary.category', 'Category:')}</span>
                         <span className="font-medium capitalize">
-                          {formData.eventCategory}
+                          {t(`calendar.form.category.${formData.eventCategory}`, formData.eventCategory)}
                         </span>
                       </div>
                     </div>
@@ -584,9 +586,9 @@ export function EventCreationWizard({
                 <div className="flex items-start gap-2">
                   <div className="mt-0.5 w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></div>
                   <div>
-                    <p className="text-sm font-medium">Approval Required</p>
+                    <p className="text-sm font-medium">{t('calendar.form.approvalRequiredTitle', 'Approval Required')}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      All events require approval from the Principal before they appear on the calendar.
+                      {t('calendar.form.approvalRequiredDesc', 'All events require approval from the Principal before they appear on the calendar.')}
                     </p>
                   </div>
                 </div>
@@ -602,7 +604,7 @@ export function EventCreationWizard({
             disabled={isLoading}
             className="h-11 px-6"
           >
-            Cancel
+            {t('actions.cancel', 'Cancel')}
           </Button>
           
           <Button 
@@ -613,10 +615,10 @@ export function EventCreationWizard({
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? 'Updating...' : 'Creating...'}
+                {isEditMode ? t('calendar.form.updating', 'Updating...') : t('calendar.form.creating', 'Creating...')}
               </>
             ) : (
-              isEditMode ? 'Update Event' : 'Create Event'
+              isEditMode ? t('calendar.form.update', 'Update Event') : t('calendar.form.create', 'Create Event')
             )}
           </Button>
         </CardFooter>

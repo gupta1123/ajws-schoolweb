@@ -15,6 +15,7 @@ import {
   X
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/context';
 
 
 // Event type configuration
@@ -79,6 +80,7 @@ export function EventDetailModal({
   onReject,
   userRole 
 }: EventDetailModalProps) {
+  const { t } = useI18n();
   // Determine if user can edit/delete (admins/principals can always, teachers can for their own events)
   const canEdit = userRole === 'admin' || userRole === 'principal' || 
     (userRole === 'teacher' && event.teacher); // Simplified check
@@ -106,7 +108,14 @@ export function EventDetailModal({
                 <CardTitle>{event.title}</CardTitle>
               </div>
               <CardDescription>
-                {config.label}
+                {t(
+                  event.requiresApproval && !event.approved
+                    ? 'calendar.modal.pendingApproval'
+                    : event.type === 'class'
+                    ? 'calendar.modal.classEvent'
+                    : 'calendar.modal.event',
+                  config.label
+                )}
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" onClick={onClose}>
@@ -127,7 +136,7 @@ export function EventDetailModal({
           
           {event.description && (
             <div className="text-sm">
-              <p className="font-medium mb-1">Description:</p>
+              <p className="font-medium mb-1">{t('calendar.modal.description', 'Description:')}</p>
               <p className="text-gray-600 dark:text-gray-300">{event.description}</p>
             </div>
           )}
@@ -141,7 +150,7 @@ export function EventDetailModal({
           
           {event.teacher && (
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Created by:</span>
+              <span className="text-muted-foreground">{t('calendar.modal.createdBy', 'Created by:')}</span>
               <span>{event.teacher}</span>
             </div>
           )}
@@ -150,12 +159,12 @@ export function EventDetailModal({
             {event.approved ? (
               <>
                 <CheckCircle className="h-4 w-4 text-green-500" />
-                <span className="text-green-600">Approved</span>
+                <span className="text-green-600">{t('calendar.modal.approved', 'Approved')}</span>
               </>
             ) : (
               <>
                 <XCircle className="h-4 w-4 text-orange-500" />
-                <span className="text-orange-600">Pending Approval</span>
+                <span className="text-orange-600">{t('calendar.modal.pendingApproval', 'Pending Approval')}</span>
               </>
             )}
           </div>
@@ -170,7 +179,7 @@ export function EventDetailModal({
                 className="flex-1"
               >
                 <Check className="h-4 w-4 mr-2" />
-                Approve
+                {t('calendar.modal.approve', 'Approve')}
               </Button>
               <Button 
                 variant="outline" 
@@ -179,7 +188,7 @@ export function EventDetailModal({
                 className="flex-1"
               >
                 <X className="h-4 w-4 mr-2" />
-                Reject
+                {t('calendar.modal.reject', 'Reject')}
               </Button>
             </>
           )}
@@ -192,7 +201,7 @@ export function EventDetailModal({
                 className="flex-1"
               >
                 <Edit className="h-4 w-4 mr-2" />
-                Edit
+                {t('actions.edit', 'Edit')}
               </Button>
               <Button 
                 variant="outline" 
@@ -201,7 +210,7 @@ export function EventDetailModal({
                 className="flex-1"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Delete
+                {t('actions.delete', 'Delete')}
               </Button>
             </>
           )}
@@ -211,7 +220,7 @@ export function EventDetailModal({
             onClick={onClose}
             className="flex-1"
           >
-            Close
+            {t('calendar.modal.close', 'Close')}
           </Button>
         </CardFooter>
       </Card>

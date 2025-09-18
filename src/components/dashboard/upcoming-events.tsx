@@ -10,9 +10,11 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth/context';
 import { calendarServices } from '@/lib/api';
 import { CalendarEvent } from '@/lib/api/calendar';
+import { useI18n } from '@/lib/i18n/context';
 
 export function UpcomingEvents() {
   const { user, token } = useAuth();
+  const { t, lang } = useI18n();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,7 +135,7 @@ export function UpcomingEvents() {
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', { 
+    return date.toLocaleTimeString(lang, { 
       hour: 'numeric', 
       minute: '2-digit',
       hour12: true 
@@ -172,12 +174,12 @@ export function UpcomingEvents() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Upcoming Events
+            {t('dashboard.events.title', 'Upcoming Events')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-4 text-muted-foreground">
-            Loading events...
+            {t('dashboard.events.loading', 'Loading events...')}
           </div>
         </CardContent>
       </Card>
@@ -190,13 +192,13 @@ export function UpcomingEvents() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Upcoming Events
+            {t('dashboard.events.title', 'Upcoming Events')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8 text-muted-foreground">
             <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-red-500 mb-2">Failed to load events</p>
+            <p className="text-red-500 mb-2">{t('dashboard.events.loadFailed', 'Failed to load events')}</p>
             <p className="text-xs">{error}</p>
             <Button 
               variant="outline" 
@@ -204,7 +206,7 @@ export function UpcomingEvents() {
               className="mt-3"
               onClick={() => window.location.reload()}
             >
-              Retry
+              {t('actions.refresh', 'Refresh')}
             </Button>
           </div>
         </CardContent>
@@ -218,11 +220,11 @@ export function UpcomingEvents() {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Upcoming Events
+            {t('dashboard.events.title', 'Upcoming Events')}
           </CardTitle>
           <Button variant="ghost" size="sm" className="text-xs" asChild>
             <Link href="/calendar">
-              View All
+              {t('common.viewAll', 'View All')}
             </Link>
           </Button>
         </div>
@@ -254,7 +256,9 @@ export function UpcomingEvents() {
                 <div className="space-y-1 text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    <span>{formatDate(event.event_date)} at {formatTime(event.event_date)}</span>
+                    <span>
+                      {formatDate(event.event_date)} {t('dashboard.events.at', 'at')} {formatTime(event.event_date)}
+                    </span>
                   </div>
                   
                   {event.start_time && event.end_time && (
@@ -267,8 +271,10 @@ export function UpcomingEvents() {
                   {(event.creator?.full_name || event.creator_name) && (
                     <div className="flex items-center gap-1">
                       <Users className="h-3 w-3" />
-                      <span>Created by {event.creator?.full_name || event.creator_name}</span>
-                    </div>
+                      <span>
+                        {t('dashboard.events.createdBy', 'Created by')} {event.creator?.full_name || event.creator_name}
+                      </span>
+                  </div>
                   )}
                 </div>
               </div>
@@ -277,8 +283,8 @@ export function UpcomingEvents() {
         ) : (
           <div className="text-center py-8 text-muted-foreground">
             <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>No upcoming events</p>
-            <p className="text-xs">Events will appear here when scheduled</p>
+            <p>{t('dashboard.events.emptyTitle', 'No upcoming events')}</p>
+            <p className="text-xs">{t('dashboard.events.emptyHelp', 'Events will appear here when scheduled')}</p>
           </div>
         )}
       </CardContent>

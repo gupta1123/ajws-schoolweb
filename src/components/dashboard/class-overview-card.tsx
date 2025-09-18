@@ -9,6 +9,7 @@ import { Users } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth/context';
 import { academicServices } from '@/lib/api';
+import { useI18n } from '@/lib/i18n/context';
 
 interface TeacherClass {
   id: string;
@@ -25,6 +26,7 @@ export function ClassOverviewCard() {
   const { token } = useAuth();
   const [classes, setClasses] = useState<TeacherClass[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useI18n();
 
   useEffect(() => {
     const fetchTeacherClasses = async () => {
@@ -96,15 +98,15 @@ export function ClassOverviewCard() {
     return (
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Class Overview</h2>
+          <h2 className="text-lg font-semibold">{t('dashboard.teacher.classOverview.title', 'Class Overview')}</h2>
           <Button variant="ghost" size="sm" className="text-xs" asChild>
             <Link href="/classes">
-              View All
+              {t('common.viewAll', 'View All')}
             </Link>
           </Button>
         </div>
         <div className="text-center py-8 text-muted-foreground">
-          Loading classes...
+          {t('dashboard.teacher.classOverview.loading', 'Loading classes...')}
         </div>
       </div>
     );
@@ -113,10 +115,10 @@ export function ClassOverviewCard() {
   return (
     <div className="mb-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">Class Overview</h2>
+        <h2 className="text-lg font-semibold">{t('dashboard.teacher.classOverview.title', 'Class Overview')}</h2>
         <Button variant="ghost" size="sm" className="text-xs" asChild>
           <Link href="/classes">
-            View All
+            {t('common.viewAll', 'View All')}
           </Link>
         </Button>
       </div>
@@ -124,7 +126,7 @@ export function ClassOverviewCard() {
       {/* Class Teacher Section */}
       {classTeacherClasses.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-md font-medium text-muted-foreground mb-3">As Class Teacher</h3>
+          <h3 className="text-md font-medium text-muted-foreground mb-3">{t('dashboard.teacher.classOverview.asClassTeacher', 'As Class Teacher')}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {classTeacherClasses.map((classItem) => (
               <Card key={classItem.assignmentId} className="hover:shadow-md transition-shadow">
@@ -134,12 +136,14 @@ export function ClassOverviewCard() {
                   </CardTitle>
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <Users className="h-4 w-4" />
-                    <span>{classItem.studentCount} students</span>
+                    <span>
+                      {classItem.studentCount} {t('dashboard.teacher.classOverview.students', 'students')}
+                    </span>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-sm text-muted-foreground">
-                    Class Teacher
+                    {t('dashboard.teacher.classOverview.classTeacher', 'Class Teacher')}
                   </div>
                 </CardContent>
               </Card>
@@ -151,7 +155,7 @@ export function ClassOverviewCard() {
       {/* Subject Teacher Section */}
       {subjectTeacherClasses.length > 0 && (
         <div>
-          <h3 className="text-md font-medium text-muted-foreground mb-3">As Subject Teacher</h3>
+          <h3 className="text-md font-medium text-muted-foreground mb-3">{t('dashboard.teacher.classOverview.asSubjectTeacher', 'As Subject Teacher')}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {subjectTeacherClasses.map((classItem) => (
               <Card key={classItem.assignmentId} className="hover:shadow-md transition-shadow">
@@ -161,12 +165,14 @@ export function ClassOverviewCard() {
                   </CardTitle>
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <Users className="h-4 w-4" />
-                    <span>{classItem.studentCount} students</span>
+                    <span>
+                      {classItem.studentCount} {t('dashboard.teacher.classOverview.students', 'students')}
+                    </span>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-sm text-muted-foreground">
-                    Subject: {classItem.subject}
+                    {t('dashboard.teacher.classOverview.subject', 'Subject')}: {classItem.subject}
                   </div>
                 </CardContent>
               </Card>
@@ -178,7 +184,7 @@ export function ClassOverviewCard() {
       {/* No Classes Message */}
       {classes.length === 0 && !loading && (
         <div className="text-center py-8 text-muted-foreground">
-          No classes assigned yet.
+          {t('dashboard.teacher.classOverview.noClasses', 'No classes assigned yet.')}
         </div>
       )}
     </div>

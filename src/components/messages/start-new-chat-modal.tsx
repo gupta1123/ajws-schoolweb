@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Search, User } from 'lucide-react';
 import { getTeacherLinkedParents, TeacherLinkedParent } from '@/lib/api/messages';
+import { useI18n } from '@/lib/i18n/context';
 import { useAuth } from '@/lib/auth/context';
 
 interface StartNewChatModalProps {
@@ -15,6 +16,7 @@ interface StartNewChatModalProps {
 
 export function StartNewChatModal({ open, onOpenChange, onParentSelected }: StartNewChatModalProps) {
   const { token, user } = useAuth();
+  const { t } = useI18n();
   const [filteredParents, setFilteredParents] = useState<TeacherLinkedParent[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,7 +33,7 @@ export function StartNewChatModal({ open, onOpenChange, onParentSelected }: Star
 
       if (response instanceof Blob) {
         console.error('Unexpected Blob response');
-        setError('Unexpected response format');
+        setError(t('messages.unexpectedFormat', 'Unexpected response format'));
         return;
       }
 
@@ -40,15 +42,15 @@ export function StartNewChatModal({ open, onOpenChange, onParentSelected }: Star
         setFilteredParents(linkedParents);
       } else {
         console.error('Unexpected response format:', response);
-        setError('Failed to fetch parents');
+        setError(t('messages.fetchParentsFailed', 'Failed to fetch parents'));
       }
     } catch (error) {
       console.error('Error fetching teacher-linked parents:', error);
-      setError('Failed to fetch parents');
+      setError(t('messages.fetchParentsFailed', 'Failed to fetch parents'));
     } finally {
       setLoading(false);
     }
-  }, [token, user?.id]);
+  }, [token, user?.id, t]);
 
   // Fetch linked parents when modal opens
   useEffect(() => {
@@ -96,7 +98,7 @@ export function StartNewChatModal({ open, onOpenChange, onParentSelected }: Star
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            Start New Chat
+            {t('messages.startNew.title')}
           </DialogTitle>
         </DialogHeader>
         
@@ -105,7 +107,7 @@ export function StartNewChatModal({ open, onOpenChange, onParentSelected }: Star
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search parents or students..."
+              placeholder={t('messages.startNew.searchPlaceholder')}
               className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -124,16 +126,16 @@ export function StartNewChatModal({ open, onOpenChange, onParentSelected }: Star
             {loading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                <p className="mt-2 text-sm text-muted-foreground">Loading parents...</p>
+                <p className="mt-2 text-sm text-muted-foreground">{t('messages.loadingParents', 'Loading parents...')}</p>
               </div>
             ) : filteredParents.length === 0 ? (
               <div className="text-center py-8">
                 <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-1">
-                  {searchTerm ? 'No matches found' : 'No parents available'}
+                  {searchTerm ? t('messages.noMatches', 'No matches found') : t('messages.noParents', 'No parents available')}
                 </h3>
                 <p className="text-muted-foreground">
-                  {searchTerm ? 'Try adjusting your search terms' : 'You don\'t have any linked parents yet.'}
+                  {searchTerm ? t('messages.adjustSearch', 'Try adjusting your search terms') : t('messages.noLinkedParents', "You don't have any linked parents yet.")}
                 </p>
               </div>
             ) : (

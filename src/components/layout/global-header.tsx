@@ -16,6 +16,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
+import { useI18n } from '@/lib/i18n/context';
+import { LanguageSwitcher } from '@/components/language-switcher';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +32,7 @@ export function GlobalHeader() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { t } = useI18n();
 
   // Close mobile menu when route changes
   useEffect(() => {
@@ -50,13 +53,14 @@ export function GlobalHeader() {
             <div className="bg-primary rounded-md w-8 h-8 flex items-center justify-center">
               <BookOpen className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="hidden sm:inline">AJWS</span>
+            <span className="hidden sm:inline">{t('brand.name')}</span>
           </Link>
         </div>
 
         {/* Navigation for authenticated users */}
         {user ? (
           <div className="flex items-center gap-2">
+            <LanguageSwitcher compact />
             <ThemeToggle />
             
             <DropdownMenu>
@@ -84,14 +88,14 @@ export function GlobalHeader() {
                   <DropdownMenuItem asChild>
                     <Link href="/profile" className="flex items-center">
                       <User className="mr-2 h-4 w-4" />
-                      <span>Profile</span>
+                      <span>{t('common.profile')}</span>
                     </Link>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="flex items-center">
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
+                  <span>{t('common.logout')}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -108,21 +112,22 @@ export function GlobalHeader() {
               ) : (
                 <Menu className="h-5 w-5" />
               )}
-              <span className="sr-only">Toggle menu</span>
+              <span className="sr-only">{t('common.settings')}</span>
             </Button>
           </div>
         ) : (
           // Navigation for unauthenticated users
           <div className="flex items-center gap-2">
+            <LanguageSwitcher compact />
             <ThemeToggle />
             {pathname !== '/login' && (
               <Button variant="ghost" asChild>
-                <Link href="/login">Login</Link>
+                <Link href="/login">{t('common.login')}</Link>
               </Button>
             )}
             {pathname !== '/register' && (
               <Button asChild>
-                <Link href="/register">Register</Link>
+                <Link href="/register">{t('common.register')}</Link>
               </Button>
             )}
           </div>
@@ -136,7 +141,7 @@ export function GlobalHeader() {
             <div className="flex items-center justify-between mb-3">
               <div>
                 <div className="text-sm font-medium">
-                  Welcome, {user?.full_name}
+                  {t('common.welcome')}, {user?.full_name}
                 </div>
                 <div className="text-xs text-muted-foreground capitalize">
                   {user?.role}
@@ -148,22 +153,22 @@ export function GlobalHeader() {
                 onClick={handleLogout}
               >
                 <LogOut className="h-4 w-4 mr-2" />
-                Logout
+                {t('common.logout')}
               </Button>
             </div>
             
             <nav className="flex flex-col gap-2 py-2">
               <Link href="/dashboard" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-muted">
                 <BookOpen className="h-4 w-4" />
-                Dashboard
+                {t('common.dashboard')}
               </Link>
               <Link href="/profile" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-muted">
                 <User className="h-4 w-4" />
-                Profile
+                {t('common.profile')}
               </Link>
               <Link href="/settings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-muted">
                 <Settings className="h-4 w-4" />
-                Settings
+                {t('common.settings')}
               </Link>
             </nav>
           </div>

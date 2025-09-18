@@ -15,6 +15,7 @@ import { PlusCircle, Edit, Trash2, Loader2 } from 'lucide-react';
 import { academicServices } from '@/lib/api/academic';
 import type { ClassLevel } from '@/types/academic';
 import { useToast } from '@/hooks/use-toast';
+import { useI18n } from '@/lib/i18n/context';
 
 // Interfaces
 interface AcademicYear {
@@ -90,6 +91,7 @@ const mockAcademicYears: AcademicYear[] = [
 export default function AcademicSystemSetupPage() {
   const { token } = useAuth();
   const { toast } = useToast();
+  const { t } = useI18n();
   
   // Academic Years State
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>(mockAcademicYears);
@@ -1047,30 +1049,30 @@ export default function AcademicSystemSetupPage() {
     <div className="p-4 md:p-8">
       <Tabs defaultValue="years" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="years">Academic Years</TabsTrigger>
-          <TabsTrigger value="divisions">Classes & Divisions</TabsTrigger>
-          <TabsTrigger value="subjects">Subjects</TabsTrigger>
+          <TabsTrigger value="years">{t('academicSetup.tabs.years', 'Academic Years')}</TabsTrigger>
+          <TabsTrigger value="divisions">{t('academicSetup.tabs.divisions', 'Classes & Divisions')}</TabsTrigger>
+          <TabsTrigger value="subjects">{t('academicSetup.tabs.subjects', 'Subjects')}</TabsTrigger>
         </TabsList>
 
         {/* Academic Years Tab */}
         <TabsContent value="years">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Academic Years</CardTitle>
+              <CardTitle>{t('academicSetup.years.title', 'Academic Years')}</CardTitle>
               <Button onClick={handleAddAcademicYear}>
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Add Academic Year
+                {t('academicSetup.years.add', 'Add Academic Year')}
               </Button>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Start Date</TableHead>
-                    <TableHead>End Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t('academicSetup.cols.name', 'Name')}</TableHead>
+                    <TableHead>{t('academicSetup.cols.startDate', 'Start Date')}</TableHead>
+                    <TableHead>{t('academicSetup.cols.endDate', 'End Date')}</TableHead>
+                    <TableHead>{t('academicSetup.cols.status', 'Status')}</TableHead>
+                    <TableHead className="text-right">{t('academicSetup.cols.actions', 'Actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1081,7 +1083,7 @@ export default function AcademicSystemSetupPage() {
                       <TableCell>{year.end_date}</TableCell>
                       <TableCell>
                         <Badge variant={year.is_active ? "default" : "secondary"}>
-                          {year.is_active ? "Active" : "Inactive"}
+                          {year.is_active ? t('academicSetup.status.active', 'Active') : t('academicSetup.status.inactive', 'Inactive')}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -1106,25 +1108,25 @@ export default function AcademicSystemSetupPage() {
             {/* Left Panel - Class Levels */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Class Levels</CardTitle>
+                <CardTitle>{t('academicSetup.classLevels.title', 'Class Levels')}</CardTitle>
                 <Button onClick={handleAddClassLevel}>
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Class
+                  {t('academicSetup.classLevels.add', 'Add Class')}
                 </Button>
               </CardHeader>
               <CardContent>
                 {loadingClassLevels ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                    <span>Loading class levels...</span>
+                    <span>{t('academicSetup.loading.classLevels', 'Loading class levels...')}</span>
                   </div>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Sequence</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead>{t('academicSetup.cols.name', 'Name')}</TableHead>
+                        <TableHead>{t('academicSetup.cols.sequence', 'Sequence')}</TableHead>
+                        <TableHead className="text-right">{t('academicSetup.cols.actions', 'Actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1151,23 +1153,23 @@ export default function AcademicSystemSetupPage() {
             {/* Right Panel - Divisions */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Divisions</CardTitle>
+                <CardTitle>{t('academicSetup.divisions.title', 'Divisions')}</CardTitle>
                 <Button onClick={handleAddDivision}>
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Division
+                  {t('academicSetup.divisions.add', 'Add Division')}
                 </Button>
               </CardHeader>
               <CardContent>
                 {/* Grade Filter */}
                 <div className="mb-4 flex items-center justify-between">
                   <div>
-                    <Label htmlFor="gradeFilter" className="text-sm font-medium mb-2 block">Filter by Grade:</Label>
+                    <Label htmlFor="gradeFilter" className="text-sm font-medium mb-2 block">{t('academicSetup.filters.grade', 'Filter by Grade:')}</Label>
                     <Select value={gradeFilter} onValueChange={setGradeFilter}>
                       <SelectTrigger className="w-48">
-                        <SelectValue placeholder="All Grades" />
+                        <SelectValue placeholder={t('academicSetup.allGrades', 'All Grades')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Grades</SelectItem>
+                        <SelectItem value="all">{t('academicSetup.allGrades', 'All Grades')}</SelectItem>
                         {allUniqueGrades.map((grade) => (
                           <SelectItem key={grade} value={grade}>
                             {grade}
@@ -1177,23 +1179,23 @@ export default function AcademicSystemSetupPage() {
                     </Select>
                   </div>
                   <div className="text-sm text-gray-500">
-                    Showing {filteredDivisions.length} of {divisions.length} divisions
+                    {t('pagination.showing', 'Showing')} {filteredDivisions.length} {t('pagination.of', 'of')} {divisions.length} {t('academicSetup.divisions.labelLower', 'divisions')}
                   </div>
                 </div>
                 {loadingDivisions || loadingTeachers || loadingClassLevels ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                    <span>Loading class divisions...</span>
+                    <span>{t('academicSetup.loading.classDivisions', 'Loading class divisions...')}</span>
                   </div>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Grade</TableHead>
-                        <TableHead>Division</TableHead>
-                        <TableHead>Class Teacher</TableHead>
-                        <TableHead>Students</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead>{t('academicSetup.cols.grade', 'Grade')}</TableHead>
+                        <TableHead>{t('academicSetup.cols.division', 'Division')}</TableHead>
+                        <TableHead>{t('academicSetup.cols.classTeacher', 'Class Teacher')}</TableHead>
+                        <TableHead>{t('academicSetup.cols.students', 'Students')}</TableHead>
+                        <TableHead className="text-right">{t('academicSetup.cols.actions', 'Actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1206,7 +1208,7 @@ export default function AcademicSystemSetupPage() {
                               {division.teacherName ? (
                                 <Badge variant="default">{division.teacherName}</Badge>
                               ) : (
-                                <Badge variant="secondary">Not assigned</Badge>
+                                <Badge variant="secondary">{t('academicSetup.notAssigned', 'Not assigned')}</Badge>
                               )}
                             </TableCell>
                             <TableCell>{division.studentCount || 0}</TableCell>
@@ -1222,8 +1224,8 @@ export default function AcademicSystemSetupPage() {
                           <TableCell colSpan={5} className="text-center py-8">
                             <div className="text-gray-500">
                               {gradeFilter === 'all' 
-                                ? 'No divisions found' 
-                                : `No divisions found for ${gradeFilter}`
+                                ? t('academicSetup.empty.noDivisions', 'No divisions found') 
+                                : `${t('academicSetup.empty.noDivisionsFor', 'No divisions found for')} ${gradeFilter}`
                               }
                             </div>
                           </TableCell>
@@ -1243,25 +1245,25 @@ export default function AcademicSystemSetupPage() {
             {/* Left Panel - Subjects List */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Subjects</CardTitle>
+                <CardTitle>{t('academicSetup.subjects.title', 'Subjects')}</CardTitle>
                 <Button onClick={handleAddSubject}>
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Subject
+                  {t('academicSetup.subjects.add', 'Add Subject')}
                 </Button>
               </CardHeader>
               <CardContent>
                 {loadingSubjects || loadingTeachers ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                    <span>Loading subjects...</span>
+                    <span>{t('academicSetup.loading.subjects', 'Loading subjects...')}</span>
                   </div>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Code</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead>{t('academicSetup.cols.code', 'Code')}</TableHead>
+                        <TableHead>{t('academicSetup.cols.name', 'Name')}</TableHead>
+                        <TableHead className="text-right">{t('academicSetup.cols.actions', 'Actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1289,12 +1291,12 @@ export default function AcademicSystemSetupPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle>Division-Subject Assignments</CardTitle>
-                  <CardDescription>Subjects assigned to each division</CardDescription>
+                  <CardTitle>{t('academicSetup.subjectTab.divisionSubjectAssignments', 'Division-Subject Assignments')}</CardTitle>
+                  <CardDescription>{t('academicSetup.subjectTab.subjectsAssignedToDivision', 'Subjects assigned to each division')}</CardDescription>
                 </div>
                 <Button onClick={handleAddClassSubject}>
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Assign Subject
+                  {t('academicSetup.subjectTab.assignSubjectButton', 'Assign Subject')}
                 </Button>
               </CardHeader>
               <CardContent>
@@ -1302,13 +1304,13 @@ export default function AcademicSystemSetupPage() {
                 <div className="mb-4 space-y-3">
                   <div className="flex flex-col sm:flex-row gap-3">
                     <div className="flex-1">
-                      <Label htmlFor="subjectGradeFilter" className="text-sm font-medium mb-2 block">Filter by Grade:</Label>
+                      <Label htmlFor="subjectGradeFilter" className="text-sm font-medium mb-2 block">{t('academicSetup.subjectTab.filterByGrade', 'Filter by Grade:')}</Label>
                       <Select value={subjectGradeFilter} onValueChange={setSubjectGradeFilter}>
                         <SelectTrigger>
-                          <SelectValue placeholder="All Grades" />
+                          <SelectValue placeholder={t('academicSetup.subjectTab.allGrades', 'All Grades')} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Grades</SelectItem>
+                          <SelectItem value="all">{t('academicSetup.subjectTab.allGrades', 'All Grades')}</SelectItem>
                           {uniqueGradesWithAssignments.map((grade) => (
                             <SelectItem key={grade} value={grade}>
                               {grade}
@@ -1318,17 +1320,17 @@ export default function AcademicSystemSetupPage() {
                       </Select>
                     </div>
                     <div className="flex-1">
-                      <Label htmlFor="subjectDivisionFilter" className="text-sm font-medium mb-2 block">Filter by Division:</Label>
+                      <Label htmlFor="subjectDivisionFilter" className="text-sm font-medium mb-2 block">{t('academicSetup.subjectTab.filterByDivision', 'Filter by Division:')}</Label>
                       <Select 
                         value={subjectDivisionFilter} 
                         onValueChange={setSubjectDivisionFilter}
                         disabled={subjectGradeFilter !== 'all' && getDivisionsForGrade(subjectGradeFilter).length === 0}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="All Divisions" />
+                          <SelectValue placeholder={t('academicSetup.subjectTab.allDivisions', 'All Divisions')} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Divisions</SelectItem>
+                          <SelectItem value="all">{t('academicSetup.subjectTab.allDivisions', 'All Divisions')}</SelectItem>
                           {getDivisionsForGrade(subjectGradeFilter).map((division) => (
                             <SelectItem key={division} value={division}>
                               {division}
@@ -1340,7 +1342,7 @@ export default function AcademicSystemSetupPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-500">
-                      Showing assignments for {filteredDivisionsForSubjects.length} divisions
+                      {t('academicSetup.assignments.showing', 'Showing assignments for')} {filteredDivisionsForSubjects.length} {t('academicSetup.divisions.labelLower', 'divisions')}
                     </div>
                     {(subjectGradeFilter !== 'all' || subjectDivisionFilter !== 'all') && (
                       <Button 
@@ -1352,7 +1354,7 @@ export default function AcademicSystemSetupPage() {
                         }}
                         className="text-xs"
                       >
-                        Clear Filters
+                        {t('academicSetup.filters.clear', 'Clear Filters')}
                       </Button>
                     )}
                   </div>
@@ -1360,10 +1362,10 @@ export default function AcademicSystemSetupPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Grade</TableHead>
-                      <TableHead>Division</TableHead>
-                      <TableHead>Subject</TableHead>
-                      <TableHead>Teacher</TableHead>
+                      <TableHead>{t('academicSetup.cols.grade', 'Grade')}</TableHead>
+                      <TableHead>{t('academicSetup.cols.division', 'Division')}</TableHead>
+                      <TableHead>{t('academicSetup.cols.subject', 'Subject')}</TableHead>
+                      <TableHead>{t('academicSetup.cols.teacher', 'Teacher')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1377,7 +1379,7 @@ export default function AcademicSystemSetupPage() {
                           
                           return (
                             <TableRow key={`${division.id}-${subject.id}-${index}`}>
-                              <TableCell>{division.className || 'N/A'}</TableCell>
+                              <TableCell>{division.className || t('students.na', 'N/A')}</TableCell>
                               <TableCell>{division.name}</TableCell>
                               <TableCell>{subject.name}</TableCell>
                               <TableCell>
@@ -1395,7 +1397,7 @@ export default function AcademicSystemSetupPage() {
                                     className="cursor-pointer hover:opacity-80"
                                     onClick={() => handleEditSubjectTeacher(division, subject)}
                                   >
-                                    Assign Teacher
+                                    {t('academicSetup.assignments.assignTeacher', 'Assign Teacher')}
                                   </Badge>
                                 )}
                               </TableCell>
@@ -1408,8 +1410,8 @@ export default function AcademicSystemSetupPage() {
                         <TableCell colSpan={4} className="text-center py-8">
                           <div className="text-gray-500">
                             {subjectGradeFilter === 'all' && subjectDivisionFilter === 'all'
-                              ? 'No subject assignments found'
-                              : `No subject assignments found for the selected filters`
+                              ? t('academicSetup.assignments.empty', 'No subject assignments found')
+                              : t('academicSetup.assignments.emptyFiltered', 'No subject assignments found for the selected filters')
                             }
                           </div>
                         </TableCell>
@@ -1427,11 +1429,11 @@ export default function AcademicSystemSetupPage() {
       <Dialog open={isAcademicYearDialogOpen} onOpenChange={setIsAcademicYearDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{isEditingAcademicYear ? 'Edit Academic Year' : 'Add Academic Year'}</DialogTitle>
+            <DialogTitle>{isEditingAcademicYear ? t('academicSetup.years.edit', 'Edit Academic Year') : t('academicSetup.years.add', 'Add Academic Year')}</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="yearName">Year Name</Label>
+              <Label htmlFor="yearName">{t('academicSetup.years.yearName', 'Year Name')}</Label>
               <Input 
                 id="yearName" 
                 value={currentAcademicYear?.year_name || ''} 
@@ -1439,7 +1441,7 @@ export default function AcademicSystemSetupPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date</Label>
+              <Label htmlFor="startDate">{t('academicSetup.cols.startDate', 'Start Date')}</Label>
               <Input 
                 id="startDate" 
                 type="date" 
@@ -1448,7 +1450,7 @@ export default function AcademicSystemSetupPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="endDate">End Date</Label>
+              <Label htmlFor="endDate">{t('academicSetup.cols.endDate', 'End Date')}</Label>
               <Input 
                 id="endDate" 
                 type="date" 
@@ -1464,12 +1466,12 @@ export default function AcademicSystemSetupPage() {
                 onChange={(e) => handleAcademicYearChange('is_active', e.target.checked)}
                 className="h-4 w-4"
               />
-              <Label htmlFor="isActive">Set as Active Year</Label>
+              <Label htmlFor="isActive">{t('academicSetup.years.setActive', 'Set as Active Year')}</Label>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsAcademicYearDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveAcademicYear}>Save</Button>
+            <Button variant="ghost" onClick={() => setIsAcademicYearDialogOpen(false)}>{t('actions.cancel', 'Cancel')}</Button>
+            <Button onClick={handleSaveAcademicYear}>{t('actions.save', 'Save')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1478,18 +1480,18 @@ export default function AcademicSystemSetupPage() {
       <Dialog open={isDivisionDialogOpen} onOpenChange={setIsDivisionDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{isEditingDivision ? 'Edit Division' : 'Add Division'}</DialogTitle>
+            <DialogTitle>{isEditingDivision ? t('academicSetup.divisions.edit', 'Edit Division') : t('academicSetup.divisions.add', 'Add Division')}</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="className">Class</Label>
+              <Label htmlFor="className">{t('academicSetup.cols.class', 'Class')}</Label>
               <Select 
                 value={currentDivision?.className || ''} 
                 onValueChange={(value) => handleDivisionChange('className', value)}
                 disabled={isEditingDivision}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a class" />
+                  <SelectValue placeholder={t('academicSetup.placeholders.selectClass', 'Select a class')} />
                 </SelectTrigger>
                 <SelectContent>
                   {classLevels.map((classLevel) => (
@@ -1501,7 +1503,7 @@ export default function AcademicSystemSetupPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="divisionName">Division Name</Label>
+              <Label htmlFor="divisionName">{t('academicSetup.divisions.divisionName', 'Division Name')}</Label>
               <Input 
                 id="divisionName" 
                 value={currentDivision?.name || ''} 
@@ -1509,13 +1511,13 @@ export default function AcademicSystemSetupPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="teacher">Assign Class Teacher</Label>
+              <Label htmlFor="teacher">{t('academicSetup.divisions.assignClassTeacher', 'Assign Class Teacher')}</Label>
               <Select 
                 value={currentDivision?.teacherId || ''} 
                 onValueChange={(value) => handleDivisionChange('teacherId', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a teacher" />
+                  <SelectValue placeholder={t('academicSetup.placeholders.selectTeacher', 'Select a teacher')} />
                 </SelectTrigger>
                 <SelectContent>
                   {teachers.map((teacher) => (
@@ -1528,8 +1530,8 @@ export default function AcademicSystemSetupPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsDivisionDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveDivision} disabled={loadingClassLevels || !currentDivision?.className || !currentDivision?.name}>Save</Button>
+            <Button variant="ghost" onClick={() => setIsDivisionDialogOpen(false)}>{t('actions.cancel', 'Cancel')}</Button>
+            <Button onClick={handleSaveDivision} disabled={loadingClassLevels || !currentDivision?.className || !currentDivision?.name}>{t('actions.save', 'Save')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1538,11 +1540,11 @@ export default function AcademicSystemSetupPage() {
       <Dialog open={isSubjectDialogOpen} onOpenChange={setIsSubjectDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{isEditingSubject ? 'Edit Subject' : 'Add Subject'}</DialogTitle>
+            <DialogTitle>{isEditingSubject ? t('academicSetup.subjects.edit', 'Edit Subject') : t('academicSetup.subjects.add', 'Add Subject')}</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="subjectCode">Subject Code</Label>
+              <Label htmlFor="subjectCode">{t('academicSetup.subjects.code', 'Subject Code')}</Label>
               <Input 
                 id="subjectCode" 
                 value={currentSubject?.code || ''} 
@@ -1550,7 +1552,7 @@ export default function AcademicSystemSetupPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="subjectName">Subject Name</Label>
+              <Label htmlFor="subjectName">{t('academicSetup.subjects.name', 'Subject Name')}</Label>
               <Input 
                 id="subjectName" 
                 value={currentSubject?.name || ''} 
@@ -1559,8 +1561,8 @@ export default function AcademicSystemSetupPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsSubjectDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveSubject}>Save</Button>
+            <Button variant="ghost" onClick={() => setIsSubjectDialogOpen(false)}>{t('actions.cancel', 'Cancel')}</Button>
+            <Button onClick={handleSaveSubject}>{t('actions.save', 'Save')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1606,17 +1608,17 @@ export default function AcademicSystemSetupPage() {
       <Dialog open={isClassSubjectDialogOpen} onOpenChange={setIsClassSubjectDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Assign Subject to Class Division</DialogTitle>
+            <DialogTitle>{t('academicSetup.assignments.assignSubjectDialog', 'Assign Subject to Class Division')}</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="classDivision">Class Division</Label>
+              <Label htmlFor="classDivision">{t('academicSetup.cols.classDivision', 'Class Division')}</Label>
               <Select 
                 value={selectedClassDivision} 
                 onValueChange={setSelectedClassDivision}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a class division" />
+                  <SelectValue placeholder={t('academicSetup.placeholders.selectClassDivision', 'Select a class division')} />
                 </SelectTrigger>
                 <SelectContent>
                   {divisions.map((division) => (
@@ -1631,13 +1633,13 @@ export default function AcademicSystemSetupPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="subject">Subject</Label>
+              <Label htmlFor="subject">{t('academicSetup.cols.subject', 'Subject')}</Label>
               <Select 
                 value={selectedSubject} 
                 onValueChange={setSelectedSubject}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a subject" />
+                  <SelectValue placeholder={t('academicSetup.placeholders.selectSubject', 'Select a subject')} />
                 </SelectTrigger>
                 <SelectContent>
                   {subjects
@@ -1659,16 +1661,16 @@ export default function AcademicSystemSetupPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="subjectTeacher">Subject Teacher (Optional)</Label>
+              <Label htmlFor="subjectTeacher">{t('academicSetup.assignments.subjectTeacherOptional', 'Subject Teacher (Optional)')}</Label>
               <Select 
                 value={selectedSubjectTeacher || "none"} 
                 onValueChange={(value) => setSelectedSubjectTeacher(value === "none" ? "" : value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a teacher" />
+                  <SelectValue placeholder={t('academicSetup.placeholders.selectTeacher', 'Select a teacher')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No teacher assigned</SelectItem>
+                  <SelectItem value="none">{t('academicSetup.noTeacherAssigned', 'No teacher assigned')}</SelectItem>
                   {teachers.map((teacher) => (
                     <SelectItem key={teacher.id} value={teacher.id}>
                       {teacher.name}
@@ -1679,15 +1681,15 @@ export default function AcademicSystemSetupPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsClassSubjectDialogOpen(false)} disabled={isAssigningSubject}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setIsClassSubjectDialogOpen(false)} disabled={isAssigningSubject}>{t('actions.cancel', 'Cancel')}</Button>
             <Button onClick={handleSaveClassSubject} disabled={isAssigningSubject}>
               {isAssigningSubject ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Assigning...
+                  {t('actions.assigning', 'Assigning...')}
                 </>
               ) : (
-                'Assign'
+                t('actions.assign', 'Assign')
               )}
             </Button>
           </DialogFooter>
@@ -1698,32 +1700,32 @@ export default function AcademicSystemSetupPage() {
       <Dialog open={isSubjectTeacherDialogOpen} onOpenChange={setIsSubjectTeacherDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Assign Teacher to Subject</DialogTitle>
+            <DialogTitle>{t('academicSetup.assignments.assignTeacherDialog', 'Assign Teacher to Subject')}</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div className="space-y-2">
-              <Label>Class Division</Label>
+              <Label>{t('academicSetup.cols.classDivision', 'Class Division')}</Label>
               <div className="text-sm font-medium">
                 {selectedDivision?.className} - {selectedDivision?.name}
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Subject</Label>
+              <Label>{t('academicSetup.cols.subject', 'Subject')}</Label>
               <div className="text-sm font-medium">
                 {editingSubject}
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="teacher">Teacher</Label>
+              <Label htmlFor="teacher">{t('academicSetup.cols.teacher', 'Teacher')}</Label>
               <Select
                 value={selectedTeacher || "none"}
                 onValueChange={(value) => setSelectedTeacher(value === "none" ? "" : value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a teacher" />
+                  <SelectValue placeholder={t('academicSetup.placeholders.selectTeacher', 'Select a teacher')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No teacher assigned</SelectItem>
+                  <SelectItem value="none">{t('academicSetup.noTeacherAssigned', 'No teacher assigned')}</SelectItem>
                   {teachers.map((teacher) => (
                     <SelectItem key={teacher.id} value={teacher.id}>
                       {teacher.name}
@@ -1734,8 +1736,8 @@ export default function AcademicSystemSetupPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsSubjectTeacherDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveSubjectTeacher}>Save</Button>
+            <Button variant="ghost" onClick={() => setIsSubjectTeacherDialogOpen(false)}>{t('actions.cancel', 'Cancel')}</Button>
+            <Button onClick={handleSaveSubjectTeacher}>{t('actions.save', 'Save')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

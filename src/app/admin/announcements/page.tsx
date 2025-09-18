@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, AlertCircle, CheckCircle, XCircle, Clock, Eye, MessageSquare, BookOpen, Star, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth/context';
 import { createAnnouncementsAPI, type Announcement } from '@/lib/api/announcements';
+import { useI18n } from '@/lib/i18n/context';
 
 
 const announcementTypes = [
@@ -49,8 +50,8 @@ export default function AdminAnnouncementsPage() {
   const { toast } = useToast();
   const { token, user } = useAuth();
   const router = useRouter();
-
-  const api = token ? createAnnouncementsAPI(token) : null;
+  const { t, lang } = useI18n();
+  const api = useMemo(() => (token ? createAnnouncementsAPI(token) : null), [token]);
 
   const fetchAnnouncements = useCallback(async () => {
     if (!api) return;
@@ -63,12 +64,12 @@ export default function AdminAnnouncementsPage() {
     } catch (error) {
       console.error('Error fetching announcements:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to fetch announcements',
+        title: t('common.error', 'Error'),
+        description: t('announcements.list.fetchFailed', 'Failed to fetch announcements'),
         variant: 'error',
       });
     }
-  }, [api, toast]);
+  }, [api, toast, t]);
 
   const fetchPendingAnnouncements = useCallback(async () => {
     if (!api) return;
@@ -82,14 +83,14 @@ export default function AdminAnnouncementsPage() {
     } catch (error) {
       console.error('Error fetching pending announcements:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to fetch pending announcements',
+        title: t('common.error', 'Error'),
+        description: t('announcements.list.fetchPendingFailed', 'Failed to fetch pending announcements'),
         variant: 'error',
       });
     } finally {
       setLoading(false);
     }
-  }, [api, toast]);
+  }, [api, toast, t]);
 
   useEffect(() => {
     if (token) {
@@ -105,8 +106,8 @@ export default function AdminAnnouncementsPage() {
       const response = await api.approveOrRejectAnnouncement(announcementId, { action: 'approve' });
       if (response.status === 'success') {
         toast({
-          title: 'Success',
-          description: 'Announcement approved successfully',
+          title: t('common.success', 'Success'),
+          description: t('announcements.list.approved', 'Announcement approved successfully'),
         });
         // Refresh data
         fetchAnnouncements();
@@ -115,8 +116,8 @@ export default function AdminAnnouncementsPage() {
     } catch (error) {
       console.error('Error approving announcement:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to approve announcement',
+        title: t('common.error', 'Error'),
+        description: t('announcements.list.approveFailed', 'Failed to approve announcement'),
         variant: 'error',
       });
     }
@@ -140,7 +141,7 @@ export default function AdminAnnouncementsPage() {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const day = date.getDate();
-    const month = date.toLocaleDateString('en-US', { month: 'short' });
+    const month = date.toLocaleDateString(lang, { month: 'short' });
     const year = date.getFullYear().toString().slice(-2);
     return `${day} ${month} '${year}`;
   };
@@ -163,9 +164,9 @@ export default function AdminAnnouncementsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Announcements</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('announcements.list.title', 'Announcements')}</h1>
           <p className="text-muted-foreground">
-            Create and manage school announcements
+            {t('announcements.list.subtitle', 'Create and manage school announcements')}
           </p>
         </div>
         <Button
@@ -173,7 +174,7 @@ export default function AdminAnnouncementsPage() {
           onClick={() => router.push('/admin/announcements/create')}
         >
           <Plus className="w-4 h-4" />
-          Create Announcement
+          {t('announcements.create.cta', 'Create Announcement')}
         </Button>
       </div>
 
@@ -186,7 +187,7 @@ export default function AdminAnnouncementsPage() {
                 <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Pending</p>
+                <p className="text-sm font-medium text-muted-foreground">{t('announcements.common.pending', 'Pending')}</p>
                 <p className="text-2xl font-bold">{pendingAnnouncements.length}</p>
               </div>
             </div>
@@ -200,7 +201,7 @@ export default function AdminAnnouncementsPage() {
                 <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Approved</p>
+                <p className="text-sm font-medium text-muted-foreground">{t('announcements.common.approved', 'Approved')}</p>
                 <p className="text-2xl font-bold">
                   {announcements.filter(a => a.status === 'approved').length}
                 </p>
@@ -216,7 +217,7 @@ export default function AdminAnnouncementsPage() {
                 <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Rejected</p>
+                <p className="text-sm font-medium text-muted-foreground">{t('announcements.common.rejected', 'Rejected')}</p>
                 <p className="text-2xl font-bold">
                   {announcements.filter(a => a.status === 'rejected').length}
                 </p>
@@ -232,7 +233,7 @@ export default function AdminAnnouncementsPage() {
                 <MessageSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total</p>
+                <p className="text-sm font-medium text-muted-foreground">{t('announcements.common.total', 'Total')}</p>
                 <p className="text-2xl font-bold">{announcements.length}</p>
               </div>
             </div>
@@ -245,11 +246,11 @@ export default function AdminAnnouncementsPage() {
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <MessageSquare className="w-4 h-4" />
-            Overview
+            {t('announcements.list.tabs.overview', 'Overview')}
           </TabsTrigger>
           <TabsTrigger value="pending" className="flex items-center gap-2">
             <Clock className="w-4 h-4" />
-            Pending Approvals ({pendingAnnouncements.length})
+            {t('announcements.list.tabs.pending', 'Pending Approvals')} ({pendingAnnouncements.length})
           </TabsTrigger>
         </TabsList>
 
@@ -263,7 +264,7 @@ export default function AdminAnnouncementsPage() {
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <Input
-                      placeholder="Search announcements..."
+                      placeholder={t('announcements.list.search', 'Search announcements...')}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10"
@@ -274,22 +275,22 @@ export default function AdminAnnouncementsPage() {
                 <div className="flex gap-2">
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger className="w-32">
-                      <SelectValue placeholder="Status" />
+                      <SelectValue placeholder={t('announcements.filters.status', 'Status')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
+                      <SelectItem value="all">{t('announcements.filters.allStatus', 'All Status')}</SelectItem>
+                      <SelectItem value="pending">{t('announcements.common.pending', 'Pending')}</SelectItem>
+                      <SelectItem value="approved">{t('announcements.common.approved', 'Approved')}</SelectItem>
+                      <SelectItem value="rejected">{t('announcements.common.rejected', 'Rejected')}</SelectItem>
                     </SelectContent>
                   </Select>
 
                   <Select value={typeFilter} onValueChange={setTypeFilter}>
                     <SelectTrigger className="w-32">
-                      <SelectValue placeholder="Type" />
+                      <SelectValue placeholder={t('announcements.filters.type', 'Type')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="all">{t('announcements.filters.allTypes', 'All Types')}</SelectItem>
                       {announcementTypes.map((type) => (
                         <SelectItem key={type.value} value={type.value}>
                           {type.label}
@@ -300,10 +301,10 @@ export default function AdminAnnouncementsPage() {
 
                   <Select value={priorityFilter} onValueChange={setPriorityFilter}>
                     <SelectTrigger className="w-32">
-                      <SelectValue placeholder="Priority" />
+                      <SelectValue placeholder={t('announcements.filters.priority', 'Priority')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Priorities</SelectItem>
+                      <SelectItem value="all">{t('announcements.filters.allPriorities', 'All Priorities')}</SelectItem>
                       {priorities.map((priority) => (
                         <SelectItem key={priority.value} value={priority.value}>
                           {priority.label}
@@ -321,7 +322,7 @@ export default function AdminAnnouncementsPage() {
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                <p className="text-muted-foreground">Loading announcements...</p>
+                <p className="text-muted-foreground">{t('announcements.list.loading', 'Loading announcements...')}</p>
               </div>
             </div>
           ) : filteredAnnouncements.length === 0 ? (
@@ -329,8 +330,8 @@ export default function AdminAnnouncementsPage() {
               <CardContent className="p-12 text-center">
                 <div className="text-muted-foreground">
                   <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <h3 className="text-lg font-semibold mb-2">No announcements found</h3>
-                  <p>No announcements match your current filters.</p>
+                  <h3 className="text-lg font-semibold mb-2">{t('announcements.list.emptyTitle', 'No announcements found')}</h3>
+                  <p>{t('announcements.list.emptyHelp', 'No announcements match your current filters.')}</p>
                 </div>
               </CardContent>
             </Card>
@@ -340,7 +341,7 @@ export default function AdminAnnouncementsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Title</TableHead>
+                      <TableHead>{t('announcements.table.title', 'Title')}</TableHead>
                       <TableHead>Creator</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Type</TableHead>
@@ -480,12 +481,12 @@ export default function AdminAnnouncementsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Creator</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead>{t('announcements.table.title', 'Title')}</TableHead>
+                      <TableHead>{t('announcements.table.creator', 'Creator')}</TableHead>
+                      <TableHead>{t('announcements.table.type', 'Type')}</TableHead>
+                      <TableHead>{t('announcements.table.priority', 'Priority')}</TableHead>
+                      <TableHead>{t('announcements.table.created', 'Created')}</TableHead>
+                      <TableHead className="text-right">{t('announcements.table.actions', 'Actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

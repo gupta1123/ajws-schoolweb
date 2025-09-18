@@ -16,6 +16,7 @@ import { academicServices } from '@/lib/api/academic';
 import { ApiResponseWithCache, ApiErrorResponse } from '@/lib/api/client';
 import { Homework, Attachment } from '@/types/homework';
 import { toast } from '@/hooks/use-toast';
+import { useI18n } from '@/lib/i18n/context';
 import { FileUploader } from '@/components/ui/file-uploader';
 
 // Interface for the API response structure
@@ -78,6 +79,7 @@ export default function EditHomeworkPage({ params }: PageProps) {
   const unwrappedParams = use(params);
   const { user, token } = useAuth();
   const router = useRouter();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +101,7 @@ export default function EditHomeworkPage({ params }: PageProps) {
 
   // Format class division name for display
   const formatClassName = (division: TransformedClass) => {
-    return `${division.class_level?.name || 'Unknown'} - Section ${division.division}`;
+    return `${division.class_level?.name || t('common.none', 'Unknown')} - ${t('timetable.section', 'Section')} ${division.division}`;
   };
 
   // Load image as blob URL using API client
@@ -430,7 +432,7 @@ export default function EditHomeworkPage({ params }: PageProps) {
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-              <p className="mt-2 text-gray-600">Loading homework...</p>
+          <p className="mt-2 text-gray-600">{t('homeworkTeacher.edit.loading', 'Loading homework...')}</p>
             </div>
           </div>
         </div>
@@ -444,8 +446,8 @@ export default function EditHomeworkPage({ params }: PageProps) {
       <ProtectedRoute>
         <div className="container max-w-2xl mx-auto py-8">
           <div className="text-center">
-            <h2 className="text-2xl font-bold mb-2">Error Loading Homework</h2>
-            <p className="text-gray-600 mb-4">{error || 'Homework not found'}</p>
+            <h2 className="text-2xl font-bold mb-2">{t('homeworkTeacher.edit.errorTitle', 'Error Loading Homework')}</h2>
+            <p className="text-gray-600 mb-4">{error || t('homeworkTeacher.edit.notFound', 'Homework not found')}</p>
             <Button onClick={() => router.back()}>
               ← Go Back
             </Button>
@@ -522,18 +524,18 @@ export default function EditHomeworkPage({ params }: PageProps) {
             onClick={handleCancel}
             className="mb-4"
           >
-            ← Back to Homework
+            ← {t('homeworkTeacher.create.back', 'Back to Homework')}
           </Button>
-          <h1 className="text-3xl font-bold mb-2">Edit Homework</h1>
+          <h1 className="text-3xl font-bold mb-2">{t('homeworkTeacher.edit.title', 'Edit Homework')}</h1>
           <p className="text-gray-600 dark:text-gray-300">
-            Update the homework assignment details
+            {t('homeworkTeacher.edit.subtitle', 'Update the homework assignment details')}
           </p>
         </div>
 
         <Card>
           <form onSubmit={handleSubmit}>
             <CardHeader>
-              <CardTitle>Edit Homework Assignment</CardTitle>
+                <CardTitle>{t('homeworkTeacher.edit.detailsTitle', 'Edit Homework Assignment')}</CardTitle>
               <CardDescription>
                 Update the details for the homework assignment
               </CardDescription>
@@ -775,7 +777,7 @@ export default function EditHomeworkPage({ params }: PageProps) {
                   className="border-0 shadow-none"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Supported formats: PDF, Word documents, text files, and images. Max 5 files, 10MB each.
+                  {t('homeworkTeacher.create.supported', 'Supported formats: PDF, Word documents, text files, and images. Max 5 files, 10MB each.')}
                 </p>
               </div>
             </CardContent>
@@ -785,7 +787,7 @@ export default function EditHomeworkPage({ params }: PageProps) {
                 variant="outline" 
                 onClick={handleCancel}
               >
-                Cancel
+                {t('actions.cancel', 'Cancel')}
               </Button>
               <Button 
                 type="submit" 
@@ -795,10 +797,10 @@ export default function EditHomeworkPage({ params }: PageProps) {
                 {saving ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Saving...
+                    {t('homeworkTeacher.detail.saving', 'Saving...')}
                   </>
                 ) : (
-                  'Update Homework'
+                  t('homeworkTeacher.edit.cta', 'Update Homework')
                 )}
               </Button>
             </CardFooter>

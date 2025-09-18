@@ -12,12 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { X, Loader2, AlertTriangle, User, Phone, Shield, Key, ArrowLeft, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useI18n } from '@/lib/i18n/context';
 import { staffServices } from '@/lib/api';
 import type { CreateStaffWithUserRequest } from '@/types/staff';
 
 export default function CreateStaffPage() {
   const { user, token } = useAuth();
   const router = useRouter();
+  const { t } = useI18n();
   const [formData, setFormData] = useState({
     fullName: '',
     phoneNumber: '',
@@ -37,8 +39,8 @@ export default function CreateStaffPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only admins and principals can access this page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="text-gray-600">{t('access.adminsOnly', 'Only admins and principals can access this page.')}</p>
         </div>
       </div>
     );
@@ -103,11 +105,11 @@ export default function CreateStaffPage() {
               className="mb-4 flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back to Staff
+              {t('staff.backToList', 'Back to Staff')}
             </Button>
-            <h1 className="text-3xl font-bold mb-2">Add New Staff</h1>
+            <h1 className="text-3xl font-bold mb-2">{t('staff.create.title', 'Add New Staff')}</h1>
             <p className="text-gray-600 dark:text-gray-300">
-              Add a new staff member to the school system
+              {t('staff.create.subtitle', 'Add a new staff member to the school system')}
             </p>
           </div>
 
@@ -137,11 +139,11 @@ export default function CreateStaffPage() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b">
                     <User className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-semibold text-foreground">Personal Information</h3>
+                    <h3 className="text-sm font-semibold text-foreground">{t('staff.form.personalInfo', 'Personal Information')}</h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="fullName" className="text-sm font-medium">Full Name *</Label>
+                      <Label htmlFor="fullName" className="text-sm font-medium">{t('staff.form.labels.fullName', 'Full Name')} *</Label>
                       <div className="relative">
                         <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
@@ -149,7 +151,7 @@ export default function CreateStaffPage() {
                           name="fullName"
                           value={formData.fullName}
                           onChange={handleInputChange}
-                          placeholder="Enter staff member's full name"
+                          placeholder={t("staff.form.placeholders.fullNameStaff", "Enter staff member's full name")}
                           className="pl-10"
                           required
                         />
@@ -157,7 +159,7 @@ export default function CreateStaffPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="phoneNumber" className="text-sm font-medium">Phone Number *</Label>
+                      <Label htmlFor="phoneNumber" className="text-sm font-medium">{t('staff.form.labels.phoneNumber', 'Phone Number')} *</Label>
                       <div className="relative">
                         <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
@@ -165,7 +167,7 @@ export default function CreateStaffPage() {
                           name="phoneNumber"
                           value={formData.phoneNumber}
                           onChange={handleInputChange}
-                          placeholder="e.g., 9876543210"
+                          placeholder={t('staff.form.placeholders.phoneNumber', 'e.g., 9876543210')}
                           className="pl-10"
                           required
                         />
@@ -178,11 +180,11 @@ export default function CreateStaffPage() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b">
                     <Shield className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-semibold text-foreground">Professional Information</h3>
+                    <h3 className="text-sm font-semibold text-foreground">{t('staff.form.professionalInfo', 'Professional Information')}</h3>
                   </div>
                   <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="role" className="text-sm font-medium">Role *</Label>
+                      <Label htmlFor="role" className="text-sm font-medium">{t('staff.form.labels.role', 'Role')} *</Label>
                       <div className="relative">
                         <Shield className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
                         <Select
@@ -191,14 +193,14 @@ export default function CreateStaffPage() {
                           onValueChange={(value) => handleSelectChange('role', value)}
                         >
                           <SelectTrigger className="pl-10">
-                            <SelectValue placeholder="Select a role" />
+                            <SelectValue placeholder={t('staff.form.placeholders.selectRole', 'Select a role')} />
                           </SelectTrigger>
                           <SelectContent>
                             {availableRoles.map(role => (
                               <SelectItem key={role} value={role}>
                                 <div className="flex items-center gap-2">
                                   <Shield className="h-4 w-4" />
-                                  {role.charAt(0).toUpperCase() + role.slice(1)}
+                                  {t(`common.${role}`, role.charAt(0).toUpperCase() + role.slice(1))}
                                 </div>
                               </SelectItem>
                             ))}
@@ -213,11 +215,11 @@ export default function CreateStaffPage() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b">
                     <Key className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-semibold text-foreground">Account Security</h3>
+                    <h3 className="text-sm font-semibold text-foreground">{t('staff.form.accountSecurity', 'Account Security')}</h3>
                   </div>
                   <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="password" className="text-sm font-medium">Initial Password *</Label>
+                      <Label htmlFor="password" className="text-sm font-medium">{t('staff.form.labels.initialPassword', 'Initial Password')} *</Label>
                       <div className="relative">
                         <Key className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
@@ -226,13 +228,13 @@ export default function CreateStaffPage() {
                           type="password"
                           value={formData.password}
                           onChange={handleInputChange}
-                          placeholder="Set initial password"
+                          placeholder={t('staff.form.placeholders.setInitialPassword', 'Set initial password')}
                           className="pl-10"
                           required
                         />
                       </div>
                       <p className="text-sm text-gray-500">
-                        This will be the initial password for the staff member&apos;s user account
+                        {t('staff.create.passwordHint', "This will be the initial password for the staff member's user account")}
                       </p>
                     </div>
                   </div>
@@ -247,7 +249,7 @@ export default function CreateStaffPage() {
                   className="flex items-center gap-2"
                 >
                   <X className="h-4 w-4" />
-                  Cancel
+                  {t('actions.cancel', 'Cancel')}
                 </Button>
                 <Button
                   type="submit"
@@ -257,12 +259,12 @@ export default function CreateStaffPage() {
                   {isLoading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Adding...
+                      {t('actions.adding', 'Adding...')}
                     </>
                   ) : (
                     <>
                       <Save className="h-4 w-4" />
-                      Add Staff
+                      {t('staff.addStaff', 'Add Staff')}
                     </>
                   )}
                 </Button>

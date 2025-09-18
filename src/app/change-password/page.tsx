@@ -10,9 +10,11 @@ import { Label } from '@/components/ui/label';
 import { X, Lock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useI18n } from '@/lib/i18n/context';
 
 export default function ChangePasswordPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [formData, setFormData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -36,12 +38,12 @@ export default function ChangePasswordPage() {
     
     // Validate passwords
     if (formData.newPassword !== formData.confirmPassword) {
-      setError("New passwords don't match");
+      setError(t('changePassword.errors.mismatch'));
       return;
     }
     
     if (formData.newPassword.length < 6) {
-      setError("Password must be at least 6 characters long");
+      setError(t('changePassword.errors.tooShort'));
       return;
     }
     
@@ -52,7 +54,7 @@ export default function ChangePasswordPage() {
     setTimeout(() => {
       setIsLoading(false);
       // Show success message
-      alert('Password changed successfully!');
+      alert(t('changePassword.success'));
       router.push('/profile');
     }, 1000);
   };
@@ -67,7 +69,7 @@ export default function ChangePasswordPage() {
               variant="ghost" 
               onClick={() => router.back()}
             >
-              ← Back to Profile
+              ← {t('changePassword.backToProfile')}
             </Button>
           </div>
 
@@ -79,9 +81,9 @@ export default function ChangePasswordPage() {
                     <Lock className="h-8 w-8 text-gray-500" />
                   </div>
                 </div>
-                <CardTitle>Change Password</CardTitle>
+                <CardTitle>{t('changePassword.title')}</CardTitle>
                 <CardDescription>
-                  Enter your current password and new password
+                  {t('changePassword.subtitle')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -92,40 +94,40 @@ export default function ChangePasswordPage() {
                 )}
                 
                 <div className="space-y-2">
-                  <Label htmlFor="currentPassword">Current Password</Label>
+                  <Label htmlFor="currentPassword">{t('changePassword.current')}</Label>
                   <Input
                     id="currentPassword"
                     name="currentPassword"
                     type="password"
                     value={formData.currentPassword}
                     onChange={handleInputChange}
-                    placeholder="Enter current password"
+                    placeholder={t('changePassword.enterCurrent')}
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="newPassword">New Password</Label>
+                  <Label htmlFor="newPassword">{t('changePassword.new')}</Label>
                   <Input
                     id="newPassword"
                     name="newPassword"
                     type="password"
                     value={formData.newPassword}
                     onChange={handleInputChange}
-                    placeholder="Enter new password"
+                    placeholder={t('changePassword.enterNew')}
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                  <Label htmlFor="confirmPassword">{t('changePassword.confirm')}</Label>
                   <Input
                     id="confirmPassword"
                     name="confirmPassword"
                     type="password"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
-                    placeholder="Confirm new password"
+                    placeholder={t('changePassword.confirmNew')}
                     required
                   />
                 </div>
@@ -138,10 +140,10 @@ export default function ChangePasswordPage() {
                   disabled={isLoading}
                 >
                   <X className="mr-2 h-4 w-4" />
-                  Cancel
+                  {t('actions.cancel')}
                 </Button>
                 <Button type="submit" disabled={isLoading}>
-                  {isLoading ? 'Changing...' : 'Change Password'}
+                  {isLoading ? t('changePassword.changing') : t('changePassword.changePassword')}
                 </Button>
               </CardFooter>
             </Card>

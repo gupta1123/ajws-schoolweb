@@ -24,6 +24,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { CalendarEvent } from '@/lib/api/calendar';
+import { useI18n } from '@/lib/i18n/context';
 
 
 interface PendingEventsTableProps {
@@ -71,6 +72,7 @@ export function PendingEventsTable({
   onViewEvent,
   onRefresh
 }: PendingEventsTableProps) {
+  const { t } = useI18n();
 
 
 
@@ -82,12 +84,12 @@ export function PendingEventsTable({
       const year = date.getFullYear().toString().slice(-2);
       return `${day} ${month}' ${year}`;
     } catch {
-      return 'Invalid date';
+      return t('calendar.pending.invalidDate', 'Invalid date');
     }
   };
 
   const formatTime = (timeString?: string) => {
-    if (!timeString) return 'All day';
+    if (!timeString) return t('calendar.pending.allDay', 'All day');
     try {
       const [hours, minutes] = timeString.split(':');
       const hour = parseInt(hours, 10);
@@ -105,16 +107,16 @@ export function PendingEventsTable({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Pending Event Requests</CardTitle>
+          <CardTitle>{t('calendar.pending.title', 'Pending Event Requests')}</CardTitle>
           <CardDescription>
-            Events waiting for approval
+            {t('calendar.pending.subtitle', 'Events waiting for approval')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Loading pending events...</p>
+              <p className="mt-2 text-gray-600">{t('calendar.pending.loading', 'Loading pending events...')}</p>
             </div>
           </div>
         </CardContent>
@@ -126,22 +128,22 @@ export function PendingEventsTable({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Pending Event Requests</CardTitle>
+          <CardTitle>{t('calendar.pending.title', 'Pending Event Requests')}</CardTitle>
           <CardDescription>
-            Events waiting for approval
+            {t('calendar.pending.subtitle', 'Events waiting for approval')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-12">
             <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No pending events</h3>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">{t('calendar.pending.emptyTitle', 'No pending events')}</h3>
             <p className="mt-1 text-sm text-gray-500">
-              All events have been processed or there are no pending requests at this time.
+              {t('calendar.pending.emptyHelp', 'All events have been processed or there are no pending requests at this time.')}
             </p>
             <div className="mt-6">
               <Button onClick={onRefresh} variant="outline">
                 <RefreshCw className="mr-2 h-4 w-4" />
-                Refresh
+                {t('actions.refresh', 'Refresh')}
               </Button>
             </div>
           </div>
@@ -153,9 +155,9 @@ export function PendingEventsTable({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Pending Event Requests</CardTitle>
+        <CardTitle>{t('calendar.pending.title', 'Pending Event Requests')}</CardTitle>
         <CardDescription>
-          {events.length} event{events.length !== 1 ? 's' : ''} waiting for approval
+          {events.length} {events.length !== 1 ? t('calendar.pending.events', 'events') : t('calendar.pending.event', 'event')} {t('calendar.pending.waiting', 'waiting for approval')}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -163,11 +165,11 @@ export function PendingEventsTable({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Event Details</TableHead>
-                <TableHead>Creator</TableHead>
-                <TableHead>Type & Category</TableHead>
-                <TableHead>Date & Time</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>{t('calendar.pending.cols.details', 'Event Details')}</TableHead>
+                <TableHead>{t('calendar.pending.cols.creator', 'Creator')}</TableHead>
+                <TableHead>{t('calendar.pending.cols.typeCategory', 'Type & Category')}</TableHead>
+                <TableHead>{t('calendar.pending.cols.dateTime', 'Date & Time')}</TableHead>
+                <TableHead>{t('calendar.pending.cols.actions', 'Actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -188,9 +190,9 @@ export function PendingEventsTable({
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 text-muted-foreground" />
                         <div>
-                          <div className="font-medium text-sm">{event.creator?.full_name || event.creator_name || 'Unknown'}</div>
+                          <div className="font-medium text-sm">{event.creator?.full_name || event.creator_name || t('calendar.pending.unknown', 'Unknown')}</div>
                           <div className="text-xs text-muted-foreground capitalize">
-                            {event.creator?.role || event.creator_role || 'Unknown'}
+                            {event.creator?.role || event.creator_role || t('calendar.pending.unknown', 'Unknown')}
                           </div>
                         </div>
                       </div>
@@ -199,10 +201,10 @@ export function PendingEventsTable({
                       <div className="space-y-2">
                         <Badge variant="outline" className="text-xs">
                           <TypeIcon className="h-3 w-3 mr-1" />
-                          {typeConfig.label}
+                          {t(`calendar.form.eventType.${event.event_type}`, typeConfig.label)}
                         </Badge>
                         <Badge variant="outline" className="text-xs">
-                          {categoryConfig.label}
+                          {t(`calendar.form.category.${event.event_category}`, categoryConfig.label)}
                         </Badge>
                       </div>
                     </TableCell>
@@ -226,7 +228,7 @@ export function PendingEventsTable({
                           className="h-8 px-2"
                         >
                           <Eye className="h-3 w-3 mr-1" />
-                          View
+                          {t('actions.view', 'View')}
                         </Button>
                       </div>
                     </TableCell>
@@ -240,14 +242,14 @@ export function PendingEventsTable({
         {events.length === 0 && (
           <div className="text-center py-12">
             <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No pending events</h3>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">{t('calendar.pending.emptyTitle', 'No pending events')}</h3>
             <p className="mt-1 text-sm text-gray-500">
-              All events have been processed or there are no pending requests at this time.
+              {t('calendar.pending.emptyHelp', 'All events have been processed or there are no pending requests at this time.')}
             </p>
             <div className="mt-6">
               <Button onClick={onRefresh} variant="outline">
                 <RefreshCw className="mr-2 h-4 w-4" />
-                Refresh
+                {t('actions.refresh', 'Refresh')}
               </Button>
             </div>
           </div>

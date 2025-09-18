@@ -11,6 +11,14 @@ export interface CreateHomeworkData {
 
 export interface HomeworkResponse {
   homework: Homework[];
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+    has_next: boolean;
+    has_prev: boolean;
+  };
 }
 
 export interface DeleteHomeworkResponse {
@@ -47,12 +55,14 @@ export const homeworkServices = {
     subject?: string;
     status?: string;
     date_from?: string;
-    date_to?: string
+    date_to?: string;
+    page?: number | string;
+    limit?: number | string;
   }): Promise<ApiResponseWithCache<HomeworkResponse> | ApiErrorResponse> => {
     const params = new URLSearchParams();
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value);
+        if (value !== undefined && value !== null && value !== '') params.append(key, String(value));
       });
     }
 

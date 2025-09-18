@@ -17,6 +17,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/context';
+import { useI18n } from '@/lib/i18n/context';
 
 // Simplified event type configuration
 const eventTypeConfig = {
@@ -75,6 +76,7 @@ type ViewMode = 'monthly' | 'weekly' | 'daily';
 
 export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: ImprovedCalendarViewProps) {
   const { colorScheme } = useTheme();
+  const { t, lang } = useI18n();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('monthly');
   
@@ -192,9 +194,12 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
   };
   
   const themeClasses = getThemeClasses();
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  // Localized day names using current language
+  const dayNames = Array.from({ length: 7 }, (_, i) =>
+    new Date(2021, 7, i + 1).toLocaleDateString(lang, { weekday: 'short' })
+  );
   const calendarDays = generateCalendarDays();
-  const monthYear = currentDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+  const monthYear = currentDate.toLocaleDateString(lang, { year: 'numeric', month: 'long' });
   const today = new Date();
 
   return (
@@ -222,7 +227,7 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
                   {viewMode === 'monthly'
                     ? monthYear
                     : viewMode === 'weekly'
-                    ? `Week of ${formatDate(currentDate)}`
+                    ? `${t('calendar.view.weekOf', 'Week of')} ${formatDate(currentDate)}`
                     : formatDate(currentDate)
                   }
                 </h2>
@@ -244,7 +249,7 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
                   className="ml-2 rounded-full px-4"
                   onClick={goToToday}
                 >
-                  Today
+                  {t('calendar.view.today', 'Today')}
                 </Button>
               </div>
               
@@ -257,7 +262,7 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
                     onClick={() => setViewMode('monthly')}
                   >
                     <CalendarIcon className="h-4 w-4 mr-1" />
-                    <span className="hidden sm:inline">Month</span>
+                    <span className="hidden sm:inline">{t('calendar.view.month', 'Month')}</span>
                   </Button>
                   <Button
                     variant={viewMode === 'weekly' ? 'default' : 'outline'}
@@ -266,7 +271,7 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
                     onClick={() => setViewMode('weekly')}
                   >
                     <List className="h-4 w-4 mr-1" />
-                    <span className="hidden sm:inline">Week</span>
+                    <span className="hidden sm:inline">{t('calendar.view.week', 'Week')}</span>
                   </Button>
                   <Button
                     variant={viewMode === 'daily' ? 'default' : 'outline'}
@@ -275,7 +280,7 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
                     onClick={() => setViewMode('daily')}
                   >
                     <Grid3X3 className="h-4 w-4 mr-1" />
-                    <span className="hidden sm:inline">Day</span>
+                    <span className="hidden sm:inline">{t('calendar.view.day', 'Day')}</span>
                   </Button>
                 </div>
               </div>
@@ -524,7 +529,7 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
                     ) : (
                       <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                         <CalendarIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                        <p className="text-base mb-2">No events scheduled for today</p>
+                        <p className="text-base mb-2">{t('calendar.view.noEventsToday', 'No events scheduled for today')}</p>
                         <Button 
                           variant="outline" 
                           size="sm"
@@ -535,7 +540,7 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
                           }}
                         >
                           <Plus className="h-4 w-4 mr-1" />
-                          Add Event
+                          {t('calendar.view.addEvent', 'Add Event')}
                         </Button>
                       </div>
                     )}

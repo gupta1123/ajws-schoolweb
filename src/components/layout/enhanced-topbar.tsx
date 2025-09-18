@@ -9,6 +9,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
+import { useI18n } from '@/lib/i18n/context';
+import { LanguageSwitcher } from '@/components/language-switcher';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,119 +21,56 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-interface PageHeader {
-  title: string;
-  subtitle?: string;
-}
+interface PageHeader { title: string; subtitle?: string; }
 
-// Page header configurations
-const pageHeaders: Record<string, PageHeader> = {
-  '/dashboard': {
-    title: 'Dashboard',
-    subtitle: 'Welcome back! Here\'s what\'s happening today.'
-  },
-  '/staff': {
-    title: 'Staff Management',
-    subtitle: 'Manage school staff, teachers, and administrators.'
-  },
-  '/students': {
-    title: 'Student Management',
-    subtitle: 'Manage student records, admissions, and academic progress.'
-  },
-  '/homework': {
-    title: 'Homework Management',
-    subtitle: 'Create, assign, and track homework assignments.'
-  },
-  '/classwork': {
-    title: 'Classwork Management',
-    subtitle: 'Track daily class activities and topics covered.'
-  },
-  '/messages': {
-    title: 'Messages',
-    subtitle: 'Communicate with parents, staff, and students.'
-  },
-  '/calendar': {
-    title: 'Calendar',
-    subtitle: 'Manage school events, holidays, and important dates.'
-  },
-  '/calendar/create': {
-    title: 'Create Event',
-    subtitle: 'Add a new event to the school calendar.'
-  },
-  '/calendar/[id]/edit': {
-    title: 'Edit Event',
-    subtitle: 'Modify event details and settings.'
-  },
-  '/approvals': {
-    title: 'Event Approvals',
-    subtitle: 'Review and manage event approvals.'
-  },
-  '/attendance': {
-    title: 'Attendance',
-    subtitle: 'Track student and staff attendance records.'
-  },
-  '/leave-requests': {
-    title: 'Leave Requests',
-    subtitle: 'Manage and approve leave requests from staff and students.'
-  },
-  '/birthdays': {
-    title: 'Birthdays',
-    subtitle: 'Celebrate student and staff birthdays.'
-  },
-  '/profile': {
-    title: 'Profile',
-    subtitle: 'Manage your account settings and preferences.'
-  },
-  '/parents': {
-    title: 'Parent Management',
-    subtitle: 'Manage parent accounts and student relationships.'
-  },
-  '/parents/create': {
-    title: 'Add New Parent',
-    subtitle: 'Create a new parent account. Student linking is optional and can be done later.'
-  },
-  '/students/create': {
-    title: 'Add New Student',
-    subtitle: 'Add a new student to the school system.'
-  },
-  '/students/[id]': {
-    title: 'Student Details',
-    subtitle: 'View comprehensive student information and records.'
-  },
-  '/academic/setup': {
-    title: 'Academic Setup',
-    subtitle: 'Manage academic years, classes, divisions, and subjects.'
-  },
-  '/students/[id]/edit': {
-    title: 'Edit Student',
-    subtitle: 'Update student information and details.'
-  }
+const headerKeyByPath: Record<string, string> = {
+  '/dashboard': 'topbar.dashboard',
+  '/staff': 'topbar.staff',
+  '/students': 'topbar.students',
+  '/homework': 'topbar.homework',
+  '/classwork': 'topbar.classwork',
+  '/messages': 'topbar.messages',
+  '/calendar': 'topbar.calendar',
+  '/calendar/create': 'topbar.calendarCreate',
+  '/calendar/[id]/edit': 'topbar.calendarEdit',
+  '/approvals': 'topbar.approvals',
+  '/attendance': 'topbar.attendance',
+  '/leave-requests': 'topbar.leaveRequests',
+  '/birthdays': 'topbar.birthdays',
+  '/profile': 'topbar.profile',
+  '/parents': 'topbar.parents',
+  '/parents/create': 'topbar.addParent',
+  '/students/create': 'topbar.addStudent',
+  '/students/[id]': 'topbar.studentDetails',
+  '/academic/setup': 'topbar.academicSetup',
+  '/students/[id]/edit': 'topbar.editStudent'
 };
 
 export function EnhancedTopbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { user, logout } = useAuth();
+  const { t } = useI18n();
   const pathname = usePathname();
   const [currentPageHeader, setCurrentPageHeader] = useState<PageHeader | null>(null);
 
   // Update page header when route changes
   useEffect(() => {
     // Find exact match first, then try to find partial matches
-    let header = pageHeaders[pathname];
+    let key = headerKeyByPath[pathname];
     
-    if (!header) {
+    if (!key) {
       // Try to find partial matches for dynamic routes
-      for (const [route, pageHeader] of Object.entries(pageHeaders)) {
+      for (const [route, pageHeaderKey] of Object.entries(headerKeyByPath)) {
         // Handle dynamic routes like /calendar/[id]/edit
         const regexPattern = route.replace(/\[.*?\]/g, '[^/]+');
         const regex = new RegExp(`^${regexPattern}$`);
         if (regex.test(pathname)) {
-          header = pageHeader;
+          key = pageHeaderKey;
           break;
         }
         
         // Handle partial matches for nested routes
         if (pathname.startsWith(route)) {
-          header = pageHeader;
+          key = pageHeaderKey;
           break;
         }
       }
@@ -140,35 +79,27 @@ export function EnhancedTopbar({ onMenuClick }: { onMenuClick?: () => void }) {
     // Handle dynamic routes with custom titles
     if (pathname.includes('/staff/') && pathname !== '/staff') {
       if (pathname.includes('/edit')) {
-        header = {
-          title: 'Edit Staff Member',
-          subtitle: 'Update staff information and details.'
-        };
+        key = 'topbar.editStaff';
       } else if (pathname.match(/\/staff\/[^\/]+$/)) {
-        header = {
-          title: 'Staff Details',
-          subtitle: 'View comprehensive staff information and assignments.'
-        };
+        key = 'topbar.staffDetails';
       }
     }
 
     // Handle student dynamic routes
     if (pathname.includes('/students/') && pathname !== '/students') {
       if (pathname.includes('/edit')) {
-        header = {
-          title: 'Edit Student',
-          subtitle: 'Update student information and details.'
-        };
+        key = 'topbar.editStudent';
       } else if (pathname.match(/\/students\/[^\/]+$/) && !pathname.includes('/create')) {
-        header = {
-          title: 'Student Details',
-          subtitle: 'View comprehensive student information and records.'
-        };
+        key = 'topbar.studentDetails';
       }
     }
 
+    const header: PageHeader = key
+      ? { title: t(`${key}.title`), subtitle: t(`${key}.subtitle`, undefined) }
+      : { title: t('topbar.fallback.title'), subtitle: t('topbar.fallback.subtitle') };
+
     setCurrentPageHeader(header);
-  }, [pathname]);
+  }, [pathname, t]);
 
   const handleLogout = () => {
     logout();
@@ -204,16 +135,15 @@ export function EnhancedTopbar({ onMenuClick }: { onMenuClick?: () => void }) {
             </div>
           ) : (
             <div className="space-y-0.5">
-              <h1 className="text-lg font-semibold text-foreground">Welcome</h1>
-              <p className="text-muted-foreground text-xs">
-                Navigate to get started with your tasks.
-              </p>
+              <h1 className="text-lg font-semibold text-foreground">{t('topbar.fallback.title')}</h1>
+              <p className="text-muted-foreground text-xs">{t('topbar.fallback.subtitle')}</p>
             </div>
           )}
         </div>
 
         {/* Right Section - Theme Toggle & User Menu */}
         <div className="flex items-center gap-2 md:gap-4">
+          <LanguageSwitcher compact />
           <ThemeToggle />
           
           <DropdownMenu>
@@ -247,14 +177,14 @@ export function EnhancedTopbar({ onMenuClick }: { onMenuClick?: () => void }) {
                 <DropdownMenuItem asChild>
                   <Link href="/profile" className="flex items-center">
                     <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
+                    <span>{t('common.profile')}</span>
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="flex items-center">
                 <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
+                <span>{t('common.logout')}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

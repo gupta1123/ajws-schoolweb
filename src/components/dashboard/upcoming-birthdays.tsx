@@ -9,6 +9,7 @@ import { Cake, Calendar, Users, Gift } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth/context';
 import { birthdayServices } from '@/lib/api';
+import { useI18n } from '@/lib/i18n/context';
 
 interface BirthdayData {
   id: string;
@@ -22,6 +23,7 @@ interface BirthdayData {
 
 export function UpcomingBirthdays() {
   const { user, token } = useAuth();
+  const { t } = useI18n();
   const [birthdays, setBirthdays] = useState<BirthdayData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -241,12 +243,12 @@ export function UpcomingBirthdays() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Cake className="h-5 w-5" />
-            Upcoming Birthdays
+            {t('birthdays.upcoming', 'Upcoming Birthdays')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-4 text-muted-foreground">
-            Loading birthdays...
+            {t('birthdays.loading', 'Loading birthdays...')}
           </div>
         </CardContent>
       </Card>
@@ -259,13 +261,13 @@ export function UpcomingBirthdays() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Cake className="h-5 w-5" />
-            Upcoming Birthdays
+            {t('birthdays.upcoming', 'Upcoming Birthdays')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8 text-red-500">
             <Cake className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">Failed to load birthdays</p>
+            <p className="text-sm">{t('birthdays.loadFailed', 'Failed to load birthdays')}</p>
             <p className="text-xs mt-1">{error}</p>
           </div>
         </CardContent>
@@ -279,11 +281,11 @@ export function UpcomingBirthdays() {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Cake className="h-5 w-5" />
-            Upcoming Birthdays
+            {t('birthdays.upcoming', 'Upcoming Birthdays')}
           </CardTitle>
           <Button variant="ghost" size="sm" className="text-xs" asChild>
             <Link href="/birthdays">
-              View All
+              {t('common.viewAll', 'View All')}
             </Link>
           </Button>
         </div>
@@ -334,8 +336,8 @@ export function UpcomingBirthdays() {
         ) : (
           <div className="text-center py-8 text-muted-foreground">
             <Cake className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>No upcoming birthdays</p>
-            <p className="text-xs">Birthdays will appear here when approaching</p>
+            <p>{t('birthdays.widgetEmpty.title', 'No upcoming birthdays')}</p>
+            <p className="text-xs">{t('birthdays.widgetEmpty.help', 'Birthdays will appear here when approaching')}</p>
           </div>
         )}
       </CardContent>

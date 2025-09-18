@@ -9,6 +9,7 @@ import { useState, Suspense } from 'react';
 import { EventCreationWizard } from '@/components/calendar/event-creation-wizard';
 import { calendarServices, CreateEventRequest } from '@/lib/api/calendar';
 import { toast } from '@/hooks/use-toast';
+import { useI18n } from '@/lib/i18n/context';
 
 
 interface CreateEventFormData {
@@ -29,6 +30,7 @@ function CreateEventContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
+  const { t } = useI18n();
 
   // Debug: log the date parameter received
   const dateParam = searchParams.get('date');
@@ -39,8 +41,8 @@ function CreateEventContent() {
   const handleSubmit = async (data: CreateEventFormData) => {
     if (!user) {
       toast({
-        title: "Error",
-        description: "Authentication token not found",
+        title: t('common.error', 'Error'),
+        description: t('calendar.create.authMissing', 'Authentication token not found'),
         variant: "error",
       });
       return;
@@ -127,13 +129,13 @@ function CreateEventContent() {
         if (response && typeof response === 'object' && 'status' in response && response.status === 'success') {
           if (hasAutoApproval) {
             toast({
-              title: "Success",
-              description: `Event created and approved successfully for ${data.classDivisionIds.length} class(es)`,
+              title: t('common.success', 'Success'),
+              description: t('calendar.create.multiApproved', 'Event created and approved successfully for {count} class(es)').replace('{count}', String(data.classDivisionIds.length)),
             });
           } else {
             toast({
-              title: "Success",
-              description: `Event created successfully for ${data.classDivisionIds.length} class(es). Waiting for approval.`,
+              title: t('common.success', 'Success'),
+              description: t('calendar.create.multiPending', 'Event created successfully for {count} class(es). Waiting for approval.').replace('{count}', String(data.classDivisionIds.length)),
             });
           }
           router.push('/calendar');
@@ -151,13 +153,13 @@ function CreateEventContent() {
         if (response && typeof response === 'object' && 'status' in response && response.status === 'success') {
           if (hasAutoApproval) {
             toast({
-              title: "Success",
-              description: "Teacher-specific event created and approved successfully",
+              title: t('common.success', 'Success'),
+              description: t('calendar.create.teacherApproved', 'Teacher-specific event created and approved successfully'),
             });
           } else {
             toast({
-              title: "Success",
-              description: "Teacher-specific event created successfully. Waiting for approval.",
+              title: t('common.success', 'Success'),
+              description: t('calendar.create.teacherPending', 'Teacher-specific event created successfully. Waiting for approval.'),
             });
           }
           router.push('/calendar');
@@ -173,13 +175,13 @@ function CreateEventContent() {
         if (response && typeof response === 'object' && 'status' in response && response.status === 'success') {
           if (hasAutoApproval) {
             toast({
-              title: "Success",
-              description: "Event created and approved successfully",
+              title: t('common.success', 'Success'),
+              description: t('calendar.create.singleApproved', 'Event created and approved successfully'),
             });
           } else {
             toast({
-              title: "Success",
-              description: "Event created successfully. Waiting for approval.",
+              title: t('common.success', 'Success'),
+              description: t('calendar.create.singlePending', 'Event created successfully. Waiting for approval.'),
             });
           }
           router.push('/calendar');
@@ -191,9 +193,9 @@ function CreateEventContent() {
       }
     } catch (error: unknown) {
       console.error('Error creating event:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create event';
+      const errorMessage = error instanceof Error ? error.message : t('calendar.create.failed', 'Failed to create event');
       toast({
-        title: "Error",
+        title: t('common.error', 'Error'),
         description: errorMessage,
         variant: "error",
       });
@@ -227,12 +229,13 @@ function CreateEventContent() {
 
 // Main page component that wraps the content in Suspense
 export default function CreateEventPage() {
+  const { t } = useI18n();
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100 mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading create event page...</p>
+          <p className="text-gray-500">{t('calendar.create.loading', 'Loading create event page...')}</p>
         </div>
       </div>
     }>

@@ -8,18 +8,20 @@ import { StudentPerformanceReport } from '@/components/reports/student-performan
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useI18n } from '@/lib/i18n/context';
 
 export default function StudentReportsPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const { t } = useI18n();
 
   // Only allow admins and principals to access this page
   if (user?.role !== 'admin' && user?.role !== 'principal') {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only admins and principals can access this page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="text-gray-600">{t('access.adminsOnly', 'Only admins and principals can access this page.')}</p>
         </div>
       </div>
     );
@@ -35,7 +37,7 @@ export default function StudentReportsPage() {
             className="mb-4"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Reports
+            {t('reports.backTo', 'Back to Reports')}
           </Button>
         </div>
         <StudentPerformanceReport />

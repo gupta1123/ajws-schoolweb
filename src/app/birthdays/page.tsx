@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Cake, Send, Calendar, Users, Gift, AlertTriangle, User, GraduationCap, Briefcase, X, Loader2 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useBirthdays, BirthdayData } from '@/hooks/use-birthdays';
+import { useI18n } from '@/lib/i18n/context';
 
 // Modern, compact Birthday card component
 const BirthdayCard = ({ 
@@ -20,6 +21,7 @@ const BirthdayCard = ({
 }) => {
   const isToday = birthday.daysUntil === 0;
   const { colorScheme } = useTheme();
+  const { t } = useI18n();
   
   // Get theme color classes
   const getColorClasses = () => {
@@ -53,13 +55,13 @@ const BirthdayCard = ({
   const getTypeLabel = () => {
     switch (birthday.type) {
       case 'student':
-        return 'Student';
+        return t('common.students');
       case 'teacher':
-        return 'Teacher';
+        return t('common.teacher');
       case 'staff':
-        return 'Staff';
+        return t('common.staff');
       default:
-        return 'Person';
+        return t('birthdays.person', 'Person');
     }
   };
 
@@ -143,7 +145,7 @@ const BirthdayCard = ({
               {/* Grade and Division in one line */}
               {(grade || division) && (
                 <div className="text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium">
-                  {grade && division ? `${grade} - Sec ${division}` : grade ? grade : `Sec ${division}`}
+                  {grade && division ? `${grade} - ${t('birthdays.sectionShort', 'Sec')} ${division}` : grade ? grade : `${t('birthdays.sectionShort', 'Sec')} ${division}`}
                 </div>
               )}
               
@@ -161,12 +163,12 @@ const BirthdayCard = ({
                 {isToday ? (
                   <span className="flex items-center gap-1">
                     <Cake className="h-3.5 w-3.5" />
-                    <span className="font-bold">🎉 Today! 🎉</span>
+                    <span className="font-bold">🎉 {t('birthdays.todayBang', 'Today!')} 🎉</span>
                   </span>
                 ) : (
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3.5 w-3.5" />
-                    {birthday.daysUntil} {birthday.daysUntil === 1 ? 'day' : 'days'} away
+                    {birthday.daysUntil} {birthday.daysUntil === 1 ? t('birthdays.day') : t('birthdays.days')} {t('birthdays.away')}
                   </span>
                 )}
               </div>
@@ -178,7 +180,7 @@ const BirthdayCard = ({
                   className="h-7 px-2 text-xs border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
                 >
                   <Send className="h-3 w-3 mr-1" />
-                  Wish
+                  {t('birthdays.sendWish')}
                 </Button>
               )}
             </div>
@@ -265,6 +267,7 @@ const FilterTag = ({
 export default function BirthdaysPage() {
   const [dateFilter, setDateFilter] = useState<'today' | 'tomorrow' | 'this-week' | 'this-month' | null>('today');
   const [typeFilter, setTypeFilter] = useState<'all' | 'student' | 'staff' | null>(null);
+  const { t } = useI18n();
   
   // Use the birthday hook
   const {
@@ -360,37 +363,37 @@ export default function BirthdaysPage() {
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatsCard 
-            title="Today" 
+            title={t('birthdays.today', 'Today')} 
             value={birthdayStats.today} 
             icon={Cake} 
-            description="birthdays today" 
+            description={t('birthdays.kpi.today', 'birthdays today')} 
           />
           <StatsCard 
-            title="This Week" 
+            title={t('birthdays.thisWeek', 'This Week')} 
             value={birthdayStats.thisWeek} 
             icon={Calendar} 
-            description="upcoming birthdays" 
+            description={t('birthdays.kpi.thisWeek', 'upcoming birthdays')} 
           />
           <StatsCard 
-            title="This Month" 
+            title={t('birthdays.thisMonth', 'This Month')} 
             value={birthdayStats.thisMonth} 
             icon={Users} 
-            description="total birthdays" 
+            description={t('birthdays.kpi.thisMonth', 'total birthdays')} 
           />
           <StatsCard 
-            title="Next Month" 
+            title={t('birthdays.nextMonth', 'Next Month')} 
             value={birthdayStats.nextMonth} 
             icon={Gift} 
-            description="planned celebrations" 
+            description={t('birthdays.kpi.nextMonth', 'planned celebrations')} 
           />
         </div>
 
         <div className="grid gap-6">
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-xl">Upcoming Birthdays</CardTitle>
+              <CardTitle className="text-xl">{t('birthdays.upcoming')}</CardTitle>
               <CardDescription>
-                Birthdays for students and staff
+                {t('birthdays.subtitle')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -408,14 +411,14 @@ export default function BirthdaysPage() {
                       }}
                     />
                   ))}
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={clearFilters}
-                    className="h-7 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  >
-                    Clear all
-                  </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={clearFilters}
+                      className="h-7 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      {t('birthdays.clearAll')}
+                    </Button>
                 </div>
               )}
               
@@ -423,7 +426,7 @@ export default function BirthdaysPage() {
               <div className="space-y-4 mb-6">
                 {/* Type Filter Buttons */}
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Type:</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('birthdays.type')}:</span>
                   <div className="flex flex-wrap gap-2">
                     <Button
                       variant={typeFilter === 'student' ? 'default' : 'outline'}
@@ -432,7 +435,7 @@ export default function BirthdaysPage() {
                       className="flex items-center gap-1"
                     >
                       <GraduationCap className="h-4 w-4" />
-                      Students
+                      {t('common.students')}
                     </Button>
                     <Button
                       variant={typeFilter === 'staff' ? 'default' : 'outline'}
@@ -441,42 +444,42 @@ export default function BirthdaysPage() {
                       className="flex items-center gap-1"
                     >
                       <Briefcase className="h-4 w-4" />
-                      Staff
+                      {t('common.staff')}
                     </Button>
                   </div>
                 </div>
                 
                 {/* Date Filter Buttons */}
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Date:</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('birthdays.date')}:</span>
                   <div className="flex flex-wrap gap-2">
                     <Button
                       variant={dateFilter === 'today' ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setDateFilter(dateFilter === 'today' ? null : 'today')}
                     >
-                      Today
+                      {t('birthdays.today')}
                     </Button>
                     <Button
                       variant={dateFilter === 'tomorrow' ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setDateFilter(dateFilter === 'tomorrow' ? null : 'tomorrow')}
                     >
-                      Tomorrow
+                      {t('birthdays.tomorrow')}
                     </Button>
                     <Button
                       variant={dateFilter === 'this-week' ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setDateFilter(dateFilter === 'this-week' ? null : 'this-week')}
                     >
-                      This Week
+                      {t('birthdays.thisWeek')}
                     </Button>
                     <Button
                       variant={dateFilter === 'this-month' ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setDateFilter(dateFilter === 'this-month' ? null : 'this-month')}
                     >
-                      This Month
+                      {t('birthdays.thisMonth')}
                     </Button>
                   </div>
                 </div>
@@ -486,7 +489,7 @@ export default function BirthdaysPage() {
               {loading && (
                 <div className="text-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">Loading birthdays...</p>
+                  <p className="text-muted-foreground">{t('birthdays.loading')}</p>
                 </div>
               )}
               
@@ -506,9 +509,9 @@ export default function BirthdaysPage() {
                     ) : (
                       <div className="col-span-full text-center py-12">
                         <Cake className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No birthdays found</h3>
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">{t('birthdays.empty.title')}</h3>
                         <p className="text-gray-500 dark:text-gray-400">
-                          There are no birthdays matching your selected filters.
+                          {t('birthdays.empty.none')}
                         </p>
                         {activeFilters.length > 0 && (
                           <Button 
@@ -516,7 +519,7 @@ export default function BirthdaysPage() {
                             className="mt-4" 
                             onClick={clearFilters}
                           >
-                            Clear all filters
+                            {t('birthdays.clearAllFilters')}
                           </Button>
                         )}
                       </div>

@@ -1,0 +1,1249 @@
+{
+  "brand": {
+    "name": "AJWS",
+    "tagline": "School Management System"
+  },
+  "days": {
+    "monday": "Monday",
+    "tuesday": "Tuesday",
+    "wednesday": "Wednesday",
+    "thursday": "Thursday",
+    "friday": "Friday",
+    "saturday": "Saturday",
+    "sunday": "Sunday"
+  },
+  "timetable": {
+    "noConfigSelected": "No timetable configuration selected",
+    "classTimetable": "Class Timetable",
+    "period": "Period",
+    "unknownTeacher": "Unknown Teacher",
+    "legend": {
+      "title": "Legend",
+      "assigned": "Subject & Teacher assigned",
+      "noClass": "No class scheduled",
+      "editHint": "Click to edit entry"
+    },
+    "daysPerWeek": "days/week",
+    "periodsPerDay": "periods/day",
+    "managementTitle": "Timetable Management",
+    "managementSubtitle": "Create and manage school timetables for all classes",
+    "tabs": { "overview": "Overview", "entries": "Manage Entries" },
+    "kpi": {
+      "activeConfigs": "Active Configs",
+      "totalClasses": "Total Classes",
+      "periodsPerDay": "Periods/Day",
+      "daysPerWeek": "Days/Week"
+    },
+    "activeConfiguration": "Active Configuration",
+    "editConfig": "Edit Config",
+    "section": "Section",
+    "addEntry": "Add Entry",
+    "totalEntries": "Total Entries",
+    "selectSubject": "Select a subject",
+    "enterCustomSubject": "Enter Custom Subject",
+    "enterCustomSubjectName": "Enter custom subject name",
+    "noSubjectsAssigned": "No subjects assigned to this class. You can enter a custom subject.",
+    "teacher": "Teacher",
+    "selectTeacher": "Select a teacher",
+    "subject": "Subject",
+    "classTeacher": "Class Teacher",
+    "noTeachersAssigned": "No teachers assigned to this class yet",
+    "notesOptional": "Notes (Optional)",
+    "additionalNotes": "Additional notes or instructions",
+    "createEntry": "Create Entry",
+    "alerts": {
+      "selectConfig": "Please select a timetable configuration from the \"Configurations\" tab to start managing timetable entries."
+    },
+    "structureLabel": "Structure:",
+    "academicYearLabel": "Academic Year:",
+    "createdLabel": "Created:",
+    "selectAcademicYear": "Select Academic Year",
+    "configs": {
+      "title": "Timetable Configurations",
+      "new": "New Configuration",
+      "editTitle": "Edit Configuration",
+      "createTitle": "Create New Configuration",
+      "description": "Set up the basic structure for your school timetable",
+      "nameLabel": "Configuration Name",
+      "namePlaceholder": "e.g., Primary School Schedule 2025-26",
+      "descLabel": "Description (Optional)",
+      "descPlaceholder": "Brief description of this timetable configuration",
+      "emptyTitle": "No timetable configurations found",
+      "emptyHelp": "Create your first configuration to get started with timetable management",
+      "managementTitle": "Configuration Management",
+      "managementHelp": "Select a configuration to manage timetable entries for that academic year. You can create multiple configurations for different academic years or school structures."
+    },
+    "form": { "dayOfWeek": "Day of Week", "periodNumber": "Period Number" },
+    "entries": { "title": "Manage Timetable Entries", "subtitle": "Add and manage subjects, teachers, and schedules for each class" },
+    "selectClass": "Select Class",
+    "addEntryTitle": "Add Timetable Entry",
+    "addEntryDesc": "Add a new subject entry to the timetable",
+    "availableSubjectsTitle": "Available Subjects",
+    "availableSubjectsDesc": "Subjects assigned to this class division",
+    "availableTeachersTitle": "Available Teachers",
+    "availableTeachersDesc": "Teachers assigned to this class division",
+    "noEntriesTitle": "No Timetable Entries Yet",
+    "availableConfigurations": "Available Configurations:",
+    "availableClasses": "Available Classes:",
+    "viewTimetable": "View Timetable",
+    "forSelectedClass": "Timetable for Selected Class",
+    "subjects": "Subjects",
+    "noEntriesYet": "No entries yet. Click \"Add Entry\" to create the first schedule for this class.",
+    "selectClassHint": "Select a class from the dropdown above to view and manage its timetable entries.",
+    "toasts": {
+      "success": "Success",
+      "error": "Error",
+      "configExists": "Configuration Exists",
+      "loadedTitle": "Timetable Loaded",
+      "loadedDesc": "Found entries:",
+      "failedToLoad": "Failed to load timetable data",
+      "configCreated": "Timetable configuration created successfully"
+    },
+    "delete": {
+      "confirm": "Are you sure you want to delete this timetable entry?",
+      "success": "Timetable entry deleted successfully",
+      "failed": "Failed to delete entry"
+    },
+    "teacherConflict": "Teacher Schedule Conflict"
+  },
+  "timetableTeacher": {
+    "title": "My Timetable",
+    "subtitle": "Your weekly teaching schedule",
+    "weekly": "Weekly Schedule",
+    "loading": "Loading your timetable...",
+    "errorTitle": "Error Loading Timetable",
+    "tryAgain": "Try Again",
+    "forWeek": "teaching timetable for the week",
+    "noClasses": "No Classes Scheduled",
+    "noClassesDesc": "You have no classes scheduled for {day}",
+    "table": { "period": "Period", "time": "Time", "subject": "Subject", "class": "Class" }
+  },
+  "common": {
+    "dashboard": "Dashboard",
+    "none": "None",
+    "viewAll": "View All",
+    "selected": "Selected",
+    "profile": "Profile",
+    "settings": "Settings",
+    "login": "Login",
+    "register": "Register",
+    "logout": "Log out",
+    "welcome": "Welcome",
+    "welcomeBack": "Welcome back! Here's what's happening today.",
+    "getStarted": "Navigate to get started with your tasks.",
+    "calendar": "Calendar",
+    "attendance": "Attendance",
+    "announcements": "Announcements",
+    "messages": "Messages",
+    "birthdays": "Birthdays",
+    "leaveRequests": "Leave Requests",
+    "homework": "Homework",
+    "classwork": "Classwork",
+    "students": "Students",
+    "staff": "Staff",
+    "parents": "Parents",
+    "academics": "Academics",
+    "academicSetup": "Academic Setup",
+    "timetable": "Timetable",
+    "myClasses": "My Classes",
+    "teacher": "Teacher",
+    "admin": "Admin",
+    "principal": "Principal",
+    "this": "This"
+  },
+  "auth": {
+    "title": "Sign in to your account",
+    "quickLogin": "Quick Login",
+    "phoneNumber": "Phone Number",
+    "enterPhone": "Enter your phone number",
+    "password": "Password",
+    "enterPassword": "Enter your password",
+    "signingIn": "Signing in...",
+    "signIn": "Sign In",
+    "forgotNote": "Forgot your password? Contact your administrator.",
+    "loginFailed": "Login failed"
+  },
+  "topbar": {
+    "dashboard": {
+      "title": "Dashboard",
+      "subtitle": "Welcome back! Here's what's happening today."
+    },
+    "staff": { "title": "Staff Management", "subtitle": "Manage school staff, teachers, and administrators." },
+    "students": { "title": "Student Management", "subtitle": "Manage student records, admissions, and academic progress." },
+    "homework": { "title": "Homework Management", "subtitle": "Create, assign, and track homework assignments." },
+    "classwork": { "title": "Classwork Management", "subtitle": "Track daily class activities and topics covered." },
+    "messages": { "title": "Messages", "subtitle": "Communicate with parents, staff, and students." },
+    "calendar": { "title": "Calendar", "subtitle": "Manage school events, holidays, and important dates." },
+    "calendarCreate": { "title": "Create Event", "subtitle": "Add a new event to the school calendar." },
+    "calendarEdit": { "title": "Edit Event", "subtitle": "Modify event details and settings." },
+    "approvals": { "title": "Event Approvals", "subtitle": "Review and manage event approvals." },
+    "attendance": { "title": "Attendance", "subtitle": "Track student and staff attendance records." },
+    "leaveRequests": { "title": "Leave Requests", "subtitle": "Manage and approve leave requests from staff and students." },
+    "birthdays": { "title": "Birthdays", "subtitle": "Celebrate student and staff birthdays." },
+    "profile": { "title": "Profile", "subtitle": "Manage your account settings and preferences." },
+    "parents": { "title": "Parent Management", "subtitle": "Manage parent accounts and student relationships." },
+    "addParent": { "title": "Add New Parent", "subtitle": "Create a new parent account. Student linking is optional and can be done later." },
+    "addStudent": { "title": "Add New Student", "subtitle": "Add a new student to the school system." },
+    "studentDetails": { "title": "Student Details", "subtitle": "View comprehensive student information and records." },
+    "academicSetup": { "title": "Academic Setup", "subtitle": "Manage academic years, classes, divisions, and subjects." },
+    "editStudent": { "title": "Edit Student", "subtitle": "Update student information and details." },
+    "editStaff": { "title": "Edit Staff Member", "subtitle": "Update staff information and details." },
+    "staffDetails": { "title": "Staff Details", "subtitle": "View comprehensive staff information and assignments." },
+    "fallback": { "title": "Welcome", "subtitle": "Navigate to get started with your tasks." }
+  },
+  "calendar": {
+    "page": {
+      "title": "School Calendar",
+      "subtitle": "Manage and view all school events",
+      "createEvent": "Create Event",
+      "loading": "Loading...",
+      "pleaseWait": "Please wait",
+      "authLoading": "Authentication is still loading. Please try again in a moment.",
+      "authError": "Authentication Error",
+      "loginPrompt": "Please log in to perform this action",
+      "accessDenied": "Access Denied",
+      "deleteOnlyAdmins": "Only admins and principals can delete events",
+      "confirmDelete": "Are you sure you want to delete this event? This action cannot be undone.",
+      "deleteSuccess": "Event deleted successfully",
+      "deleteFailed": "Failed to delete event",
+      "tabs": { "calendar": "Calendar", "pending": "Pending Requests" }
+    },
+    "view": {
+      "today": "Today",
+      "month": "Month",
+      "week": "Week",
+      "day": "Day",
+      "weekOf": "Week of",
+      "noEventsToday": "No events scheduled for today",
+      "addEvent": "Add Event"
+    },
+    "form": {
+      "createTitle": "Create New Event",
+      "createSubtitle": "Fill in the details for your new event",
+      "editTitle": "Edit Event",
+      "editSubtitle": "Update the details for this event",
+      "section": { "details": "Event Details" },
+      "labels": {
+        "title": "Event Title",
+        "description": "Description",
+        "date": "Date",
+        "time": "Time",
+        "fullDay": "Full Day",
+        "start": "Start",
+        "end": "End",
+        "eventType": "Event Type",
+        "category": "Event Category",
+        "selectClassDivisions": "Select Class Divisions"
+      },
+      "placeholders": {
+        "title": "e.g., School Assembly, Sports Day, etc.",
+        "description": "Enter event description",
+        "eventType": "Select event type",
+        "category": "Select category"
+      },
+      "actions": { "selectAll": "Select All", "deselectAll": "Deselect All" },
+      "loadingClasses": "Loading classes...",
+      "noClasses": "No classes found.",
+      "eventType": {
+        "school_wide": "School Wide",
+        "class_specific": "Class Specific",
+        "teacher_specific": "Teacher Specific"
+      },
+      "category": {
+        "general": "General",
+        "academic": "Academic",
+        "sports": "Sports",
+        "cultural": "Cultural",
+        "holiday": "Holiday",
+        "exam": "Exam",
+        "meeting": "Meeting",
+        "other": "Other"
+      },
+      "summary": {
+        "title": "Event Summary",
+        "date": "Date:",
+        "time": "Time:",
+        "type": "Type:",
+        "classes": "Classes:",
+        "selected": "selected",
+        "category": "Category:",
+        "notSelected": "Not selected"
+      },
+      "approvalRequiredTitle": "Approval Required",
+      "approvalRequiredDesc": "All events require approval from the Principal before they appear on the calendar.",
+      "creating": "Creating...",
+      "updating": "Updating...",
+      "create": "Create Event",
+      "update": "Update Event"
+    },
+    "pending": {
+      "title": "Pending Event Requests",
+      "subtitle": "Events waiting for approval",
+      "loading": "Loading pending events...",
+      "emptyTitle": "No pending events",
+      "emptyHelp": "All events have been processed or there are no pending requests at this time.",
+      "refresh": "Refresh",
+      "event": "event",
+      "events": "events",
+      "waiting": "waiting for approval",
+      "cols": {
+        "details": "Event Details",
+        "creator": "Creator",
+        "typeCategory": "Type & Category",
+        "dateTime": "Date & Time",
+        "actions": "Actions"
+      },
+      "invalidDate": "Invalid date",
+      "allDay": "All day",
+      "unknown": "Unknown"
+    },
+    "modal": {
+      "event": "Event",
+      "classEvent": "Class Event",
+      "pendingApproval": "Pending Approval",
+      "description": "Description:",
+      "createdBy": "Created by:",
+      "approved": "Approved",
+      "approve": "Approve",
+      "reject": "Reject",
+      "close": "Close"
+    },
+    "create": {
+      "loading": "Loading create event page...",
+      "authMissing": "Authentication token not found",
+      "multiApproved": "Event created and approved successfully for {count} class(es)",
+      "multiPending": "Event created successfully for {count} class(es). Waiting for approval.",
+      "teacherApproved": "Teacher-specific event created and approved successfully",
+      "teacherPending": "Teacher-specific event created successfully. Waiting for approval.",
+      "singleApproved": "Event created and approved successfully",
+      "singlePending": "Event created successfully. Waiting for approval.",
+      "failed": "Failed to create event"
+    }
+  },
+  "sidebar": {
+    "category": {
+      "dashboard": "Dashboard",
+      "academics": "Academics",
+      "management": "Management"
+    }
+  },
+  "welcome": {
+    "goodMorning": "Good morning",
+    "goodAfternoon": "Good afternoon",
+    "goodEvening": "Good evening",
+    "user": "User",
+    "subtitles": {
+      "teacher": "Manage your classes and students",
+      "admin": "Oversee school operations and resources",
+      "principal": "Lead your educational institution",
+      "default": "Access your account"
+    },
+    "weather": {
+      "sunny": "Sunny",
+      "cloudy": "Cloudy",
+      "rainy": "Rainy",
+      "partlycloudy": "Partly Cloudy"
+    },
+    "mode": "Mode",
+    "theme": "Theme"
+  },
+  "dashboard": {
+    "quickActions": "Quick Actions",
+    "events": {
+      "title": "Upcoming Events",
+      "loading": "Loading events...",
+      "loadFailed": "Failed to load events",
+      "emptyTitle": "No upcoming events",
+      "emptyHelp": "Events will appear here when scheduled",
+      "at": "at",
+      "createdBy": "Created by"
+    },
+    "cards": {
+      "students": "Students",
+      "parents": "Parents",
+      "staff": "Staff",
+      "academic": "Academic"
+    },
+    "teacher": {
+      "classOverview": {
+        "title": "Class Overview",
+        "loading": "Loading classes...",
+        "asClassTeacher": "As Class Teacher",
+        "asSubjectTeacher": "As Subject Teacher",
+        "students": "students",
+        "classTeacher": "Class Teacher",
+        "subject": "Subject",
+        "noClasses": "No classes assigned yet."
+      }
+    }
+  },
+  "announcements": {
+    "roles": { "teacher": "Teachers", "parent": "Parents", "student": "Students", "admin": "Administrators" },
+    "common": { "pending": "Pending", "approved": "Approved", "rejected": "Rejected", "total": "Total" },
+    "list": {
+      "title": "Announcements",
+      "subtitle": { "default": "Create and manage school announcements", "teacher": "Create and manage school announcements for students, parents, and staff" },
+      "loading": "Loading announcements...",
+      "emptyTitle": "No announcements found",
+      "emptyHelp": "No announcements match your current filters.",
+      "emptyHelpTeacher": "Create your first announcement to get started.",
+      "fetchFailed": "Failed to fetch announcements",
+      "fetchPendingFailed": "Failed to fetch pending announcements",
+      "approved": "Announcement approved successfully",
+      "approveFailed": "Failed to approve announcement",
+      "tabs": { "overview": "Overview", "pending": "Pending Approvals" },
+      "search": "Search announcements..."
+    },
+    "filters": {
+      "status": "Status",
+      "type": "Type",
+      "priority": "Priority",
+      "allStatus": "All Status",
+      "allTypes": "All Types",
+      "allPriorities": "All Priorities"
+    },
+    "table": {
+      "title": "Title",
+      "creator": "Creator",
+      "type": "Type",
+      "status": "Status",
+      "priority": "Priority",
+      "publishDate": "Publish Date",
+      "created": "Created",
+      "actions": "Actions"
+    },
+    "teacher": {
+      "helpTitle": "Need to make changes?",
+      "helpDesc": "You can edit or delete your announcements while they're pending approval. Once approved or rejected, you'll need to contact an administrator for any changes."
+    },
+    "create": {
+      "title": "Create Announcement",
+      "subtitle": "Create a new announcement that will be reviewed by administrators before publishing",
+      "cta": "Create Announcement",
+      "validation": "Validation Error",
+      "fillAll": "Please fill in all required fields",
+      "selectOneRole": "Please select at least one target role",
+      "successPending": "Announcement created successfully and pending approval",
+      "failed": "Failed to create announcement",
+      "basicInfo": "Basic Information",
+      "basicInfoDesc": "Provide the essential details for your announcement",
+      "titleLabel": "Title *",
+      "titlePlaceholder": "Enter announcement title",
+      "contentLabel": "Content *",
+      "contentPlaceholder": "Enter announcement content",
+      "typeLabel": "Type *",
+      "priorityLabel": "Priority",
+      "scheduling": "Scheduling",
+      "schedulingDesc": "Set when the announcement should be published and expire",
+      "publishDate": "Publish Date *",
+      "publishTime": "Publish Time *",
+      "expiresDate": "Expiry Date *",
+      "expiresTime": "Expiry Time *",
+      "targetAudience": "Target Audience",
+      "targetAudienceDesc": "Select who should receive this announcement",
+      "targetRoles": "Target Roles *",
+      "selectedRoles": "Selected:",
+      "rolesSuffix": "role(s)",
+      "typePreview": "Type Preview",
+      "options": "Options",
+      "markFeatured": "Mark as featured",
+      "featuredHelp": "Featured announcements will be highlighted and appear at the top of the list.",
+      "subtitleAdmin": "Create an announcement that will be automatically approved for publication",
+      "autoApproved": "Announcement created and auto-approved successfully",
+      "targetClasses": "Target Classes (Optional)",
+      "loadingClasses": "Loading classes...",
+      "noClasses": "No classes available",
+      "selectedClasses": "Selected:",
+      "classesSuffix": "class(es)",
+      "classesHelp": "Leave empty to send to all students, or select specific classes for targeted announcements."
+    }
+  },
+  "homework": {
+    "totalAssignments": "Total Assignments",
+    "completed": "completed",
+    "avgSubmission": "Avg. Submission",
+    "avgScore": "Avg. Score",
+    "rating": { "excellent": "Excellent", "good": "Good", "needsImprovement": "Needs Improvement" },
+    "pendingGrading": "Pending Grading",
+    "upcoming": "upcoming",
+    "weeklySubmissionRates": "Weekly submission rates",
+    "subjectPerformance": "Subject Performance",
+    "avgBySubject": "Average scores by subject",
+    "assignmentProgress": "Assignment Progress",
+    "viewAllAssignments": "View All Assignments",
+    "trackMilestones": "Track your homework assignments and milestones",
+    "overallCompletion": "Overall Assignment Completion",
+    "gradingProgress": "Grading Progress",
+    "created": "Created",
+    "completedLabel": "Completed",
+    "pending": "Pending",
+    "quickActions": "Quick Actions",
+    "commonTasks": "Common homework-related tasks",
+    "createHomework": "Create Homework",
+    "recordClasswork": "Record Classwork",
+    "gradeSubmissions": "Grade Submissions",
+    "viewReports": "View Reports"
+  },
+  "homeworkTeacher": {
+    "authRequired": "Please log in to access this page.",
+    "goToLogin": "Go to Login",
+    "list": {
+      "loading": "Loading homework...",
+      "search": "Search homework...",
+      "title": "Homework Assignments",
+      "subtitle": "List of homework assignments you've created",
+      "fetchFailed": "Failed to fetch data"
+    },
+    "empty": {
+      "title": "No homework found",
+      "noMatch": "No homework matches your search.",
+      "none": "You haven't created any homework yet."
+    },
+    "filters": {
+      "allSubjects": "All Subjects",
+      "noSubjects": "No subjects assigned",
+      "allClasses": "All Classes",
+      "noClasses": "No classes assigned"
+    },
+    "table": {
+      "subject": "Subject",
+      "title": "Title",
+      "class": "Class",
+      "dueDate": "Due Date"
+    },
+    "create": {
+      "back": "Back to Homework",
+      "title": "Create Homework",
+      "subtitle": "Create a new homework assignment for your class",
+      "detailsTitle": "Homework Details",
+      "detailsDesc": "Fill in the details for the homework assignment",
+      "classDivision": "Class Division",
+      "subject": "Subject",
+      "selectSubject": "Select a subject",
+      "labels": { "selectClass": "Select a class" },
+      "titleLabel": "Title",
+      "titlePlaceholder": "e.g., Chapter 3 Exercises",
+      "description": "Description",
+      "descriptionPlaceholder": "Enter homework description and instructions",
+      "dueDate": "Due Date",
+      "attachments": "Attachments (Optional)",
+      "supported": "Supported formats: PDF, Word documents, text files, and images. Max 5 files, 10MB each.",
+      "creating": "Creating...",
+      "cta": "Create Homework",
+      "success": "Homework created successfully!",
+      "failed": "Failed to create homework assignment",
+      "uploadSuccess": "{count} file(s) uploaded successfully!",
+      "uploadFailed": "Failed to upload files. Please try again.",
+      "fetchClassesFailed": "Failed to fetch your assigned classes"
+    },
+    "edit": {
+      "title": "Edit Homework",
+      "subtitle": "Update the homework assignment details",
+      "detailsTitle": "Edit Homework Assignment",
+      "loading": "Loading homework...",
+      "errorTitle": "Error Loading Homework",
+      "notFound": "Homework not found",
+      "updating": "Updating...",
+      "cta": "Update Homework",
+      "loadFailed": "Failed to load homework data",
+      "updateFailed": "Failed to update homework",
+      "updateError": "An error occurred while updating homework"
+    }
+  },
+  "messages": {
+    "groupReadyTitle": "Group Ready!",
+    "groupReadyDesc": "The new group has been created and is now available in your chat list.",
+    "chatStartedTitle": "Chat Started!",
+    "chatOpenedWith": "Chat opened with",
+    "loading": "Loading chats...",
+    "errorTitle": "Error Loading Chats",
+    "tryAgain": "Try Again",
+    "active": "active",
+    "tabs": { "direct": "Direct Chats", "group": "Group Chats" },
+    "actions": { "startNew": "Start New Chat", "createGroup": "Create Group" },
+    "filters": {
+      "title": "Filters",
+      "clearAll": "Clear All",
+      "class": "Class",
+      "allClasses": "All Classes",
+      "participation": "Participation",
+      "allChats": "All Chats",
+      "includesMe": "Includes Me",
+      "excludesMe": "Excludes Me",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "selectDate": "Select date"
+    },
+    "fetchTeachersFailed": "Failed to fetch teachers",
+    "fetchParentsFailed": "Failed to fetch parents",
+    "unexpectedFormat": "Unexpected response format",
+    "loadParentsFailed": "Failed to load parents. Please try again.",
+    "groupCreatedTitle": "Group Created Successfully!",
+    "groupCreatedDesc": "Group has been created successfully.",
+    "createGroupFailed": "Failed to create group",
+    "createGroup": { "title": "Create New Group", "subtitle": "Create a group chat with selected parents", "groupName": "Group Name *", "groupNamePlaceholder": "Enter group name (e.g., Grade 5A Parents)", "groupDesc": "Group Description (Optional)", "groupDescPlaceholder": "Describe the purpose of this group", "initialMessage": "Initial Message (Optional)", "initialMessagePlaceholder": "Send a welcome message to the group", "selectParents": "Select Parents" },
+    "selectedLower": "selected",
+    "clearAll": "Clear All",
+    "searchParentsPlaceholder": "Search parents or students...",
+    "searchTeachersPlaceholder": "Search teachers, subjects, or classes...",
+    "loadingParents": "Loading parents...",
+    "loadingTeachers": "Loading teachers...",
+    "noParentsMatch": "No parents found matching your search",
+    "noParents": "No parents available",
+    "noTeachers": "No teachers available",
+    "noTeachersSystem": "No teachers found in the system.",
+    "noToken": "No token provided",
+    "loadingChat": "Loading chat...",
+    "typeMessage": "Type a message...",
+    "refreshingGroups": "Refreshing groups...",
+    "teacherRoles": { "classTeacher": "Class Teacher", "subjectTeacher": "Subject Teacher" },
+    "classesLower": "classes",
+    "primaryLower": "primary",
+    "startNew": { 
+      "title": "Start New Chat",
+      "subtitle": "Start a conversation with a parent",
+      "searchPlaceholder": "Search parents or students...",
+      "noParentsFound": "No parents found",
+      "noParentsAvailable": "No parents available",
+      "loadingParents": "Loading parents...",
+      "errorLoadingParents": "Error loading parents",
+      "selectParent": "Select Parent"
+    },
+    "startWithTeacher": { 
+      "title": "Start New Chat with Teacher",
+      "subtitle": "Start a conversation with a teacher",
+      "searchPlaceholder": "Search teachers, subjects, or classes...",
+      "noTeachersFound": "No teachers found",
+      "noTeachersAvailable": "No teachers available",
+      "loadingTeachers": "Loading teachers...",
+      "errorLoadingTeachers": "Error loading teachers",
+      "selectTeacher": "Select Teacher",
+      "classTeacher": "Class Teacher",
+      "subjectTeacher": "Subject Teacher",
+      "assignmentType": "Assignment Type",
+      "classes": "Classes",
+      "subjects": "Subjects"
+    },
+    "createGroup": {
+      "title": "Create New Group",
+      "subtitle": "Create a group chat with selected parents",
+      "groupName": "Group Name *",
+      "groupNamePlaceholder": "Enter group name (e.g., Grade 5A Parents)",
+      "groupDesc": "Group Description (Optional)",
+      "groupDescPlaceholder": "Describe the purpose of this group",
+      "initialMessage": "Initial Message (Optional)",
+      "initialMessagePlaceholder": "Send a welcome message to the group",
+      "selectParents": "Select Parents",
+      "selected": "selected",
+      "clearAll": "Clear All",
+      "searchParentsPlaceholder": "Search parents or students...",
+      "loadingParents": "Loading parents...",
+      "noParentsMatch": "No parents found matching your search",
+      "noParents": "No parents available",
+      "noStudentsLinked": "No students linked",
+      "unknownClass": "Unknown Class",
+      "createGroup": "Create Group",
+      "creating": "Creating...",
+      "cancel": "Cancel"
+    }
+  },
+  "attendanceMgmt": {
+    "title": "Attendance Management",
+    "subtitle": "Monitor and review attendance across all classes",
+    "export": "Export",
+    "selectDate": "Select Date",
+    "attendanceDate": "Attendance Date:",
+    "academicYear": "Academic Year:",
+    "allClasses": "All Classes",
+    "allDivisions": "All Divisions",
+    "classesLower": "classes",
+    "for": "for",
+    "filters": { "class": "Filter by Class:", "division": "Filter by Division:", "clear": "Clear Filters" },
+    "actionRequired": "Action Required",
+    "unmarkedNotice": "classes still need attendance to be marked.",
+    "unmarkedHelp": "Teachers should mark attendance for these classes to maintain accurate records.",
+    "viewPending": "View Pending Classes",
+    "cards": {
+      "totalClasses": "Total Classes",
+      "attendanceMarked": "Attendance Marked",
+      "pendingAttendance": "Pending Attendance",
+      "overallAttendance": "Overall Attendance"
+    },
+    "status": {
+      "excellent": "Excellent",
+      "good": "Good",
+      "needsAttention": "Needs Attention",
+      "allMarked": "All marked",
+      "holiday": "Holiday",
+      "marked": "Marked",
+      "pending": "Pending",
+      "present": "Present",
+      "absent": "Absent",
+      "late": "Late",
+      "halfDay": "Half Day",
+      "unknown": "Unknown"
+    },
+    "ofClasses": "of classes",
+    "noClasses": "No classes",
+    "table": {
+      "title": "Class Attendance Overview",
+      "searchPlaceholder": "Search classes...",
+      "holidays": "Holidays",
+      "empty": "No classes found matching your criteria",
+      "viewDetails": "View Details"
+    },
+    "details": {
+      "totalStudents": "Total Students",
+      "recordsTitle": "Student Attendance Records",
+      "searchStudents": "Search students...",
+      "loading": "Loading attendance data...",
+      "admissionNo": "Admission No.",
+      "studentName": "Student Name",
+      "remarks": "Remarks",
+      "markedBy": "Marked By",
+      "empty": "No attendance records found for this date.",
+      "studentsLower": "students"
+    },
+    "cols": {
+      "class": "Class",
+      "status": "Status",
+      "students": "Students",
+      "present": "Present",
+      "absent": "Absent",
+      "attendancePct": "Attendance %"
+    },
+    "accessDetails": "Only admins and principals can access attendance details."
+  },
+  "attendanceTeacher": {
+    "title": "Attendance Management",
+    "loading": "Loading...",
+    "take": {
+      "title": "Take Attendance",
+      "desc": "Select a class and date to take attendance",
+      "cta": "Take Attendance"
+    },
+    "labels": {
+      "date": "Date",
+      "class": "Class",
+      "selectClass": "Select a class"
+    },
+    "classes": {
+      "title": "Class Overview",
+      "desc": "View your assigned classes and their details",
+      "searchPlaceholder": "Search classes...",
+      "filter": "Filter"
+    },
+    "unmarked": {
+      "desc": "Your assigned classes - ready for attendance marking",
+      "markNow": "Mark Now",
+      "moreClasses": "more classes need attention"
+    },
+    "detail": {
+      "loading": "Loading class attendance...",
+      "errorTitle": "Error Loading Attendance",
+      "back": "Back to Attendance",
+      "takingFor": "Taking attendance for",
+      "studentList": "Student List",
+      "markEach": "Mark attendance for each student",
+      "normalMode": "Normal Mode",
+      "absentFirst": "Absent First",
+      "markAllPresent": "Mark All Present",
+      "allStudents": "All Students",
+      "roll": "Roll #",
+      "saving": "Saving...",
+      "saveAttendance": "Save Attendance"
+    }
+  },
+  "leave": {
+    "title": "Leave Requests",
+    "subtitle": {
+      "admin": "Approve or reject leave requests from parents",
+      "teacher": "View and manage leave requests for your assigned classes",
+      "default": "View leave requests for your assigned classes"
+    },
+    "searchPlaceholder": "Search requests...",
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "urgent": "urgent",
+    "loggedInAs": "Logged in as:",
+    "kpi": {
+      "total": "Total Requests",
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "classInfo": "Class Info",
+    "class": "Class",
+    "division": "Division",
+    "columns": {
+      "student": "Student",
+      "classInfo": "Class Info",
+      "dates": "Dates",
+      "reason": "Reason",
+      "requestedDate": "Requested Date",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "filters": {
+      "title": "Filters",
+      "status": "Status",
+      "class": "Class",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "allStatuses": "All Statuses",
+      "allClasses": "All Classes"
+    },
+    "actions": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "approveSuccess": "Leave request approved successfully!",
+      "rejectSuccess": "Leave request rejected successfully!",
+      "approveError": "Failed to approve leave request",
+      "rejectError": "Failed to reject leave request",
+      "approveGenericError": "Error occurred while approving request",
+      "rejectGenericError": "Error occurred while rejecting request",
+      "rejectionReason": "Please provide a reason for rejection:"
+    },
+    "empty": {
+      "title": "No leave requests found",
+      "adjust": "Try adjusting your filters or search term",
+      "none": "There are no leave requests at the moment"
+    },
+    "loading": "Loading leave requests...",
+    "noPermission": "You don't have permission to access leave requests.",
+    "loginToAccess": "Please log in to access the leave requests page.",
+    "goToLogin": "Go to Login",
+    "currentlyOnLeave": "Currently on leave",
+    "unknownStudent": "Unknown Student",
+    "loadingAuth": "Loading authentication..."
+  },
+  "settings": {
+    "profile": { "title": "Profile Settings", "desc": "Manage your personal information and preferences" },
+    "appearance": { "title": "Appearance Settings", "desc": "Customize the look and feel of your interface" },
+    "notifications": { "title": "Notifications", "desc": "Configure your notification preferences" },
+    "security": { "title": "Privacy & Security", "desc": "Manage your account security and privacy settings" },
+    "language": { "title": "Language & Region", "desc": "Set your language and regional preferences" },
+    "data": { "title": "Data & Storage", "desc": "Manage your data and storage settings" },
+    "configure": "Configure",
+    "accountInfo": "Account Information",
+    "fullName": "Full Name",
+    "email": "Email",
+    "notProvided": "Not provided",
+    "role": "Role"
+  },
+  "parents": {
+    "createTitle": "Create New Parent",
+    "createSubtitle": "Create a new parent account that can be linked to students",
+    "enterFullName": "Enter parent's full name",
+    "enterPhone": "Enter phone number",
+    "emailOptional": "Email (Optional)",
+    "enterEmail": "Enter email address",
+    "initialPassword": "Initial Password",
+    "enterInitialPassword": "Enter initial password",
+    "creating": "Creating...",
+    "createParent": "Create Parent",
+    "created": "Parent created successfully!"
+  },
+  "profilePage": {
+    "summary": {
+      "title": "Profile Summary",
+      "joined": "Joined",
+      "recently": "Recently"
+    },
+    "info": {
+      "title": "Profile Information",
+      "editSubtitle": "Update your personal details",
+      "viewSubtitle": "View and manage your profile information"
+    },
+    "labels": {
+      "fullName": "Full Name",
+      "phoneNumber": "Phone Number",
+      "emailAddress": "Email Address",
+      "preferredLanguage": "Preferred Language"
+    },
+    "placeholders": {
+      "fullName": "Enter your full name",
+      "phoneNumber": "Enter your phone number",
+      "email": "Enter your email"
+    },
+    "saving": "Saving...",
+    "saveChanges": "Save Changes",
+    "appearance": {
+      "title": "Appearance",
+      "desc": "Customize the look and feel of your dashboard",
+      "darkMode": "Dark Mode",
+      "darkHelp": "Reduce eye strain in low light",
+      "lightMode": "Light Mode",
+      "lightHelp": "Bright and vibrant interface",
+      "switchToLight": "Switch to Light",
+      "switchToDark": "Switch to Dark",
+      "colorTheme": "Color Theme"
+    },
+    "security": {
+      "title": "Security",
+      "desc": "Manage your account security and authentication",
+      "deleteAccount": "Delete Account"
+    },
+    "confirm": {
+      "deleteTitle": "Delete Account",
+      "deleteDesc": "Are you sure you want to delete your account? This action cannot be undone. All your data will be permanently removed."
+    },
+    "toasts": {
+      "updatedTitle": "Profile Updated",
+      "updatedDesc": "Your profile information has been successfully updated.",
+      "deletedTitle": "Account Deleted",
+      "deletedDesc": "Your account has been successfully deleted."
+    },
+    "demo": {
+      "success": "This is a success message",
+      "error": "This is an error message",
+      "showSuccess": "Show Success Toast",
+      "showError": "Show Error Toast"
+    }
+  },
+  "birthdays": {
+    "upcoming": "Upcoming Birthdays",
+    "subtitle": "Birthdays for students and staff",
+    "loadFailed": "Failed to load birthdays",
+    "widgetEmpty": { "title": "No upcoming birthdays", "help": "Birthdays will appear here when approaching" },
+    "clearAll": "Clear all",
+    "clearAllFilters": "Clear all filters",
+    "type": "Type",
+    "date": "Date",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "thisWeek": "This Week",
+    "thisMonth": "This Month",
+    "nextMonth": "Next Month",
+    "loading": "Loading birthdays...",
+    "empty": { "title": "No birthdays found", "none": "There are no birthdays matching your selected filters." },
+    "person": "Person",
+    "sectionShort": "Sec",
+    "todayBang": "Today!",
+    "day": "day",
+    "days": "days",
+    "away": "away",
+    "sendWish": "Wish",
+    "kpi": {
+      "today": "birthdays today",
+      "thisWeek": "upcoming birthdays",
+      "thisMonth": "total birthdays",
+      "nextMonth": "planned celebrations"
+    }
+  },
+  "approvals": {
+    "title": "Approvals",
+    "loading": "Loading approvals...",
+    "error": "Error",
+    "none": "No pending approvals found.",
+    "unexpectedFormat": "Unexpected response format.",
+    "approvedTitle": "Event Approved",
+    "approvedDesc": "The event has been successfully approved.",
+    "approveFailed": "Failed to approve the event.",
+    "rejectedTitle": "Event Rejected",
+    "rejectedDesc": "The event has been rejected.",
+    "rejectFailed": "Failed to reject the event.",
+    "columns": {
+      "title": "Title",
+      "description": "Description",
+      "scope": "Scope",
+      "creator": "Creator",
+      "date": "Date",
+      "actions": "Actions"
+    },
+    "scope": {
+      "school": "School Wide",
+      "class": "Class Specific",
+      "teacher": "Teacher Specific"
+    },
+    "fetchFailed": "Failed to fetch events"
+  },
+  "actions": {
+    "cancel": "Cancel",
+    "refresh": "Refresh",
+    "adding": "Adding...",
+    "updating": "Updating...",
+    "save": "Save",
+    "assign": "Assign",
+    "assigning": "Assigning...",
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "select": "Select",
+    "back": "Go Back",
+    "create": "Create",
+    "view": "View"
+  },
+  "pagination": {
+    "showing": "Showing",
+    "to": "to",
+    "of": "of",
+    "results": "results",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page"
+  },
+  "access": {
+    "deniedTitle": "Access Denied",
+    "adminsOnly": "Only admins and principals can access this page.",
+    "adminsOnlySection": "Only admins and principals can access this section.",
+    "teachersOnlyPage": "Only teachers can access this page."
+  },
+  "classes": {
+    "title": "My Classes",
+    "subtitle": "Manage your classes and view student information",
+    "loading": "Loading classes...",
+    "searchPlaceholder": "Search classes...",
+    "sort": { "name": "Sort by Name", "students": "Sort by Students" },
+    "emptyTitle": "No classes found",
+    "noSearchMatch": "No classes match your search.",
+    "noAssigned": "You don't have any classes assigned to you yet."
+  },
+  "students": {
+    "loading": "Loading students...",
+    "searchPlaceholder": "Search students...",
+    "allClasses": "All Classes",
+    "addStudent": "Add Student",
+    "listTitle": "Student List",
+    "listSubtitle": "List of all students in the school",
+    "backToList": "Back to Students",
+    "form": {
+      "title": "Student Information",
+      "subtitle": "Enter the student's personal and academic details",
+      "labels": {
+        "fullName": "Full Name",
+        "admissionNumber": "Admission Number",
+        "rollNumber": "Roll Number",
+        "dateOfBirth": "Date of Birth",
+        "admissionDate": "Admission Date",
+        "classDivision": "Class Division"
+      },
+      "placeholders": {
+        "fullName": "Enter student's full name",
+        "admissionNumber": "e.g., 2025001",
+        "rollNumber": "e.g., 501",
+        "selectClass": "Select a class"
+      },
+      "loadingClasses": "Loading classes..."
+    },
+    "cols": {
+      "rollNo": "Roll No.",
+      "name": "Student Name",
+      "class": "Class",
+      "actions": "Actions"
+    },
+    "emptyFiltered": "No students found matching the selected filters.",
+    "empty": "No students available.",
+    "na": "N/A"
+  },
+  "reports": {
+    "exportAll": "Export All Reports",
+    "exportAllSuccess": "All reports exported successfully!",
+    "students": {
+      "title": "Student Reports",
+      "description": "Academic performance and enrollment data",
+      "detail": "Detailed analysis of student performance across grades and subjects.",
+      "cta": "View Student Reports"
+    },
+    "staff": {
+      "title": "Staff Reports",
+      "description": "Teacher and staff performance metrics",
+      "detail": "Evaluation of staff performance and professional development.",
+      "cta": "View Staff Reports"
+    },
+    "communication": {
+      "title": "Communication Reports",
+      "description": "Messaging and communication analytics",
+      "detail": "Insights into communication patterns and response rates.",
+      "cta": "View Communication Reports"
+    },
+    "backTo": "Back to Reports"
+  },
+  "staff": {
+    "backToList": "Back to Staff",
+    "backToDetail": "Back to Staff Details",
+    "create": {
+      "title": "Add New Staff",
+      "subtitle": "Add a new staff member to the school system",
+      "passwordHint": "This will be the initial password for the staff member's user account",
+      "failed": "Failed to create staff member"
+    },
+    "searchPlaceholder": "Search staff...",
+    "addStaff": "Add Staff",
+    "assignSubjects": "Assign Subjects",
+    "list": {
+      "title": "Staff List",
+      "subtitle": "List of all staff members in the school"
+    },
+    "loading": "Loading staff...",
+    "loadingTeachers": "Loading teachers...",
+    "empty": {
+      "noStaff": "No staff members found",
+      "noMatch": "No staff found matching the search term"
+    },
+    "form": {
+      "title": "Staff Information",
+      "subtitleEdit": "Update the staff member's personal and professional information",
+      "personalInfo": "Personal Information",
+      "professionalInfo": "Professional Information",
+      "accountSecurity": "Account Security",
+      "labels": {
+        "fullName": "Full Name",
+        "phoneNumber": "Phone Number",
+        "role": "Role",
+        "initialPassword": "Initial Password",
+        "accountStatus": "Account Status"
+      },
+      "placeholders": {
+        "fullNameStaff": "Enter staff member's full name",
+        "fullName": "Enter full name",
+        "phoneNumber": "e.g., 9876543210",
+        "phone": "Enter phone number",
+        "selectRole": "Select a role",
+        "selectStatus": "Select status",
+        "setInitialPassword": "Set initial password"
+      }
+    },
+    "detail": {
+      "teachingSubjects": "Teaching Subjects",
+      "manageSubjects": "Manage Subjects",
+      "noSubjects": "No subjects assigned",
+      "subjectsAssigned": "subjects assigned",
+      "errorTitle": "Error Loading Staff Details",
+      "notFound": "Staff member not found",
+      "delete": {
+        "title": "Delete Staff Member",
+        "confirm": "Are you sure you want to delete",
+        "cannotUndo": "This action cannot be undone.",
+        "warning": "Warning",
+        "warningDesc": "Deleting this staff member will also remove all their assignments and cannot be recovered."
+      },
+      "selectSubjectsFor": "Select subjects for",
+      "toTeach": "to teach",
+      "currentlyAssigned": "Currently assigned subjects:"
+    },
+    "assign": {
+      "pageTitle": "Assign Subjects to Teachers",
+      "pageSubtitle": "Select a teacher and assign subjects they will teach",
+      "selectTeacherTitle": "Select Teacher",
+      "selectTeacherSubtitle": "Choose the teacher to assign subjects to",
+      "teacherLabel": "Teacher *",
+      "subjectsSubtitle": "Choose subjects to assign to the selected teacher",
+      "assignmentMode": "Assignment Mode",
+      "replace": "Replace existing subjects",
+      "add": "Add to existing subjects",
+      "replaceHelp": "This will replace all existing subjects with the selected ones.",
+      "addHelp": "This will add the selected subjects to the existing ones.",
+      "selectSubjects": "Select Subjects *",
+      "selectedSubjects": "Selected subjects",
+      "assignSelected": "Assign Selected"
+    },
+    "cols": {
+      "name": "Name",
+      "phone": "Phone",
+      "classTeacherOf": "Class Teacher Of",
+      "subjectsTaught": "Subjects Taught"
+    }
+  },
+  "changePassword": {
+    "title": "Change Password",
+    "subtitle": "Enter your current password and new password",
+    "current": "Current Password",
+    "enterCurrent": "Enter current password",
+    "new": "New Password",
+    "enterNew": "Enter new password",
+    "confirm": "Confirm New Password",
+    "confirmNew": "Confirm new password",
+    "changing": "Changing...",
+    "changePassword": "Change Password",
+    "backToProfile": "Back to Profile",
+    "success": "Password changed successfully!",
+    "errors": {
+      "mismatch": "New passwords don't match",
+      "tooShort": "Password must be at least 6 characters long"
+    }
+  },
+  "academicSetup": {
+    "tabs": { "years": "Academic Years", "divisions": "Classes & Divisions", "subjects": "Subjects" },
+    "years": {
+      "title": "Academic Years",
+      "add": "Add Academic Year",
+      "edit": "Edit Academic Year",
+      "yearName": "Year Name",
+      "setActive": "Set as Active Year"
+    },
+    "status": { "active": "Active", "inactive": "Inactive" },
+    "classLevels": { "title": "Class Levels", "add": "Add Class" },
+    "divisions": { 
+      "title": "Divisions", 
+      "add": "Add Division",
+      "edit": "Edit Division",
+      "divisionName": "Division Name",
+      "assignClassTeacher": "Assign Class Teacher",
+      "labelLower": "divisions"
+    },
+    "subjects": { 
+      "title": "Subjects", 
+      "add": "Add Subject",
+      "edit": "Edit Subject",
+      "code": "Subject Code",
+      "name": "Subject Name"
+    },
+    "assignments": {
+      "title": "Division-Subject Assignments",
+      "subtitle": "Subjects assigned to each division",
+      "assignSubject": "Assign Subject",
+      "assignTeacher": "Assign Teacher",
+      "assignSubjectDialog": "Assign Subject to Class Division",
+      "assignTeacherDialog": "Assign Teacher to Subject",
+      "subjectTeacherOptional": "Subject Teacher (Optional)",
+      "showing": "Showing assignments for",
+      "empty": "No subject assignments found",
+      "emptyFiltered": "No subject assignments found for the selected filters"
+    },
+    "filters": { "grade": "Filter by Grade:", "division": "Filter by Division:", "clear": "Clear Filters" },
+    "allGrades": "All Grades",
+    "allDivisions": "All Divisions",
+    "loading": { "classLevels": "Loading class levels...", "classDivisions": "Loading class divisions...", "subjects": "Loading subjects..." },
+    "notAssigned": "Not assigned",
+    "noTeacherAssigned": "No teacher assigned",
+    "empty": { "noDivisions": "No divisions found", "noDivisionsFor": "No divisions found for" },
+    "cols": {
+      "name": "Name",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "status": "Status",
+      "actions": "Actions",
+      "grade": "Grade",
+      "division": "Division",
+      "classTeacher": "Class Teacher",
+      "students": "Students",
+      "sequence": "Sequence",
+      "class": "Class",
+      "subject": "Subject",
+      "subjects": "Subjects",
+      "teacher": "Teacher",
+      "subjectTeachers": "Subject Teachers",
+      "classDivision": "Class Division",
+      "code": "Code"
+    },
+    "placeholders": {
+      "selectClass": "Select a class",
+      "selectTeacher": "Select a teacher",
+      "selectSubject": "Select a subject",
+      "selectClassDivision": "Select a class division"
+    },
+    "subjectTab": {
+      "divisionSubjectAssignments": "Division-Subject Assignments",
+      "subjectsAssignedToDivision": "Subjects assigned to each division",
+      "assignSubjectButton": "Assign Subject",
+      "filterByGrade": "Filter by Grade:",
+      "filterByDivision": "Filter by Division:",
+      "allGrades": "All Grades",
+      "allDivisions": "All Divisions"
+    }
+  }
+}

@@ -17,50 +17,52 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useI18n } from '@/lib/i18n/context';
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const { t } = useI18n();
 
   const settingsCategories = [
     {
-      title: 'Profile Settings',
-      description: 'Manage your personal information and preferences',
+      title: t('settings.profile.title'),
+      description: t('settings.profile.desc'),
       icon: User,
       href: '/profile',
       color: 'text-blue-600',
     },
     {
-      title: 'Appearance Settings',
-      description: 'Customize the look and feel of your interface',
+      title: t('settings.appearance.title'),
+      description: t('settings.appearance.desc'),
       icon: Palette,
       href: '/profile',
       color: 'text-purple-600',
     },
     {
-      title: 'Notifications',
-      description: 'Configure your notification preferences',
+      title: t('settings.notifications.title'),
+      description: t('settings.notifications.desc'),
       icon: Bell,
       href: '/notifications',
       color: 'text-orange-600',
     },
     {
-      title: 'Privacy & Security',
-      description: 'Manage your account security and privacy settings',
+      title: t('settings.security.title'),
+      description: t('settings.security.desc'),
       icon: Shield,
       href: '/change-password',
       color: 'text-green-600',
     },
     {
-      title: 'Language & Region',
-      description: 'Set your language and regional preferences',
+      title: t('settings.language.title'),
+      description: t('settings.language.desc'),
       icon: Globe,
       href: '/profile',
       color: 'text-indigo-600',
     },
     {
-      title: 'Data & Storage',
-      description: 'Manage your data and storage settings',
+      title: t('settings.data.title'),
+      description: t('settings.data.desc'),
       icon: Database,
       href: '/data-settings',
       color: 'text-gray-600',
@@ -90,9 +92,7 @@ export default function SettingsPage() {
                 </CardHeader>
                 <CardContent>
                   <Button variant="outline" className="w-full" asChild>
-                    <Link href={category.href}>
-                      Configure
-                    </Link>
+                    <Link href={category.href}>{t('settings.configure')}</Link>
                   </Button>
                 </CardContent>
               </Card>
@@ -105,25 +105,25 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <SettingsIcon className="h-5 w-5" />
-              Account Information
+              {t('settings.accountInfo')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-gray-500">Full Name</label>
+                <label className="text-sm font-medium text-gray-500">{t('settings.fullName')}</label>
                 <p className="font-medium">{user?.full_name}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Phone Number</label>
+                <label className="text-sm font-medium text-gray-500">{t('auth.phoneNumber')}</label>
                 <p className="font-medium">{user?.phone_number}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Email</label>
-                <p className="font-medium">{user?.email || 'Not provided'}</p>
+                <label className="text-sm font-medium text-gray-500">{t('settings.email')}</label>
+                <p className="font-medium">{user?.email || t('settings.notProvided')}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Role</label>
+                <label className="text-sm font-medium text-gray-500">{t('settings.role')}</label>
                 <p className="font-medium capitalize">{user?.role}</p>
               </div>
             </div>

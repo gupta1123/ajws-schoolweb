@@ -29,12 +29,14 @@ import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import { formatDate } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/context';
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();
   const { theme, colorScheme, toggleTheme, setColorScheme } = useTheme();
   const router = useRouter();
   const { toast } = useToast();
+  const { t } = useI18n();
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [formData, setFormData] = useState({
@@ -62,8 +64,8 @@ export default function ProfilePage() {
       setIsLoading(false);
       setIsEditing(false);
       toast({
-        title: "Profile Updated",
-        description: "Your profile information has been successfully updated.",
+        title: t('profilePage.toasts.updatedTitle', 'Profile Updated'),
+        description: t('profilePage.toasts.updatedDesc', 'Your profile information has been successfully updated.'),
         variant: "success",
       });
     }, 1000);
@@ -73,8 +75,8 @@ export default function ProfilePage() {
     // Simulate account deletion
     setTimeout(() => {
       toast({
-        title: "Account Deleted",
-        description: "Your account has been successfully deleted.",
+        title: t('profilePage.toasts.deletedTitle', 'Account Deleted'),
+        description: t('profilePage.toasts.deletedDesc', 'Your account has been successfully deleted.'),
         variant: "success",
       });
       logout();
@@ -104,7 +106,7 @@ export default function ProfilePage() {
           <div className="lg:col-span-1">
             <Card className="h-full">
               <CardHeader>
-                <CardTitle>Profile Summary</CardTitle>
+                <CardTitle>{t('profilePage.summary.title', 'Profile Summary')}</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col items-center text-center">
                 <div className="bg-muted rounded-full w-24 h-24 flex items-center justify-center mb-4">
@@ -117,7 +119,9 @@ export default function ProfilePage() {
                 <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
                   <div className="flex items-center justify-center gap-1">
                     <Calendar className="h-4 w-4" />
-                    <span>Joined {user?.last_login ? formatDate(user.last_login) : 'Recently'}</span>
+                    <span>
+                      {t('profilePage.summary.joined', 'Joined')} {user?.last_login ? formatDate(user.last_login) : t('profilePage.summary.recently', 'Recently')}
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -130,11 +134,11 @@ export default function ProfilePage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
-                    <CardTitle>Personal Information</CardTitle>
+                    <CardTitle>{t('profilePage.info.title', 'Profile Information')}</CardTitle>
                     <CardDescription>
                       {isEditing 
-                        ? 'Update your personal details' 
-                        : 'View and manage your profile information'}
+                        ? t('profilePage.info.editSubtitle', 'Update your personal details') 
+                        : t('profilePage.info.viewSubtitle', 'View and manage your profile information')}
                     </CardDescription>
                   </div>
                   {!isEditing && (
@@ -145,14 +149,14 @@ export default function ProfilePage() {
                       className="flex items-center gap-2"
                     >
                       <Edit3 className="h-4 w-4" />
-                      Edit
+                      {t('actions.edit', 'Edit')}
                     </Button>
                   )}
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="fullName">Full Name</Label>
+                      <Label htmlFor="fullName">{t('profilePage.labels.fullName', 'Full Name')}</Label>
                       {isEditing ? (
                         <div className="relative">
                           <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -161,7 +165,7 @@ export default function ProfilePage() {
                             name="fullName"
                             value={formData.fullName}
                             onChange={handleInputChange}
-                            placeholder="Enter your full name"
+                            placeholder={t('profilePage.placeholders.fullName', 'Enter your full name')}
                             className="pl-10"
                             required
                           />
@@ -172,7 +176,7 @@ export default function ProfilePage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="phoneNumber">Phone Number</Label>
+                      <Label htmlFor="phoneNumber">{t('profilePage.labels.phoneNumber', 'Phone Number')}</Label>
                       {isEditing ? (
                         <div className="relative">
                           <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -181,7 +185,7 @@ export default function ProfilePage() {
                             name="phoneNumber"
                             value={formData.phoneNumber}
                             onChange={handleInputChange}
-                            placeholder="Enter your phone number"
+                            placeholder={t('profilePage.placeholders.phoneNumber', 'Enter your phone number')}
                             className="pl-10"
                             required
                           />
@@ -195,7 +199,7 @@ export default function ProfilePage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="email">Email Address</Label>
+                      <Label htmlFor="email">{t('profilePage.labels.emailAddress', 'Email Address')}</Label>
                       {isEditing ? (
                         <div className="relative">
                           <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -205,20 +209,20 @@ export default function ProfilePage() {
                             type="email"
                             value={formData.email}
                             onChange={handleInputChange}
-                            placeholder="Enter your email"
+                            placeholder={t('profilePage.placeholders.email', 'Enter your email')}
                             className="pl-10"
                           />
                         </div>
                       ) : (
                         <div className="flex items-center py-2">
                           <Mail className="mr-2 h-4 w-4 text-muted-foreground" />
-                          <p className="font-medium">{formData.email || 'Not provided'}</p>
+                          <p className="font-medium">{formData.email || t('settings.notProvided', 'Not provided')}</p>
                         </div>
                       )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="preferredLanguage">Preferred Language</Label>
+                      <Label htmlFor="preferredLanguage">{t('profilePage.labels.preferredLanguage', 'Preferred Language')}</Label>
                       {isEditing ? (
                         <div className="relative">
                           <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -257,18 +261,18 @@ export default function ProfilePage() {
                       className="flex items-center gap-2"
                     >
                       <X className="h-4 w-4" />
-                      Cancel
+                      {t('actions.cancel', 'Cancel')}
                     </Button>
                     <Button type="submit" disabled={isLoading} className="flex items-center gap-2">
                       {isLoading ? (
                         <>
                           <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
-                          Saving...
+                          {t('profilePage.saving', 'Saving...')}
                         </>
                       ) : (
                         <>
                           <Save className="h-4 w-4" />
-                          Save Changes
+                          {t('profilePage.saveChanges', 'Save Changes')}
                         </>
                       )}
                     </Button>
@@ -282,10 +286,10 @@ export default function ProfilePage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Palette className="h-5 w-5" />
-                  Appearance
+                  {t('profilePage.appearance.title', 'Appearance')}
                 </CardTitle>
                 <CardDescription>
-                  Customize the look and feel of your dashboard
+                  {t('profilePage.appearance.desc', 'Customize the look and feel of your dashboard')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -295,16 +299,16 @@ export default function ProfilePage() {
                       <>
                         <Moon className="h-5 w-5" />
                         <div>
-                          <p className="font-medium">Dark Mode</p>
-                          <p className="text-sm text-muted-foreground">Reduce eye strain in low light</p>
+                          <p className="font-medium">{t('profilePage.appearance.darkMode', 'Dark Mode')}</p>
+                          <p className="text-sm text-muted-foreground">{t('profilePage.appearance.darkHelp', 'Reduce eye strain in low light')}</p>
                         </div>
                       </>
                     ) : (
                       <>
                         <Sun className="h-5 w-5" />
                         <div>
-                          <p className="font-medium">Light Mode</p>
-                          <p className="text-sm text-muted-foreground">Bright and vibrant interface</p>
+                          <p className="font-medium">{t('profilePage.appearance.lightMode', 'Light Mode')}</p>
+                          <p className="text-sm text-muted-foreground">{t('profilePage.appearance.lightHelp', 'Bright and vibrant interface')}</p>
                         </div>
                       </>
                     )}
@@ -314,12 +318,12 @@ export default function ProfilePage() {
                     onClick={toggleTheme}
                     className="flex items-center gap-2"
                   >
-                    {theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'}
+                    {theme === 'dark' ? t('profilePage.appearance.switchToLight', 'Switch to Light') : t('profilePage.appearance.switchToDark', 'Switch to Dark')}
                   </Button>
                 </div>
 
                 <div className="space-y-3">
-                  <Label className="text-base">Color Theme</Label>
+                  <Label className="text-base">{t('profilePage.appearance.colorTheme', 'Color Theme')}</Label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {colorSchemes.map((scheme) => (
                       <Button
@@ -345,10 +349,10 @@ export default function ProfilePage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Lock className="h-5 w-5" />
-                  Security
+                  {t('profilePage.security.title', 'Security')}
                 </CardTitle>
                 <CardDescription>
-                  Manage your account security and authentication
+                  {t('profilePage.security.desc', 'Manage your account security and authentication')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -359,7 +363,7 @@ export default function ProfilePage() {
                     className="flex items-center gap-2 justify-center"
                   >
                     <Lock className="h-4 w-4" />
-                    Change Password
+                    {t('changePassword.changePassword', 'Change Password')}
                   </Button>
                   <Button 
                     variant="outline" 
@@ -367,7 +371,7 @@ export default function ProfilePage() {
                     className="flex items-center gap-2 justify-center"
                   >
                     <Trash2 className="h-4 w-4" />
-                    Delete Account
+                    {t('profilePage.security.deleteAccount', 'Delete Account')}
                   </Button>
                 </div>
               </CardContent>
@@ -380,10 +384,10 @@ export default function ProfilePage() {
       <ConfirmationModal
         open={showDeleteConfirmation}
         onOpenChange={setShowDeleteConfirmation}
-        title="Delete Account"
-        description="Are you sure you want to delete your account? This action cannot be undone. All your data will be permanently removed."
-        confirmText="Delete Account"
-        cancelText="Cancel"
+        title={t('profilePage.confirm.deleteTitle', 'Delete Account')}
+        description={t('profilePage.confirm.deleteDesc', 'Are you sure you want to delete your account? This action cannot be undone. All your data will be permanently removed.')}
+        confirmText={t('profilePage.security.deleteAccount', 'Delete Account')}
+        cancelText={t('actions.cancel', 'Cancel')}
         confirmVariant="destructive"
         onConfirm={handleDeleteAccount}
       />
@@ -393,16 +397,16 @@ export default function ProfilePage() {
         <Button 
           variant="outline" 
           size="sm"
-          onClick={() => toast({ title: "Success", description: "This is a success message", variant: "success" })}
+          onClick={() => toast({ title: t('common.success', 'Success'), description: t('profilePage.demo.success', 'This is a success message'), variant: 'success' })}
         >
-          Show Success Toast
+          {t('profilePage.demo.showSuccess', 'Show Success Toast')}
         </Button>
         <Button 
           variant="outline" 
           size="sm"
-          onClick={() => toast({ title: "Error", description: "This is an error message", variant: "error" })}
+          onClick={() => toast({ title: t('common.error', 'Error'), description: t('profilePage.demo.error', 'This is an error message'), variant: 'error' })}
         >
-          Show Error Toast
+          {t('profilePage.demo.showError', 'Show Error Toast')}
         </Button>
       </div>
     </ProtectedRoute>

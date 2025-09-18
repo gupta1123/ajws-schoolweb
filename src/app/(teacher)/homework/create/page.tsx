@@ -15,6 +15,7 @@ import { useState, useEffect } from 'react';
 import { homeworkServices } from '@/lib/api/homework';
 import { academicServices } from '@/lib/api/academic';
 import { toast } from '@/hooks/use-toast';
+import { useI18n } from '@/lib/i18n/context';
 import { FileUploader } from '@/components/ui/file-uploader';
 
 // Interface for the transformed class data we're using
@@ -47,6 +48,7 @@ interface AssignedClass {
 export default function CreateHomeworkPage() {
   const { user, token, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { t } = useI18n();
   const [formData, setFormData] = useState({
     class_division_id: '',
     subject: '',
@@ -110,8 +112,8 @@ export default function CreateHomeworkPage() {
       } catch (error) {
         console.error('Error fetching teacher classes:', error);
         toast({
-          title: "Error",
-          description: "Failed to fetch your assigned classes",
+          title: t('common.error', 'Error'),
+          description: t('homeworkTeacher.create.fetchClassesFailed', 'Failed to fetch your assigned classes'),
           variant: "error",
         });
       } finally {
@@ -124,7 +126,7 @@ export default function CreateHomeworkPage() {
     } else {
       console.log('No token available, skipping API call');
     }
-  }, [token]);
+  }, [token, t]);
 
   // Debug: Log authentication state
   console.log('Auth state:', { user, token: !!token, isAuthenticated, authLoading });
@@ -195,8 +197,8 @@ export default function CreateHomeworkPage() {
       
       if (response.status === 'success') {
         toast({
-          title: "Success",
-          description: `${files.length} file(s) uploaded successfully!`,
+          title: t('common.success', 'Success'),
+          description: t('homeworkTeacher.create.uploadSuccess', '{count} file(s) uploaded successfully!').replace('{count}', String(files.length)),
           variant: "success",
         });
         // Clear selected files after successful upload
@@ -207,8 +209,8 @@ export default function CreateHomeworkPage() {
     } catch (error) {
       console.error('Error uploading files:', error);
       toast({
-        title: "Error",
-        description: "Failed to upload files. Please try again.",
+        title: t('common.error', 'Error'),
+        description: t('homeworkTeacher.create.uploadFailed', 'Failed to upload files. Please try again.'),
         variant: "error",
       });
     } finally {
@@ -234,8 +236,8 @@ export default function CreateHomeworkPage() {
       
       if (response.status === 'success') {
         toast({
-          title: "Success",
-          description: "Homework created successfully!",
+          title: t('common.success', 'Success'),
+          description: t('homeworkTeacher.create.success', 'Homework created successfully!'),
           variant: "success",
         });
         
@@ -260,8 +262,8 @@ export default function CreateHomeworkPage() {
     } catch (error) {
       console.error('Error creating homework:', error);
       toast({
-        title: "Error",
-        description: "Failed to create homework assignment",
+        title: t('common.error', 'Error'),
+        description: t('homeworkTeacher.create.failed', 'Failed to create homework assignment'),
         variant: "error",
       });
     } finally {
@@ -271,7 +273,7 @@ export default function CreateHomeworkPage() {
 
   // Format class division name for display
   const formatClassName = (division: TransformedClass) => {
-    return `${division.class_level?.name || 'Unknown'} - Section ${division.division}`;
+    return `${division.class_level?.name || t('common.none', 'Unknown')} - ${t('timetable.section', 'Section')} ${division.division}`;
   };
 
   return (
@@ -284,26 +286,26 @@ export default function CreateHomeworkPage() {
               onClick={() => router.back()}
               className="mb-4"
             >
-              ← Back to Homework
+              ← {t('homeworkTeacher.create.back', 'Back to Homework')}
             </Button>
-            <h1 className="text-3xl font-bold mb-2">Create Homework</h1>
+            <h1 className="text-3xl font-bold mb-2">{t('homeworkTeacher.create.title', 'Create Homework')}</h1>
             <p className="text-gray-600 dark:text-gray-300">
-              Create a new homework assignment for your class
+              {t('homeworkTeacher.create.subtitle', 'Create a new homework assignment for your class')}
             </p>
           </div>
 
           <form onSubmit={handleSubmit}>
             <Card>
               <CardHeader>
-                <CardTitle>Homework Details</CardTitle>
+                <CardTitle>{t('homeworkTeacher.create.detailsTitle', 'Homework Details')}</CardTitle>
                 <CardDescription>
-                  Fill in the details for the homework assignment
+                  {t('homeworkTeacher.create.detailsDesc', 'Fill in the details for the homework assignment')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="class_division_id">Class Division</Label>
+                    <Label htmlFor="class_division_id">{t('homeworkTeacher.create.classDivision', 'Class Division')}</Label>
                     <select
                       id="class_division_id"
                       name="class_division_id"
@@ -312,11 +314,11 @@ export default function CreateHomeworkPage() {
                       className="border rounded-md px-3 py-2 w-full"
                       required
                     >
-                      <option value="">Select a class</option>
+                      <option value="">{t('homeworkTeacher.labels.selectClass', 'Select a class')}</option>
                       {loadingClasses ? (
-                        <option value="">Loading classes...</option>
+                        <option value="">{t('classes.loading', 'Loading classes...')}</option>
                       ) : classDivisions.length === 0 ? (
-                        <option value="">No classes found</option>
+                        <option value="">{t('classes.emptyTitle', 'No classes found')}</option>
                       ) : (
                         classDivisions.map((division, index) => (
                           <option key={`${division.id}-${division.division}-${index}`} value={division.id}>
@@ -328,7 +330,7 @@ export default function CreateHomeworkPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="subject">Subject</Label>
+                    <Label htmlFor="subject">{t('homeworkTeacher.create.subject', 'Subject')}</Label>
                     <select
                       id="subject"
                       name="subject"
@@ -337,9 +339,9 @@ export default function CreateHomeworkPage() {
                       className="border rounded-md px-3 py-2 w-full"
                       required
                     >
-                      <option value="">Select a subject</option>
+                      <option value="">{t('homeworkTeacher.create.selectSubject', 'Select a subject')}</option>
                       {availableSubjects.length === 0 ? (
-                        <option value="">No subjects assigned</option>
+                        <option value="">{t('homeworkTeacher.filters.noSubjects', 'No subjects assigned')}</option>
                       ) : (
                         availableSubjects.map((subject, index) => (
                           <option key={`${subject}-${index}`} value={subject}>
@@ -352,31 +354,31 @@ export default function CreateHomeworkPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
+                  <Label htmlFor="title">{t('homeworkTeacher.create.titleLabel', 'Title')}</Label>
                   <Input
                     id="title"
                     name="title"
                     value={formData.title}
                     onChange={handleInputChange}
-                    placeholder="e.g., Chapter 3 Exercises"
+                    placeholder={t('homeworkTeacher.create.titlePlaceholder', 'e.g., Chapter 3 Exercises')}
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description">{t('homeworkTeacher.create.description', 'Description')}</Label>
                   <Textarea
                     id="description"
                     name="description"
                     value={formData.description}
                     onChange={handleInputChange}
-                    placeholder="Enter homework description and instructions"
+                    placeholder={t('homeworkTeacher.create.descriptionPlaceholder', 'Enter homework description and instructions')}
                     rows={4}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="due_date">Due Date</Label>
+                  <Label htmlFor="due_date">{t('homeworkTeacher.create.dueDate', 'Due Date')}</Label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -393,7 +395,7 @@ export default function CreateHomeworkPage() {
 
                 {/* File Upload Section */}
                 <div className="space-y-2">
-                  <Label>Attachments (Optional)</Label>
+                  <Label>{t('homeworkTeacher.create.attachments', 'Attachments (Optional)')}</Label>
                   <FileUploader
                     onFilesSelected={handleFilesSelected}
                     onUpload={handleUploadFiles}
@@ -403,7 +405,7 @@ export default function CreateHomeworkPage() {
                     className="border-0 shadow-none"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Supported formats: PDF, Word documents, text files, and images. Max 5 files, 10MB each.
+                    {t('homeworkTeacher.create.supported', 'Supported formats: PDF, Word documents, text files, and images. Max 5 files, 10MB each.')}
                   </p>
                 </div>
               </CardContent>
@@ -415,10 +417,10 @@ export default function CreateHomeworkPage() {
                   disabled={isLoading}
                 >
                   <X className="mr-2 h-4 w-4" />
-                  Cancel
+                  {t('actions.cancel', 'Cancel')}
                 </Button>
                 <Button type="submit" disabled={isLoading}>
-                  {isLoading ? 'Creating...' : 'Create Homework'}
+                  {isLoading ? t('homeworkTeacher.create.creating', 'Creating...') : t('homeworkTeacher.create.cta', 'Create Homework')}
                 </Button>
               </CardFooter>
             </Card>

@@ -19,10 +19,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarComponent } from '@/components/ui/date-picker/calendar';
+import { useI18n } from '@/lib/i18n/context';
 
 export default function MessagesPage() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { t } = useI18n();
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
   const [isStartNewChatModalOpen, setIsStartNewChatModalOpen] = useState(false);
   const [isStartNewChatAdminModalOpen, setIsStartNewChatAdminModalOpen] = useState(false);
@@ -48,8 +50,8 @@ export default function MessagesPage() {
     
     // Show additional success toast
     toast({
-      title: "Group Ready!",
-      description: "The new group has been created and is now available in your chat list.",
+      title: t('messages.groupReadyTitle'),
+      description: t('messages.groupReadyDesc'),
       variant: "success"
     });
     
@@ -68,8 +70,8 @@ export default function MessagesPage() {
     
     // Show success toast
     toast({
-      title: "Chat Started!",
-      description: `Chat opened with ${parent.full_name}`,
+      title: t('messages.chatStartedTitle'),
+      description: `${t('messages.chatOpenedWith')} ${parent.full_name}`,
       variant: "success"
     });
     
@@ -85,8 +87,8 @@ export default function MessagesPage() {
     
     // Show success toast
     toast({
-      title: "Chat Started!",
-      description: `Chat opened with ${teacher.full_name}`,
+      title: t('messages.chatStartedTitle'),
+      description: `${t('messages.chatOpenedWith')} ${teacher.full_name}`,
       variant: "success"
     });
     
@@ -147,7 +149,7 @@ export default function MessagesPage() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-gray-600">Loading chats...</p>
+          <p className="text-gray-600">{t('messages.loading', 'Loading chats...')}</p>
         </div>
       </div>
     );
@@ -158,10 +160,10 @@ export default function MessagesPage() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <AlertCircle className="h-8 w-8 mx-auto mb-4 text-destructive" />
-          <h2 className="text-xl font-semibold mb-2">Error Loading Chats</h2>
+          <h2 className="text-xl font-semibold mb-2">{t('messages.errorTitle', 'Error Loading Chats')}</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <Button onClick={() => window.location.reload()} variant="outline">
-            Try Again
+            {t('messages.tryAgain', 'Try Again')}
           </Button>
         </div>
       </div>
@@ -183,7 +185,7 @@ export default function MessagesPage() {
                 className="rounded-r-none border-r"
               >
                 <UserCheck className="h-4 w-4 mr-2" />
-                Direct Chats
+                {t('messages.tabs.direct', 'Direct Chats')}
                 {chatsData && (
                   <Badge variant="secondary" className="ml-2">
                     {chatsData.summary.direct_chats}
@@ -197,7 +199,7 @@ export default function MessagesPage() {
                 className="rounded-l-none"
               >
                 <Users className="h-4 w-4 mr-2" />
-                Group Chats
+                {t('messages.tabs.group', 'Group Chats')}
                 {chatsData && (
                   <Badge variant="secondary" className="ml-2">
                     {chatsData.summary.group_chats}
@@ -212,14 +214,14 @@ export default function MessagesPage() {
                 onClick={() => isAdminOrPrincipal ? setIsStartNewChatAdminModalOpen(true) : setIsStartNewChatModalOpen(true)}
               >
                 <MessageSquare className="mr-2 h-4 w-4" />
-                Start New Chat
+                {t('messages.actions.startNew')}
               </Button>
               <Button 
                 variant="outline"
                 onClick={() => setIsCreateGroupModalOpen(true)}
               >
                 <Users className="mr-2 h-4 w-4" />
-                Create Group
+                {t('messages.actions.createGroup')}
               </Button>
             </div>
           </div>
@@ -231,12 +233,12 @@ export default function MessagesPage() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-medium">Filters</h3>
+                <h3 className="text-sm font-medium">{t('messages.filters.title', 'Filters')}</h3>
                 {hasActiveFilters && (
                   <Badge variant="outline" className="text-xs">
                     {Object.values(filters).filter(v => v && v !== 'all' && v !== null).length + 
                      (startDate ? 1 : 0) + 
-                     (endDate ? 1 : 0)} active
+                     (endDate ? 1 : 0)} {t('messages.active', 'active')}
                   </Badge>
                 )}
               </div>
@@ -248,7 +250,7 @@ export default function MessagesPage() {
                   className="text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-4 w-4 mr-1" />
-                  Clear All
+                  {t('messages.filters.clearAll', 'Clear All')}
                 </Button>
               )}
             </div>
@@ -256,16 +258,16 @@ export default function MessagesPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Class Division Filter */}
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground">Class</Label>
+                <Label className="text-xs font-medium text-muted-foreground">{t('messages.filters.class', 'Class')}</Label>
                 <Select
                   onValueChange={handleClassDivisionChange}
                   defaultValue="all"
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="All Classes" />
+                    <SelectValue placeholder={t('messages.filters.allClasses', 'All Classes')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Classes</SelectItem>
+                    <SelectItem value="all">{t('messages.filters.allClasses', 'All Classes')}</SelectItem>
                     {classDivisionsList?.map((division) => (
                       <SelectItem key={division.id} value={division.id}>
                         {division.class_level.name} {division.division}
@@ -277,26 +279,26 @@ export default function MessagesPage() {
 
               {/* Includes Me Filter */}
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground">Participation</Label>
+                <Label className="text-xs font-medium text-muted-foreground">{t('messages.filters.participation', 'Participation')}</Label>
                 <Select
                   onValueChange={handleIncludesMeChange}
                   defaultValue="all"
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="All Chats" />
+                    <SelectValue placeholder={t('messages.filters.allChats', 'All Chats')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Chats</SelectItem>
+                    <SelectItem value="all">{t('messages.filters.allChats', 'All Chats')}</SelectItem>
                     <SelectItem value="yes">
                       <div className="flex items-center gap-2">
                         <UserCheck className="h-4 w-4" />
-                        Includes Me
+                        {t('messages.filters.includesMe', 'Includes Me')}
                       </div>
                     </SelectItem>
                     <SelectItem value="no">
                       <div className="flex items-center gap-2">
                         <UserX className="h-4 w-4" />
-                        Excludes Me
+                        {t('messages.filters.excludesMe', 'Excludes Me')}
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -305,7 +307,7 @@ export default function MessagesPage() {
 
               {/* Start Date Filter */}
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground">Start Date</Label>
+                <Label className="text-xs font-medium text-muted-foreground">{t('messages.filters.startDate', 'Start Date')}</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -316,7 +318,7 @@ export default function MessagesPage() {
                       )}
                     >
                       <Calendar className="mr-2 h-4 w-4" />
-                      {startDate ? format(startDate, "PPP") : "Select date"}
+                      {startDate ? format(startDate, "PPP") : t('messages.filters.selectDate', 'Select date')}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -337,7 +339,7 @@ export default function MessagesPage() {
 
               {/* End Date Filter */}
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground">End Date</Label>
+                <Label className="text-xs font-medium text-muted-foreground">{t('messages.filters.endDate', 'End Date')}</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -348,7 +350,7 @@ export default function MessagesPage() {
                       )}
                     >
                       <Calendar className="mr-2 h-4 w-4" />
-                      {endDate ? format(endDate, "PPP") : "Select date"}
+                      {endDate ? format(endDate, "PPP") : t('messages.filters.selectDate', 'Select date')}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -378,14 +380,14 @@ export default function MessagesPage() {
               onClick={() => setIsStartNewChatModalOpen(true)}
             >
               <MessageSquare className="mr-2 h-4 w-4" />
-              Start New Chat
+              {t('messages.actions.startNew')}
             </Button>
             <Button 
               variant="outline"
               onClick={() => setIsCreateGroupModalOpen(true)}
             >
               <Users className="mr-2 h-4 w-4" />
-              Create Group
+              {t('messages.actions.createGroup')}
             </Button>
           </div>
         )}

@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Search, User, BookOpen, Users } from 'lucide-react';
 import { teachersServices, Teacher } from '@/lib/api/teachers';
+import { useI18n } from '@/lib/i18n/context';
 import { useAuth } from '@/lib/auth/context';
 import { Badge } from '@/components/ui/badge';
 
@@ -16,6 +17,7 @@ interface StartNewChatAdminModalProps {
 
 export function StartNewChatAdminModal({ open, onOpenChange, onTeacherSelected }: StartNewChatAdminModalProps) {
   const { token } = useAuth();
+  const { t } = useI18n();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [filteredTeachers, setFilteredTeachers] = useState<Teacher[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,15 +38,15 @@ export function StartNewChatAdminModal({ open, onOpenChange, onTeacherSelected }
         setTeachers(teachersList);
         setFilteredTeachers(teachersList);
       } else {
-        throw new Error('Failed to fetch teachers');
+        throw new Error(t('messages.fetchTeachersFailed', 'Failed to fetch teachers'));
       }
     } catch (error) {
       console.error('Error fetching teachers:', error);
-      setError('Failed to fetch teachers');
+      setError(t('messages.fetchTeachersFailed', 'Failed to fetch teachers'));
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   // Fetch teachers when modal opens
   useEffect(() => {
@@ -101,9 +103,9 @@ export function StartNewChatAdminModal({ open, onOpenChange, onTeacherSelected }
   const getAssignmentTypeLabel = (assignmentType: string) => {
     switch (assignmentType) {
       case 'class_teacher':
-        return 'Class Teacher';
+        return t('messages.teacherRoles.classTeacher', 'Class Teacher');
       case 'subject_teacher':
-        return 'Subject Teacher';
+        return t('messages.teacherRoles.subjectTeacher', 'Subject Teacher');
       default:
         return assignmentType;
     }
@@ -115,7 +117,7 @@ export function StartNewChatAdminModal({ open, onOpenChange, onTeacherSelected }
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            Start New Chat with Teacher
+            {t('messages.startWithTeacher.title')}
           </DialogTitle>
         </DialogHeader>
         
@@ -124,7 +126,7 @@ export function StartNewChatAdminModal({ open, onOpenChange, onTeacherSelected }
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search teachers, subjects, or classes..."
+              placeholder={t('messages.startWithTeacher.searchPlaceholder')}
               className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -143,16 +145,16 @@ export function StartNewChatAdminModal({ open, onOpenChange, onTeacherSelected }
             {loading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                <p className="mt-2 text-sm text-muted-foreground">Loading teachers...</p>
+                <p className="mt-2 text-sm text-muted-foreground">{t('messages.loadingTeachers', 'Loading teachers...')}</p>
               </div>
             ) : filteredTeachers.length === 0 ? (
               <div className="text-center py-8">
                 <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-1">
-                  {searchTerm ? 'No matches found' : 'No teachers available'}
+                  {searchTerm ? t('messages.noMatches', 'No matches found') : t('messages.noTeachers', 'No teachers available')}
                 </h3>
                 <p className="text-muted-foreground">
-                  {searchTerm ? 'Try adjusting your search terms' : 'No teachers found in the system.'}
+                  {searchTerm ? t('messages.adjustSearch', 'Try adjusting your search terms') : t('messages.noTeachersSystem', 'No teachers found in the system.')}
                 </p>
               </div>
             ) : (
@@ -215,11 +217,11 @@ export function StartNewChatAdminModal({ open, onOpenChange, onTeacherSelected }
                       {/* Summary Stats */}
                       <div className="mt-2 flex gap-2">
                         <Badge variant="outline" className="text-xs">
-                          {teacher.summary.total_classes} classes
+                          {teacher.summary.total_classes} {t('messages.classesLower', 'classes')}
                         </Badge>
                         {teacher.summary.primary_teacher_for > 0 && (
                           <Badge variant="outline" className="text-xs">
-                            {teacher.summary.primary_teacher_for} primary
+                            {teacher.summary.primary_teacher_for} {t('messages.primaryLower', 'primary')}
                           </Badge>
                         )}
                       </div>

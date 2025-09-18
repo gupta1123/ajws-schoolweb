@@ -8,6 +8,7 @@ import { BookOpen, Home, Users, Clipboard, FileText,AlertCircle, User, School, C
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
 import { useRouter } from 'next/navigation';
+import { useI18n } from '@/lib/i18n/context';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,78 +20,78 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 interface NavItem {
-  title: string;
+  title: string; // i18n key
   href: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
 interface NavCategory {
-  category: string;
+  category: string; // i18n key
   items: NavItem[];
 }
 
 
 const teacherNavItems: NavCategory[] = [
   {
-    category: 'Dashboard',
+    category: 'sidebar.category.dashboard',
     items: [
       {
-        title: 'Dashboard',
+        title: 'common.dashboard',
         href: '/dashboard',
         icon: Home,
       }
     ]
   },
   {
-    category: 'Academics',
+    category: 'sidebar.category.academics',
     items: [
       {
-        title: 'My Classes',
+        title: 'common.myClasses',
         href: '/classes',
         icon: Users,
       },
       {
-        title: 'Timetable',
+        title: 'common.timetable',
         href: '/timetable',
         icon: Calendar,
       },
       {
-        title: 'Attendance',
+        title: 'common.attendance',
         href: '/attendance',
         icon: CheckSquare,
       },
       {
-        title: 'Homework',
+        title: 'common.homework',
         href: '/homework',
         icon: Clipboard,
       }
     ]
   },
   {
-    category: 'Management',
+    category: 'sidebar.category.management',
     items: [
       {
-        title: 'Messages',
+        title: 'common.messages',
         href: '/messages',
         icon: MessageSquare,
       },
       {
-        title: 'Announcements',
+        title: 'common.announcements',
         href: '/announcements',
         icon: AlertCircle,
       },
       {
-        title: 'Leave Requests',
+        title: 'common.leaveRequests',
         href: '/leave-requests',
         icon: FileText,
       },
       {
-        title: 'Calendar',
+        title: 'common.calendar',
         href: '/calendar',
         icon: Calendar,
       },
       {
-        title: 'Birthdays',
+        title: 'common.birthdays',
         href: '/birthdays',
         icon: Cake,
       }
@@ -101,40 +102,40 @@ const teacherNavItems: NavCategory[] = [
 
 const adminNavItems = [
   {
-    category: 'Dashboard',
+    category: 'sidebar.category.dashboard',
     items: [
       {
-        title: 'Dashboard',
+        title: 'common.dashboard',
         href: '/dashboard',
         icon: Home,
       }
     ]
   },
   {
-    category: 'Academics',
+    category: 'sidebar.category.academics',
     items: [
       {
-        title: 'Academic Setup',
+        title: 'common.academicSetup',
         href: '/academic/setup',
         icon: School,
       },
       {
-        title: 'Students',
+        title: 'common.students',
         href: '/students',
         icon: Users,
       },
       {
-        title: 'Staff',
+        title: 'common.staff',
         href: '/staff',
         icon: User,
       },
       {
-        title: 'Attendance',
+        title: 'common.attendance',
         href: '/admin/attendance',
         icon: CheckSquare,
       },
       {
-        title: 'Timetable',
+        title: 'common.timetable',
         href: '/admin/timetable',
         icon: Clock,
       },
@@ -142,30 +143,30 @@ const adminNavItems = [
     ]
   },
   {
-    category: 'Management',
+    category: 'sidebar.category.management',
     items: [
       {
-        title: 'Messages',
+        title: 'common.messages',
         href: '/messages',
         icon: MessageSquare,
       },
       {
-        title: 'Announcements',
+        title: 'common.announcements',
         href: '/admin/announcements',
         icon: AlertCircle,
       },
       {
-        title: 'Leave Requests',
+        title: 'common.leaveRequests',
         href: '/leave-requests',
         icon: FileText,
       },
       {
-        title: 'Calendar',
+        title: 'common.calendar',
         href: '/calendar',
         icon: Calendar,
       },
       {
-        title: 'Birthdays',
+        title: 'common.birthdays',
         href: '/birthdays',
         icon: Cake,
       }
@@ -182,6 +183,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const router = useRouter();
+  const { t } = useI18n();
 
 
   if (typeof window !== 'undefined' && 
@@ -202,7 +204,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
     }));
     
 
-    const managementCategory = navConfig.find(category => category.category === 'Management');
+    const managementCategory = navConfig.find(category => category.category === 'sidebar.category.management');
     if (managementCategory) {
       managementCategory.items = [...managementCategory.items, ...principalNavItems];
     }
@@ -227,8 +229,8 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                 <BookOpen className="h-5 w-5 text-primary-foreground" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-lg text-primary group-hover:text-primary/80 transition-colors">AJWS</span>
-                <span className="text-xs text-muted-foreground font-medium">School Management</span>
+                <span className="font-bold text-lg text-primary group-hover:text-primary/80 transition-colors">{t('brand.name')}</span>
+                <span className="text-xs text-muted-foreground font-medium">{t('brand.tagline')}</span>
               </div>
             </Link>
           </div>
@@ -237,7 +239,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
               {navConfig.map((category) => (
                 <div key={category.category} className="mb-2">
                   <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-3 py-2">
-                    {category.category}
+                    {t(category.category)}
                   </h3>
                   <div className="space-y-1">
                     {category.items.map((item) => {
@@ -256,7 +258,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                           )}
                         >
                           <Icon className="h-4 w-4" />
-                          <span className="text-sm">{item.title}</span>
+                          <span className="text-sm">{t(item.title)}</span>
                         </Link>
                       );
                     })}
@@ -297,14 +299,14 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                   <DropdownMenuItem asChild>
                     <Link href="/profile" className="flex items-center">
                       <User className="mr-2 h-4 w-4" />
-                      <span>Profile</span>
+                      <span>{t('common.profile')}</span>
                     </Link>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="flex items-center">
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
+                  <span>{t('common.logout')}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -325,8 +327,8 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                 <BookOpen className="h-5 w-5 text-primary-foreground" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-lg text-primary group-hover:text-primary/80 transition-colors">AJWS</span>
-                <span className="text-xs text-muted-foreground font-medium">School Management System</span>
+                <span className="font-bold text-lg text-primary group-hover:text-primary/80 transition-colors">{t('brand.name')}</span>
+                <span className="text-xs text-muted-foreground font-medium">{t('brand.tagline')}</span>
               </div>
             </Link>
           </div>
@@ -334,9 +336,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
             <nav className="space-y-1 px-2">
               {navConfig.map((category) => (
                 <div key={category.category} className="mb-2">
-                  <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-3 py-2">
-                    {category.category}
-                  </h3>
+                  <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-3 py-2">{t(category.category)}</h3>
                   <div className="space-y-1">
                     {category.items.map((item) => {
                       const Icon = item.icon;
@@ -351,7 +351,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                           )}
                         >
                           <Icon className="h-4 w-4" />
-                          <span className="text-sm">{item.title}</span>
+                          <span className="text-sm">{t(item.title)}</span>
                         </Link>
                       );
                     })}
@@ -392,14 +392,14 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                   <DropdownMenuItem asChild>
                     <Link href="/profile" className="flex items-center">
                       <User className="mr-2 h-4 w-4" />
-                      <span>Profile</span>
+                      <span>{t('common.profile')}</span>
                     </Link>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="flex items-center">
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
+                  <span>{t('common.logout')}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
