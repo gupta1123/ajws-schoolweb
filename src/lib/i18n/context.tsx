@@ -12,13 +12,14 @@ type Dictionary = Record<string, string | Record<string, unknown>>;
 const dictionaries: Record<Lang, Dictionary> = { en, hi, mr };
 
 function getByPath(obj: Dictionary, path: string): string | undefined {
-  return path.split('.').reduce<string | undefined>((acc, key) => {
-    if (acc && typeof acc === 'object' && key in acc) {
-      const value = acc[key];
-      return typeof value === 'string' ? value : undefined;
+  const result = path.split('.').reduce<unknown>((acc, key) => {
+    if (acc && typeof acc === 'object' && key in (acc as Record<string, unknown>)) {
+      return (acc as Record<string, unknown>)[key];
     }
     return undefined;
-  }, obj as unknown as string | undefined);
+  }, obj as unknown);
+
+  return typeof result === 'string' ? result : undefined;
 }
 
 export interface I18nContextValue {
@@ -67,4 +68,3 @@ export function useI18n() {
   if (!ctx) throw new Error('useI18n must be used within I18nProvider');
   return ctx;
 }
-
