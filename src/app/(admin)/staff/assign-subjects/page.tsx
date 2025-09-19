@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useStaff } from '@/hooks/use-staff';
 
-import { teachersServices } from '@/lib/api/teachers';
+import { teachersServices, SimpleTeacher } from '@/lib/api/teachers';
 import type { Staff } from '@/types/staff';
 import type { Subject } from '@/types/academic';
 import {
@@ -95,12 +95,12 @@ export default function AssignSubjectsPage() {
 
         if (response.status === 'success') {
           // Convert API teachers to Staff format for compatibility
-          const teacherStaff: Staff[] = response.data.teachers.map((teacher, index) => ({
+          const teacherStaff: Staff[] = response.data.teachers.map((teacher: SimpleTeacher, index: number) => ({
             id: teacher.staff_id || `teacher-${teacher.teacher_id}-${index}`, // Fallback to unique ID if staff_id is null
             user_id: teacher.user_id,
             full_name: teacher.full_name,
             phone_number: teacher.phone_number,
-            role: 'teacher',
+            role: 'teacher' as const,
             department: teacher.department,
             designation: teacher.designation,
             is_active: teacher.is_active,
@@ -109,8 +109,7 @@ export default function AssignSubjectsPage() {
             teaching_details: {
               class_teacher_of: [],
               subject_teacher_of: [],
-              subjects_taught: [],
-              total_classes: 0
+              subjects_taught: []
             }
           }));
           setTeachers(teacherStaff);
@@ -131,10 +130,11 @@ export default function AssignSubjectsPage() {
 
   // Update selected teacher when selection changes
   useEffect(() => {
-    const teacher = teachers.find(t => t.id === selectedTeacherId);
-    setSelectedTeacher(teacher || null);
-    // Reset subjects when teacher changes
-    setSelectedSubjects([]);
+    const teacher = teachers.find(t => t.id === selectedTeacherId) || null;
+    setSelectedTeacher(teacher);
+    // Preselect existing subjects for the chosen teacher
+    const existing = teacher?.teaching_details?.subjects_taught || [];
+    setSelectedSubjects(existing);
   }, [selectedTeacherId, teachers]);
 
   // Handle subject selection
@@ -162,15 +162,41 @@ export default function AssignSubjectsPage() {
       if (response?.status === 'success') {
         // Show success message
         console.log('Subjects assigned successfully:', response.data);
+        // Compute updated subjects based on mode
+        const existing = selectedTeacher.teaching_details?.subjects_taught || [];
+        const updatedSubjects = assignmentMode === 'replace'
+          ? [...selectedSubjects]
+          : Array.from(new Set([...
+              existing,
+              ...selectedSubjects
+            ]));
 
-        // Reset form
-        setSelectedSubjects([]);
-        setSelectedTeacherId('');
-        setSelectedTeacher(null);
-        setAssignmentMode('replace');
+        // Update teachers list in state
+        setTeachers(prev => prev.map(t =>
+          t.teacher_id === selectedTeacher.teacher_id
+            ? {
+                ...t,
+                teaching_details: {
+                  ...t.teaching_details,
+                  subjects_taught: updatedSubjects,
+                  class_teacher_of: t.teaching_details?.class_teacher_of || [],
+                  subject_teacher_of: t.teaching_details?.subject_teacher_of || []
+                }
+              }
+            : t
+        ));
 
-        // Optionally refresh teachers list
-        // await loadTeachers();
+        // Update selected teacher and keep panel open
+        setSelectedTeacher(prev => prev ? {
+          ...prev,
+          teaching_details: {
+            ...prev.teaching_details,
+            subjects_taught: updatedSubjects,
+          }
+        } : prev);
+
+        // Keep current selection in UI for quick repeat actions
+        setSelectedSubjects(updatedSubjects);
       } else {
         console.error('Failed to assign subjects');
       }

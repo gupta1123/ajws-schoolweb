@@ -15,8 +15,15 @@ export const leaveRequestServices = {
   // Get list of leave requests with filters
   list: async (params: ListLeaveRequestsParams = {}, token: string): Promise<ApiResponseWithCache<{ leave_requests: import('@/types/leave-requests').LeaveRequest[] }> | ApiErrorResponse | Blob> => {
     const queryParams = new URLSearchParams();
+
+    // Map params, translating start_date/end_date -> from_date/to_date as required by API
     Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
+      if (value === undefined || value === null) return;
+      if (key === 'start_date') {
+        queryParams.append('from_date', value.toString());
+      } else if (key === 'end_date') {
+        queryParams.append('to_date', value.toString());
+      } else {
         queryParams.append(key, value.toString());
       }
     });
@@ -59,5 +66,20 @@ export const leaveRequestServices = {
   // Get leave requests for a specific class division
   getByClass: async (classDivisionId: string, params: Omit<ListLeaveRequestsParams, 'class_division_id'> = {}, token: string): Promise<ApiResponseWithCache<{ leave_requests: import('@/types/leave-requests').LeaveRequest[] }> | ApiErrorResponse | Blob> => {
     return leaveRequestServices.list({ ...params, class_division_id: classDivisionId }, token);
+  },
+
+  // Get leave requests for teacher's assigned classes within a date range
+  getTeacherClass: async (
+    params: { from_date?: string; to_date?: string } = {},
+    token: string
+  ): Promise<ApiResponseWithCache<{ leave_requests: import('@/types/leave-requests').LeaveRequest[] }> | ApiErrorResponse | Blob> => {
+    const queryParams = new URLSearchParams();
+    if (params.from_date) queryParams.append('from_date', params.from_date);
+    if (params.to_date) queryParams.append('to_date', params.to_date);
+    const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    return apiClient.get<{ leave_requests: import('@/types/leave-requests').LeaveRequest[] }>(
+      `/api/leave-requests/teacher/class${queryString}`,
+      token
+    );
   }
 };

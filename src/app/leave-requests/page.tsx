@@ -7,6 +7,9 @@ import { ProtectedRoute } from '@/lib/auth/protected-route';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { 
   Table, 
   TableBody, 
@@ -15,6 +18,12 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Search, Check, X, Calendar, User, Filter, AlertTriangle, Loader2, BookOpen } from 'lucide-react';
 import { useState, useEffect, Suspense } from 'react';
 import { useI18n } from '@/lib/i18n/context';
@@ -92,9 +101,28 @@ function LeaveRequestsContent() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [classFilter, setClassFilter] = useState('all');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  
+  // Keep date range consistent and ensure both from/to are present
+  const handleStartDateChange = (value: string) => {
+    setDateRange((prev) => {
+      const start = value;
+      const end = prev.end && new Date(start) > new Date(prev.end) ? start : (prev.end || value);
+      return { start, end };
+    });
+  };
+  const handleEndDateChange = (value: string) => {
+    setDateRange((prev) => {
+      const end = value;
+      const start = prev.start && new Date(prev.start) > new Date(end) ? end : (prev.start || value);
+      return { start, end };
+    });
+  };
   const [showFilters, setShowFilters] = useState(false);
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [processingRequests, setProcessingRequests] = useState<Set<string>>(new Set());
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [requestToReject, setRequestToReject] = useState<string | null>(null);
   
   // Get student ID from URL params if filtering by student
   const studentId = searchParams.get('studentId');
@@ -108,7 +136,7 @@ function LeaveRequestsContent() {
     approveLeaveRequest,
     rejectLeaveRequest,
     clearError
-  } = useLeaveRequests();
+  } = useLeaveRequests({ autoFetch: false });
 
   // Get theme-aware colors for summary cards
   const getSummaryCardColors = () => {
@@ -153,6 +181,27 @@ function LeaveRequestsContent() {
 
   const cardColors = getSummaryCardColors();
 
+  // Default current month and approved for admin/principal
+  useEffect(() => {
+    if (!user?.role) return;
+    if (user.role === 'admin' || user.role === 'principal') {
+      // Set default date range to current month if not already set
+      if (!dateRange.start || !dateRange.end) {
+        const now = new Date();
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const toISO = (d: Date) => d.toISOString().slice(0, 10);
+        setDateRange({ start: toISO(firstDay), end: toISO(lastDay) });
+      }
+      // Set status to approved by default
+      if (statusFilter === 'all') {
+        setStatusFilter('approved');
+      }
+      // Make filters visible to expose date range selector
+      setShowFilters(true);
+    }
+  }, [user?.role, dateRange.start, dateRange.end, statusFilter]);
+
   // Fetch data when filters change
   useEffect(() => {
     const params: {
@@ -164,11 +213,19 @@ function LeaveRequestsContent() {
     
     if (statusFilter !== 'all') params.status = statusFilter as 'pending' | 'approved' | 'rejected';
     if (studentId) params.student_id = studentId;
-    if (dateRange.start) params.start_date = dateRange.start;
-    if (dateRange.end) params.end_date = dateRange.end;
+    // Only include date params if both are present
+    if (dateRange.start && dateRange.end) {
+      params.start_date = dateRange.start;
+      params.end_date = dateRange.end;
+    }
     
+    // Avoid redundant unfiltered call: For admin/principal, require both dates
+    if ((user?.role === 'admin' || user?.role === 'principal')) {
+      if (!(dateRange.start && dateRange.end)) return;
+    }
+
     fetchLeaveRequests(params);
-  }, [statusFilter, studentId, dateRange.start, dateRange.end, fetchLeaveRequests]);
+  }, [statusFilter, studentId, dateRange.start, dateRange.end, fetchLeaveRequests, user?.role]);
 
   // Debug: Log the data structure when it changes
   useEffect(() => {
@@ -279,20 +336,30 @@ function LeaveRequestsContent() {
     }
   };
 
-  const handleRejectRequest = async (requestId: string) => {
+  const handleRejectRequest = (requestId: string) => {
+    setRequestToReject(requestId);
+    setRejectReason('');
+    setRejectModalOpen(true);
+  };
+
+  const confirmRejectRequest = async () => {
+    if (!requestToReject || !rejectReason.trim()) {
+      return;
+    }
+
     try {
-      const rejectionReason = prompt(t('leave.actions.rejectionReason'));
-      if (rejectionReason !== null) {
-        setProcessingRequests(prev => new Set(prev).add(requestId));
-        console.log('Rejecting leave request:', requestId, 'Reason:', rejectionReason);
-        const success = await rejectLeaveRequest(requestId, rejectionReason);
-        if (success) {
-          setActionMessage({ type: 'success', message: t('leave.actions.rejectSuccess') });
-          setTimeout(() => setActionMessage(null), 3000);
-        } else {
-          setActionMessage({ type: 'error', message: t('leave.actions.rejectError') });
-          setTimeout(() => setActionMessage(null), 3000);
-        }
+      setProcessingRequests(prev => new Set(prev).add(requestToReject));
+      console.log('Rejecting leave request:', requestToReject, 'Reason:', rejectReason);
+      const success = await rejectLeaveRequest(requestToReject, rejectReason.trim());
+      if (success) {
+        setActionMessage({ type: 'success', message: t('leave.actions.rejectSuccess') });
+        setTimeout(() => setActionMessage(null), 3000);
+        setRejectModalOpen(false);
+        setRejectReason('');
+        setRequestToReject(null);
+      } else {
+        setActionMessage({ type: 'error', message: t('leave.actions.rejectError') });
+        setTimeout(() => setActionMessage(null), 3000);
       }
     } catch (error) {
       console.error('Error rejecting request:', error);
@@ -301,10 +368,16 @@ function LeaveRequestsContent() {
     } finally {
       setProcessingRequests(prev => {
         const newSet = new Set(prev);
-        newSet.delete(requestId);
+        newSet.delete(requestToReject);
         return newSet;
       });
     }
+  };
+
+  const cancelRejectRequest = () => {
+    setRejectModalOpen(false);
+    setRejectReason('');
+    setRequestToReject(null);
   };
 
   return (
@@ -486,7 +559,7 @@ function LeaveRequestsContent() {
                     <Input
                       type="date"
                       value={dateRange.start}
-                      onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
+                      onChange={(e) => handleStartDateChange(e.target.value)}
                       className="text-sm"
                     />
                   </div>
@@ -495,7 +568,7 @@ function LeaveRequestsContent() {
                     <Input
                       type="date"
                       value={dateRange.end}
-                      onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
+                      onChange={(e) => handleEndDateChange(e.target.value)}
                       className="text-sm"
                     />
                   </div>
@@ -581,7 +654,23 @@ function LeaveRequestsContent() {
                                 </div>
                               </TableCell>
                               <TableCell className="text-gray-500 dark:text-gray-400">
-                                {request.reason}
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="max-w-xs truncate cursor-help">
+                                        {request.reason}
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent 
+                                      side="top" 
+                                      className="max-w-sm p-3 bg-gray-900 text-white text-sm rounded-lg shadow-lg border-0"
+                                    >
+                                      <div className="whitespace-pre-wrap break-words">
+                                        {request.reason}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                               </TableCell>
                               <TableCell>{formatDate(request.created_at)}</TableCell>
                               <TableCell>
@@ -646,6 +735,66 @@ function LeaveRequestsContent() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Rejection Reason Modal */}
+        <Dialog open={rejectModalOpen} onOpenChange={setRejectModalOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <X className="h-5 w-5 text-red-500" />
+                {t('leave.actions.rejectTitle', 'Reject Leave Request')}
+              </DialogTitle>
+              <DialogDescription>
+                {t('leave.actions.rejectDescription', 'Please provide a reason for rejecting this leave request.')}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="reject-reason" className="text-sm font-medium">
+                  {t('leave.actions.rejectionReason', 'Rejection Reason')} *
+                </Label>
+                <Textarea
+                  id="reject-reason"
+                  placeholder={t('leave.actions.rejectionPlaceholder', 'Enter the reason for rejection...')}
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  className="min-h-[100px] resize-none"
+                  maxLength={500}
+                />
+                <div className="text-xs text-muted-foreground text-right">
+                  {rejectReason.length}/500
+                </div>
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={cancelRejectRequest}
+                disabled={processingRequests.has(requestToReject || '')}
+              >
+                {t('common.cancel', 'Cancel')}
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={confirmRejectRequest}
+                disabled={!rejectReason.trim() || processingRequests.has(requestToReject || '')}
+                className="min-w-[100px]"
+              >
+                {processingRequests.has(requestToReject || '') ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    {t('common.rejecting', 'Rejecting...')}
+                  </>
+                ) : (
+                  <>
+                    <X className="h-4 w-4 mr-2" />
+                    {t('common.reject', 'Reject')}
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </ProtectedRoute>
   );

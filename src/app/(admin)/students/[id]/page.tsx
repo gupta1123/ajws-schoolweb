@@ -38,6 +38,7 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
   const [error, setError] = useState<string | null>(null);
   const [leaveHistory, setLeaveHistory] = useState<LeaveRequest[]>([]);
   const [leaveHistoryLoading, setLeaveHistoryLoading] = useState(false);
+  const hasPrimaryGuardian = studentData?.parent_mappings?.some(m => m.is_primary_guardian) ?? false;
 
   // Extract student ID from params
   useEffect(() => {
@@ -287,14 +288,13 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
               </div>
               <div className="flex gap-2">
                 {/* Message Parent button removed */}
-                {/* Edit Student button commented out for now */}
-                {/*
-                <Button asChild>
-                  <Link href={`/students/${studentData.id}/edit`}>
-                    Edit Student
-                  </Link>
-                </Button>
-                */}
+                {(user?.role === 'admin' || user?.role === 'principal') && (
+                  <Button asChild>
+                    <Link href={`/students/${studentData.id}/edit`}>
+                      Edit Student
+                    </Link>
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -358,7 +358,6 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Academic Year</TableHead>
                         <TableHead>Class</TableHead>
                         <TableHead>Division</TableHead>
                         <TableHead>Roll Number</TableHead>
@@ -368,8 +367,7 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                     <TableBody>
                       {studentData.student_academic_records.map((record) => (
                         <TableRow key={record.id}>
-                          <TableCell className="font-medium">N/A</TableCell>
-                          <TableCell>{record.class_division.class_level?.name || 'N/A'}</TableCell>
+                          <TableCell>{record.class_division.class_level?.name || (record.class_division as { level?: { name: string } }).level?.name || 'N/A'}</TableCell>
                           <TableCell>{record.class_division.division || 'N/A'}</TableCell>
                           <TableCell>{record.roll_number}</TableCell>
                           <TableCell>
@@ -397,17 +395,13 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                   </div>
                   <Button 
                     onClick={() => setShowParentLinking(true)}
-                    disabled={studentData.parent_mappings && studentData.parent_mappings.length >= 5}
-                    title={studentData.parent_mappings && studentData.parent_mappings.length >= 5 ? 'All relationship types are already assigned' : ''}
+                    disabled={hasPrimaryGuardian}
+                    title={hasPrimaryGuardian ? 'Primary guardian already linked' : ''}
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Link Parent
                   </Button>
-                  {studentData.parent_mappings && studentData.parent_mappings.length >= 5 && (
-                    <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">
-                      All relationship types are already assigned to this student.
-                    </p>
-                  )}
+                  
                 </div>
               </CardHeader>
               <CardContent>
@@ -420,7 +414,6 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                         <TableHead>Name</TableHead>
                         <TableHead>Relationship</TableHead>
                         <TableHead>Phone</TableHead>
-                        <TableHead>Email</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -434,7 +427,6 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                               {mapping.parent.phone_number}
                             </div>
                           </TableCell>
-                          <TableCell>{mapping.parent.email || 'N/A'}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -445,7 +437,7 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
               </CardContent>
             </Card>
 
-            {/* Leave History */}
+        
             <Card>
               <CardHeader>
                 <CardTitle>Leave History</CardTitle>

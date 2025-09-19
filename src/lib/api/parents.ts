@@ -27,7 +27,7 @@ export interface Parent {
 export interface CreateParentRequest {
   full_name: string;
   phone_number: string;
-  email: string;
+  email?: string;
   initial_password?: string;
   student_details?: Array<{
     admission_number: string;

@@ -141,16 +141,21 @@ export default function EditHomeworkPage({ params }: PageProps) {
     }
   }, [loadImageBlob]);
 
-  // Cleanup function for blob URLs
+  // Track latest blob URLs in a ref so we can clean up safely on unmount
+  const imageBlobUrlsRef = useRef<Record<string, string>>({});
+  useEffect(() => {
+    imageBlobUrlsRef.current = imageBlobUrls;
+  }, [imageBlobUrls]);
+
+  // Cleanup function for blob URLs (no state updates here to avoid render loops)
   const cleanupBlobUrls = useCallback(() => {
-    Object.values(imageBlobUrls).forEach(url => {
+    const urls = imageBlobUrlsRef.current;
+    Object.values(urls).forEach(url => {
       if (url && url.startsWith('blob:')) {
         URL.revokeObjectURL(url);
       }
-      // Note: Supabase URLs don't need cleanup
     });
-    setImageBlobUrls({});
-  }, [imageBlobUrls]);
+  }, []);
 
   const fetchExistingAttachmentsById = useCallback(
     async (homeworkId: string) => {
@@ -259,14 +264,25 @@ export default function EditHomeworkPage({ params }: PageProps) {
     }
   };
 
+  const getAttachmentUrl = (attachment: Attachment): string => {
+    // Prefer public Supabase URL when provided
+    if (attachment.download_url) return attachment.download_url;
+    // Fallback to API download endpoint (may require auth on server)
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://ajws-school-ba8ae5e3f955.herokuapp.com';
+    if (attachment.download_endpoint) {
+      return `${API_BASE}${attachment.download_endpoint}`;
+    }
+    if (homework?.id) {
+      return `${API_BASE}/api/homework/${homework.id}/attachments/${attachment.id}`;
+    }
+    return '';
+  };
+
   const handleDownload = (attachment: Attachment) => {
-    const downloadUrl = homework?.id ? `https://ajws-school-ba8ae5e3f955.herokuapp.com/api/homework/${homework.id}/attachments/${attachment.id}?token=${token}` : (attachment.download_url || '');
-
-    if (!downloadUrl) return;
-
-    // Create a temporary link and trigger download
+    const url = getAttachmentUrl(attachment);
+    if (!url) return;
     const link = document.createElement('a');
-    link.href = downloadUrl;
+    link.href = url;
     link.download = attachment.file_name;
     link.target = '_blank';
     document.body.appendChild(link);
@@ -707,7 +723,14 @@ export default function EditHomeworkPage({ params }: PageProps) {
                           {/* File Information */}
                           <div className="text-center space-y-2">
                             <p className="text-xs font-medium text-foreground truncate" title={attachment.file_name}>
-                              {attachment.file_name}
+                              <a
+                                href={getAttachmentUrl(attachment)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:underline"
+                              >
+                                {attachment.file_name}
+                              </a>
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {formatFileSize(attachment.file_size)}
@@ -734,7 +757,7 @@ export default function EditHomeworkPage({ params }: PageProps) {
                               size="icon"
                               onClick={() => handleDownload(attachment)}
                               className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                              title="Download file"
+                              title="Open/Download"
                             >
                               <Download className="h-4 w-4" />
                             </Button>

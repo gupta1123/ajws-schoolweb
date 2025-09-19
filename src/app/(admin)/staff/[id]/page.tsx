@@ -78,7 +78,7 @@ interface TeacherClassesResponse {
 export default function StaffDetailPage({ params }: StaffDetailPageProps) {
   const { user, token } = useAuth();
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   const [staffId, setStaffId] = useState<string>('');
   const [staff, setStaff] = useState<Staff | null>(null);
@@ -413,8 +413,8 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only admins and principals can access this page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="text-gray-600">{t('access.adminsOnly', 'Only admins and principals can access this page.')}</p>
         </div>
       </div>
     );
@@ -427,7 +427,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
           <div className="flex items-center justify-center h-64">
             <div className="flex items-center gap-2">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              <span>Loading staff details...</span>
+              <span>{t('staff.loading', 'Loading staff...')}</span>
             </div>
           </div>
         </div>
@@ -528,14 +528,14 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <BookOpen className="h-5 w-5" />
-                  Class Assignments
+                  {t('staff.detail.classAssignments', 'Class Assignments')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 {assignmentsLoading ? (
                   <div className="flex items-center justify-center gap-3 py-8">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                    <span className="text-muted-foreground">Loading assignments...</span>
+                    <span className="text-muted-foreground">{t('staff.detail.loadingAssignments', 'Loading assignments...')}</span>
                   </div>
                 ) : (
                   <div className="space-y-5">
@@ -544,7 +544,11 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="font-medium flex items-center gap-2">
                           <Users className="h-4 w-4" />
-                          Class Teacher
+                          {(() => {
+                            const translation = t('teacherRoles.classTeacher', 'Class Teacher');
+                            console.log('Current lang:', lang, 'Translation:', translation);
+                            return translation;
+                          })()}
                         </h4>
                       </div>
 
@@ -566,7 +570,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
                       ) : (
                         <div className="text-center py-6 bg-muted/30 rounded-lg">
                           <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-                          <p className="text-sm text-muted-foreground">No class teacher assignments</p>
+                          <p className="text-sm text-muted-foreground">{t('staff.detail.noClassTeacher', 'No class teacher assignments')}</p>
                         </div>
                       )}
                     </div>
@@ -576,7 +580,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="font-medium flex items-center gap-2">
                           <GraduationCap className="h-4 w-4" />
-                          Subject Teaching
+                          {t('staff.detail.subjectTeaching', 'Subject Teaching')}
                         </h4>
                       </div>
 
@@ -589,7 +593,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
                                   {assignment.class_info?.class_name}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  {assignment.subject || 'Subject Teacher'}
+                                  {assignment.subject || t('teacherRoles.subjectTeacher', 'Subject Teacher')}
                                 </p>
                               </div>
                             </div>
@@ -598,7 +602,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
                       ) : (
                         <div className="text-center py-6 bg-muted/30 rounded-lg">
                           <GraduationCap className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-                          <p className="text-sm text-muted-foreground">No subject teaching assignments</p>
+                          <p className="text-sm text-muted-foreground">{t('staff.detail.noSubjectTeaching', 'No subject teaching assignments')}</p>
                         </div>
                       )}
                     </div>
@@ -729,7 +733,7 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
               {/* Current subjects */}
               {teacherSubjects.length > 0 && (
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Currently assigned subjects:</Label>
+                  <Label className="text-sm font-medium">{t('staff.detail.currentlyAssigned', 'Currently assigned subjects:')}</Label>
                   <div className="flex flex-wrap gap-1">
                     {teacherSubjects.map((subject) => (
                       <Badge key={subject} variant="outline" className="text-xs">

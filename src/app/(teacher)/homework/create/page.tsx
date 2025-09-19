@@ -57,6 +57,7 @@ export default function CreateHomeworkPage() {
     due_date: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [classDivisions, setClassDivisions] = useState<TransformedClass[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
   const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
@@ -188,21 +189,50 @@ export default function CreateHomeworkPage() {
   };
 
   const handleUploadFiles = async (files: File[]) => {
-    if (!homeworkId || files.length === 0) return;
-    
+    if (files.length === 0) return;
+    if (!token) return;
+    setIsUploading(true);
 
-    
     try {
-      const response = await homeworkServices.uploadAttachments(homeworkId, files, token || '');
-      
+      let id = homeworkId;
+      // If homework not created yet, create it now using current form data
+      if (!id) {
+        // Validate minimal required fields before creating
+        if (!formData.class_division_id || !formData.subject || !formData.title || !formData.due_date) {
+          toast({
+            title: t('common.error', 'Error'),
+            description: t('homeworkTeacher.create.fillDetailsBeforeUpload', 'Please fill in class, subject, title and due date before uploading.'),
+            variant: 'error',
+          });
+          return;
+        }
+
+        const dueDate = new Date(formData.due_date);
+        dueDate.setHours(23, 59, 59, 999);
+        const payload = { ...formData, due_date: dueDate.toISOString() };
+        const createRes = await homeworkServices.createHomework(payload, token);
+        if (createRes.status !== 'success' || !createRes.data?.homework?.id) {
+          throw new Error(createRes.message || 'Failed to create homework before upload');
+        }
+        id = createRes.data.homework.id;
+        setHomeworkId(id);
+        toast({
+          title: t('common.success', 'Success'),
+          description: t('homeworkTeacher.create.success', 'Homework created successfully!'),
+          variant: 'success',
+        });
+      }
+
+      const response = await homeworkServices.uploadAttachments(id!, files, token);
       if (response.status === 'success') {
         toast({
           title: t('common.success', 'Success'),
           description: t('homeworkTeacher.create.uploadSuccess', '{count} file(s) uploaded successfully!').replace('{count}', String(files.length)),
-          variant: "success",
+          variant: 'success',
         });
-        // Clear selected files after successful upload
         setSelectedFiles([]);
+        // After successful upload, navigate to homework list
+        router.push('/homework');
       } else {
         throw new Error(response.message || 'Failed to upload files');
       }
@@ -211,15 +241,24 @@ export default function CreateHomeworkPage() {
       toast({
         title: t('common.error', 'Error'),
         description: t('homeworkTeacher.create.uploadFailed', 'Failed to upload files. Please try again.'),
-        variant: "error",
+        variant: 'error',
       });
     } finally {
-
+      setIsUploading(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // If there are selected files that are not uploaded yet, require explicit upload first
+    if (selectedFiles.length > 0 && !homeworkId) {
+      toast({
+        title: t('homeworkTeacher.create.uploadFirstTitle', 'Upload documents first'),
+        description: t('homeworkTeacher.create.uploadFirstDesc', 'You selected files. Please click "Upload" to upload them before creating.'),
+        variant: 'error',
+      });
+      return;
+    }
     setIsLoading(true);
     
     try {
@@ -241,23 +280,8 @@ export default function CreateHomeworkPage() {
           variant: "success",
         });
         
-        // Store the homework ID for file uploads
-        if (response.data?.homework?.id) {
-          setHomeworkId(response.data.homework.id);
-          
-          // If files were selected, upload them now
-          if (selectedFiles.length > 0) {
-            await handleUploadFiles(selectedFiles);
-            // After file upload, redirect to homework page
-            router.push('/homework');
-          } else {
-            // No files to upload, redirect immediately
-            router.push('/homework');
-          }
-        } else {
-          // Fallback if no homework ID in response
-          router.push('/homework');
-        }
+        // Created successfully and there were no pending files (blocked earlier), go to list
+        router.push('/homework');
       }
     } catch (error) {
       console.error('Error creating homework:', error);
@@ -419,8 +443,14 @@ export default function CreateHomeworkPage() {
                   <X className="mr-2 h-4 w-4" />
                   {t('actions.cancel', 'Cancel')}
                 </Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? t('homeworkTeacher.create.creating', 'Creating...') : t('homeworkTeacher.create.cta', 'Create Homework')}
+                <Button type="submit" disabled={isLoading || isUploading || (selectedFiles.length > 0 && !homeworkId)}>
+                  {isLoading
+                    ? t('homeworkTeacher.create.creating', 'Creating...')
+                    : isUploading
+                    ? t('homeworkTeacher.create.uploading', 'Uploading...')
+                    : (selectedFiles.length > 0 && !homeworkId)
+                    ? t('homeworkTeacher.create.uploadFirstButton', 'Upload documents first')
+                    : t('homeworkTeacher.create.cta', 'Create Homework')}
                 </Button>
               </CardFooter>
             </Card>

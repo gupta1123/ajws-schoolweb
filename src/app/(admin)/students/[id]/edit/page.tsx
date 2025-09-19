@@ -69,11 +69,22 @@ export default function EditStudentPage({ params }: { params: Promise<{ id: stri
             const primaryParent = student.parent_mappings?.find(mapping => mapping.is_primary_guardian);
             
             // Populate form with current data
+            // Derive class/grade name, supporting both class_level and level keys
+            const classLevelName = currentRecord?.class_division
+              ? (
+                  // Some API responses use class_level, others use level
+                  (currentRecord.class_division as { class_level?: { name: string }; level?: { name: string } }).class_level?.name ||
+                  (currentRecord.class_division as { class_level?: { name: string }; level?: { name: string } }).level?.name ||
+                  'Unknown'
+                )
+              : '';
+
             setFormData({
               fullName: student.full_name,
               rollNumber: currentRecord?.roll_number || '',
-              class: currentRecord && currentRecord.class_division ? 
-                `${currentRecord.class_division.class_level?.name || 'Unknown'} - Section ${currentRecord.class_division.division || 'Unknown'}` : '',
+              class: currentRecord && currentRecord.class_division
+                ? `${classLevelName} - Section ${currentRecord.class_division.division || 'Unknown'}`
+                : '',
               dateOfBirth: student.date_of_birth,
               fatherName: primaryParent?.parent.full_name || '',
               motherName: '', // Not available in current API

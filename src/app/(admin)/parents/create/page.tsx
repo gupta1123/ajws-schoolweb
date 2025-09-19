@@ -257,7 +257,7 @@ export default function CreateParentPage() {
       const createData: CreateParentRequest = {
         full_name: formData.full_name,
         phone_number: formData.phone_number,
-        email: formData.email,
+        ...(formData.email.trim() && { email: formData.email.trim() }),
         initial_password: formData.initial_password || undefined,
         student_details: showStudentLinking ? studentDetails.map(detail => ({
           admission_number: detail.admission_number.trim(),

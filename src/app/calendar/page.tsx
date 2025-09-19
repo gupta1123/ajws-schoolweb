@@ -116,7 +116,10 @@ export default function CalendarPage() {
   useEffect(() => {
     if (token && user && !authLoading) {
       fetchEventsByRole();
-      fetchPendingEvents();
+      // Only principals should see pending approvals
+      if (user.role === 'principal') {
+        fetchPendingEvents();
+      }
     }
   }, [token, user, authLoading, fetchEventsByRole, fetchPendingEvents]);
 
@@ -358,9 +361,11 @@ export default function CalendarPage() {
             )}
             
             <Tabs defaultValue="calendar" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className={`grid w-full ${user?.role === 'principal' ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 <TabsTrigger value="calendar">{t('calendar.page.tabs.calendar', 'Calendar')}</TabsTrigger>
-                <TabsTrigger value="pending">{t('calendar.page.tabs.pending', 'Pending Requests')}</TabsTrigger>
+                {user?.role === 'principal' && (
+                  <TabsTrigger value="pending">{t('calendar.page.tabs.pending', 'Pending Requests')}</TabsTrigger>
+                )}
               </TabsList>
               <TabsContent value="calendar">
                 <ImprovedCalendarView 
@@ -369,15 +374,17 @@ export default function CalendarPage() {
                   onAddEvent={handleAddEvent}
                 />
               </TabsContent>
-              <TabsContent value="pending">
-                <PendingEventsTable
-                  events={pendingEvents}
-                  loading={pendingEventsLoading}
-                  onViewEvent={handleViewPendingEvent}
-                  onRefresh={fetchPendingEvents}
-                  userRole={user?.role}
-                />
-              </TabsContent>
+              {user?.role === 'principal' && (
+                <TabsContent value="pending">
+                  <PendingEventsTable
+                    events={pendingEvents}
+                    loading={pendingEventsLoading}
+                    onViewEvent={handleViewPendingEvent}
+                    onRefresh={fetchPendingEvents}
+                    userRole={user?.role}
+                  />
+                </TabsContent>
+              )}
             </Tabs>
           </>
         )}

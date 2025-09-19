@@ -266,7 +266,7 @@ const FilterTag = ({
 
 export default function BirthdaysPage() {
   const [dateFilter, setDateFilter] = useState<'today' | 'tomorrow' | 'this-week' | 'this-month' | null>('today');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'student' | 'staff' | null>(null);
+  const [typeFilter, setTypeFilter] = useState<'all' | 'student' | null>(null);
   const { t } = useI18n();
   
   // Use the birthday hook
@@ -286,8 +286,8 @@ export default function BirthdaysPage() {
   const filteredBirthdays = useMemo(() => {
     let filtered: BirthdayData[] = getAllBirthdays();
     
-    // Apply type filter
-    if (typeFilter && typeFilter !== 'all') {
+    // Apply type filter (only students now, staff filter removed)
+    if (typeFilter && typeFilter !== 'all' && typeFilter === 'student') {
       filtered = getBirthdaysByType(typeFilter);
     }
     
@@ -437,15 +437,7 @@ export default function BirthdaysPage() {
                       <GraduationCap className="h-4 w-4" />
                       {t('common.students')}
                     </Button>
-                    <Button
-                      variant={typeFilter === 'staff' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setTypeFilter(typeFilter === 'staff' ? null : 'staff')}
-                      className="flex items-center gap-1"
-                    >
-                      <Briefcase className="h-4 w-4" />
-                      {t('common.staff')}
-                    </Button>
+                    {/* Staff filter removed as requested */}
                   </div>
                 </div>
                 

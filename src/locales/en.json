@@ -966,6 +966,7 @@
     "refresh": "Refresh",
     "adding": "Adding...",
     "updating": "Updating...",
+    "saving": "Saving...",
     "save": "Save",
     "assign": "Assign",
     "assigning": "Assigning...",
@@ -1069,6 +1070,7 @@
       "title": "Add New Staff",
       "subtitle": "Add a new staff member to the school system",
       "passwordHint": "This will be the initial password for the staff member's user account",
+      "personalDetailsDesc": "Enter the staff member's personal details",
       "failed": "Failed to create staff member"
     },
     "searchPlaceholder": "Search staff...",
@@ -1112,6 +1114,11 @@
       "manageSubjects": "Manage Subjects",
       "noSubjects": "No subjects assigned",
       "subjectsAssigned": "subjects assigned",
+      "classAssignments": "Class Assignments",
+      "loadingAssignments": "Loading assignments...",
+      "subjectTeaching": "Subject Teaching",
+      "noClassTeacher": "No class teacher assignments",
+      "noSubjectTeaching": "No subject teaching assignments",
       "errorTitle": "Error Loading Staff Details",
       "notFound": "Staff member not found",
       "delete": {
@@ -1124,6 +1131,11 @@
       "selectSubjectsFor": "Select subjects for",
       "toTeach": "to teach",
       "currentlyAssigned": "Currently assigned subjects:"
+    },
+    "edit": {
+      "title": "Edit Staff Member",
+      "subtitle": "Update staff member information",
+      "submit": "Update Staff Member"
     },
     "assign": {
       "pageTitle": "Assign Subjects to Teachers",
@@ -1190,7 +1202,8 @@
       "add": "Add Subject",
       "edit": "Edit Subject",
       "code": "Subject Code",
-      "name": "Subject Name"
+      "name": "Subject Name",
+      "searchPlaceholder": "Search subjects..."
     },
     "assignments": {
       "title": "Division-Subject Assignments",
@@ -1244,6 +1257,15 @@
       "filterByDivision": "Filter by Division:",
       "allGrades": "All Grades",
       "allDivisions": "All Divisions"
+    },
+    "errors": {
+      "title": "Error",
+      "generic": "Something went wrong. Please try again.",
+      "classLevelDelete": {
+        "title": "Cannot Delete Class Level",
+        "hasStudents": "Cannot delete class level because one or more class divisions have enrolled students",
+        "detail": "Class level \"{name}\" has enrolled students in divisions: {divs}."
+      }
     }
   }
 }

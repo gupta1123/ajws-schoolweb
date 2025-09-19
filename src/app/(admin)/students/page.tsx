@@ -17,46 +17,67 @@ import {
 } from '@/components/ui/table';
 import { Search, Plus, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { studentServices, Student } from '@/lib/api/students';
+import { classDivisionsServices, ClassDivision as ApiClassDivision } from '@/lib/api/class-divisions';
 import { useI18n } from '@/lib/i18n/context';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function StudentsPage() {
   const { user, token } = useAuth();
   const { t } = useI18n();
-  const [students] = useState<Student[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     search: '',
-    class_level_id: '',
+    class_division_id: '',
     page: 1,
-    limit: 50
+    limit: 20
   });
-  const [allStudents, setAllStudents] = useState<Student[]>([]);
-  const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
-  const [availableFilters, setAvailableFilters] = useState({
-    academic_years: [] as Array<{ id: string; year_name: string }>,
-    class_levels: [] as Array<{ id: string; name: string; sequence_number: number }>,
-    class_divisions: [] as Array<{
-      id: string;
-      division: string;
-      level: { id: string; name: string };
-      teacher: { id: string; full_name: string };
-      academic_year: { id: string; year_name: string };
-    }>
-  });
+  const [pagination, setPagination] = useState<{ page: number; limit: number; total: number; total_pages: number } | null>(null);
+  const [classDivisionsList, setClassDivisionsList] = useState<ApiClassDivision[]>([]);
+  const [selectedAcademicYearId, setSelectedAcademicYearId] = useState<string | undefined>(undefined);
 
-  // Fetch all students data once
+  // Debounced search to reduce API calls
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedSearch(filters.search), 400);
+    return () => clearTimeout(handle);
+  }, [filters.search]);
+
+  // Track and cancel in-flight requests to avoid stale overwrites
+  const latestRequestIdRef = useRef(0);
+  const activeAbortRef = useRef<AbortController | null>(null);
+
+  // Fetch students from backend with filters
   const fetchStudents = useCallback(async () => {
     if (!token) return;
-    
+
+    // Cancel any in-flight request
+    if (activeAbortRef.current) {
+      activeAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    activeAbortRef.current = controller;
+    const requestId = ++latestRequestIdRef.current;
+
     try {
       setLoading(true);
       setError(null);
-      
-      // Fetch all students without pagination
-      const response = await studentServices.getAllStudents(token, { limit: 1000 });
+
+      const response = await studentServices.getAllStudents(token, {
+        page: filters.page,
+        limit: filters.limit,
+        search: debouncedSearch || undefined,
+        class_division_id: filters.class_division_id || undefined,
+        // API expects `academic_year` param; client maps academic_year_id -> academic_year
+        academic_year_id: selectedAcademicYearId,
+        signal: controller.signal,
+      });
+
+      // Ignore if a newer request has started since this one
+      if (requestId !== latestRequestIdRef.current) return;
 
       // Handle Blob response (shouldn't happen for JSON endpoints)
       if (response instanceof Blob) {
@@ -72,60 +93,69 @@ export default function StudentsPage() {
 
       // Handle successful response
       if ('status' in response && response.status === 'success' && response.data) {
-        setAllStudents(response.data.students);
-        setFilteredStudents(response.data.students);
-
-        if (response.data.available_filters) {
-          setAvailableFilters(response.data.available_filters);
+        setStudents(response.data.students);
+        if ('pagination' in response.data && response.data.pagination) {
+          setPagination(response.data.pagination as { page: number; limit: number; total: number; total_pages: number });
         }
       }
     } catch (err: unknown) {
+      // Ignore abort errors
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return;
+      }
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch students';
       setError(errorMessage);
       console.error('Error fetching students:', err);
     } finally {
-      setLoading(false);
+      // Only clear loading for the latest request
+      if (requestId === latestRequestIdRef.current) {
+        setLoading(false);
+      }
     }
-  }, [token]);
+  }, [token, filters.page, filters.limit, debouncedSearch, filters.class_division_id, selectedAcademicYearId]);
 
-  // Fetch students on component mount only
+  // Fetch students when token, filters, or class divisions change
   useEffect(() => {
     fetchStudents();
   }, [fetchStudents]);
 
-  // Apply frontend filtering when filters change
+  // Cleanup on unmount: abort any in-flight request
   useEffect(() => {
-    let filtered = allStudents;
+    return () => {
+      try { activeAbortRef.current?.abort(); } catch {}
+    };
+  }, []);
 
-    // Apply search filter
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(student => 
-        student.full_name.toLowerCase().includes(searchLower) ||
-        student.admission_number.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Apply class level filter
-    if (filters.class_level_id) {
-      filtered = filtered.filter(student => {
-        const currentRecord = student.student_academic_records.find(record => record.status === 'ongoing');
-        return currentRecord?.class_division?.class_level?.id === filters.class_level_id;
-      });
-    }
-
-    setFilteredStudents(filtered);
-    // Reset to first page when filters change
-    setFilters(prev => ({ ...prev, page: 1 }));
-  }, [allStudents, filters.search, filters.class_level_id]);
+  // Fetch class divisions list for filter
+  useEffect(() => {
+    const loadClassDivisions = async () => {
+      if (!token) return;
+      try {
+        const response = await classDivisionsServices.getClassDivisions(token);
+        if (response.status === 'success') {
+          setClassDivisionsList(response.data.class_divisions);
+        }
+      } catch (err) {
+        console.warn('Failed to load class divisions', err);
+      }
+    };
+    loadClassDivisions();
+  }, [token]);
 
   // Handle search input change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLoading(true);
     setFilters(prev => ({ ...prev, search: e.target.value, page: 1 }));
   };
 
   // Handle filter changes
   const handleFilterChange = (filterType: string, value: string) => {
+    // Trigger immediate skeleton state on class/division change
+    if (filterType === 'class_division_id') {
+      setLoading(true);
+      const ayId = value ? classDivisionsList.find(d => d.id === value)?.academic_year_id : undefined;
+      setSelectedAcademicYearId(ayId);
+    }
     setFilters(prev => ({ ...prev, [filterType]: value, page: 1 }));
   };
 
@@ -176,13 +206,13 @@ export default function StudentsPage() {
             </div>
             <select 
               className="border rounded-md px-3 py-2 text-sm"
-              value={filters.class_level_id}
-              onChange={(e) => handleFilterChange('class_level_id', e.target.value)}
+              value={filters.class_division_id}
+              onChange={(e) => handleFilterChange('class_division_id', e.target.value)}
             >
-              <option value="">{t('students.allClasses', 'All Classes')}</option>
-              {availableFilters.class_levels?.map(level => (
-                <option key={level.id} value={level.id}>
-                  {level.name}
+              <option value="">{t('students.allClasses', 'All Classes/Divisions')}</option>
+              {classDivisionsList.map(div => (
+                <option key={div.id} value={div.id}>
+                  {div.class_level?.name} - {t('timetable.section')} {div.division}
                 </option>
               ))}
             </select>
@@ -222,19 +252,38 @@ export default function StudentsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredStudents.length === 0 ? (
+                  {loading ? (
+                    // Skeleton loading state while refetching due to filter change
+                    Array.from({ length: Math.min(8, filters.limit) }).map((_, idx) => (
+                      <TableRow key={`skeleton-${idx}`}>
+                        <TableCell className="py-4">
+                          <Skeleton className="h-4 w-16" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-48" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-40" />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Skeleton className="h-8 w-16" />
+                            <Skeleton className="h-8 w-16" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : students.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                        {filters.search || filters.class_level_id 
+                        {filters.search || filters.class_division_id 
                           ? t('students.emptyFiltered')
                           : t('students.empty')
                         }
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredStudents
-                      .slice((filters.page - 1) * filters.limit, filters.page * filters.limit)
-                      .map((student) => {
+                    students.map((student) => {
                       const currentRecord = student.student_academic_records.find(record => record.status === 'ongoing');
                       
                       return (
@@ -272,10 +321,10 @@ export default function StudentsPage() {
             </div>
 
             {/* Pagination */}
-            {Math.ceil(filteredStudents.length / filters.limit) > 1 && (
+            {pagination && pagination.total_pages > 1 && (
               <div className="flex items-center justify-between mt-4">
                 <div className="text-sm text-gray-700">
-                  {t('pagination.showing', 'Showing')} {((filters.page - 1) * filters.limit) + 1} {t('pagination.to', 'to')} {Math.min(filters.page * filters.limit, filteredStudents.length)} {t('pagination.of', 'of')} {filteredStudents.length} {t('pagination.results', 'results')}
+                  {t('pagination.showing', 'Showing')} {((filters.page - 1) * filters.limit) + 1} {t('pagination.to', 'to')} {Math.min(filters.page * filters.limit, pagination.total)} {t('pagination.of', 'of')} {pagination.total} {t('pagination.results', 'results')}
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -287,13 +336,13 @@ export default function StudentsPage() {
                     {t('pagination.previous', 'Previous')}
                   </Button>
                   <span className="flex items-center px-3 py-2 text-sm">
-                    {t('pagination.page', 'Page')} {filters.page} {t('pagination.of', 'of')} {Math.ceil(filteredStudents.length / filters.limit)}
+                    {t('pagination.page', 'Page')} {filters.page} {t('pagination.of', 'of')} {pagination.total_pages}
                   </span>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handlePageChange(filters.page + 1)}
-                    disabled={filters.page >= Math.ceil(filteredStudents.length / filters.limit)}
+                    disabled={filters.page >= (pagination?.total_pages || 1)}
                   >
                     {t('pagination.next', 'Next')}
                   </Button>

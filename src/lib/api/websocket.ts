@@ -17,30 +17,38 @@ export class ChatWebSocket {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
+  private pendingSubscriptions: Set<string> = new Set();
+  private lastErrorLoggedAt = 0;
 
   constructor(token: string) {
     this.token = token;
   }
 
   connect(): Promise<void> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       try {
         const wsUrl = `wss://ajws-school-ba8ae5e3f955.herokuapp.com?token=${this.token}`;
         this.ws = new WebSocket(wsUrl);
 
         // Set a timeout for the connection attempt
         const connectionTimeout = setTimeout(() => {
-          console.error('WebSocket connection timeout');
+          console.warn('WebSocket connection timeout');
           if (this.ws) {
             this.ws.close();
           }
-          reject(new Error('WebSocket connection timeout'));
-        }, 10000); // 10 second timeout
+          // Do not reject; allow reconnection logic to proceed
+        }, 10000);
 
         this.ws.onopen = () => {
           console.log('WebSocket connected');
           clearTimeout(connectionTimeout);
           this.reconnectAttempts = 0;
+          // Flush any pending subscriptions
+          this.pendingSubscriptions.forEach((threadId) => {
+            const message: WebSocketMessage = { type: 'subscribe_thread', thread_id: threadId };
+            this.ws?.send(JSON.stringify(message));
+          });
+          this.pendingSubscriptions.clear();
           resolve();
         };
 
@@ -58,12 +66,7 @@ export class ChatWebSocket {
         this.ws.onclose = (event) => {
           console.log('WebSocket closed:', event.code, event.reason);
           clearTimeout(connectionTimeout);
-
-          // Only reject if we haven't already resolved and this is the first connection attempt
-          if (this.reconnectAttempts === 0) {
-            reject(new Error(`WebSocket closed: ${event.code} ${event.reason}`));
-          }
-
+          // Do not reject; attempt reconnection
           if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
             setTimeout(() => {
@@ -73,22 +76,33 @@ export class ChatWebSocket {
           }
         };
 
-        this.ws.onerror = (error) => {
-          console.error('WebSocket error:', error);
-          // Don't reject immediately - let the onclose event handle it
+        this.ws.onerror = (error: Event) => {
+          // Throttle and soften error logging; avoid leaking sensitive URL/token
+          const now = Date.now();
+          if (now - this.lastErrorLoggedAt > 5000) {
+            this.lastErrorLoggedAt = now;
+            try {
+              const target = (error as Event & { target?: WebSocket })?.target;
+              const readyState = target?.readyState;
+              console.warn('WebSocket transient error; will retry', { type: error.type, readyState });
+            } catch {
+              console.warn('WebSocket transient error; will retry');
+            }
+          }
+          // Let onclose handle reconnection
         };
       } catch (error) {
-        reject(error);
+        console.error('WebSocket setup error:', error);
+        // Swallow to keep UI functioning without realtime
       }
     });
   }
 
   subscribeToThread(threadId: string): void {
+    // Queue the subscription either way
+    this.pendingSubscriptions.add(threadId);
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      const message: WebSocketMessage = {
-        type: 'subscribe_thread',
-        thread_id: threadId
-      };
+      const message: WebSocketMessage = { type: 'subscribe_thread', thread_id: threadId };
       this.ws.send(JSON.stringify(message));
     }
   }

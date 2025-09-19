@@ -15,6 +15,11 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
+import { 
+  Tooltip, 
+  TooltipContent, 
+  TooltipTrigger 
+} from '@/components/ui/tooltip';
 import {
   Search,
   Plus,
@@ -115,8 +120,9 @@ export default function HomeworkPage() {
           ...hw,
           attachments: hw.attachments || []
         }));
+        // Sort latest to oldest by created_at
         const sortedHomework = homeworkWithAttachments.sort((a, b) =>
-          new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
         setHomework(sortedHomework);
         setPagination(homeworkResponse.data.pagination || null);
@@ -173,9 +179,9 @@ export default function HomeworkPage() {
       (selectedClass === 'all' || `${assignment.class_division.level.name} - Section ${assignment.class_division.division}` === selectedClass)
     );
 
-    // Sort filtered results by due_date in descending order (newest first)
+    // Sort filtered results latest to oldest by created_at
     const sortedFiltered = filtered.sort((a, b) =>
-      new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
 
     setFilteredHomework(sortedFiltered);
@@ -352,10 +358,17 @@ export default function HomeworkPage() {
                           {assignment.subject}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="max-w-[280px]">
                         <div>
-                          <div className="font-medium">{assignment.title}</div>
-                          <div className="text-sm text-muted-foreground">{assignment.description}</div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="font-medium truncate cursor-help">{assignment.title}</div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p className="font-medium">{assignment.title}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <div className="text-sm text-muted-foreground truncate">{assignment.description}</div>
                         </div>
                       </TableCell>
                       <TableCell>{`${assignment.class_division.level.name} - Section ${assignment.class_division.division}`}</TableCell>

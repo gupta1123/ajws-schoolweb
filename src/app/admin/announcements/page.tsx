@@ -39,7 +39,8 @@ const statusConfig = {
 export default function AdminAnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [pendingAnnouncements, setPendingAnnouncements] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [announcementsLoading, setAnnouncementsLoading] = useState(true);
+  const [pendingLoading, setPendingLoading] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -57,6 +58,7 @@ export default function AdminAnnouncementsPage() {
     if (!api) return;
 
     try {
+      setAnnouncementsLoading(true);
       const response = await api.getAnnouncements();
       if (response.status === 'success') {
         setAnnouncements(response.data.announcements);
@@ -68,6 +70,8 @@ export default function AdminAnnouncementsPage() {
         description: t('announcements.list.fetchFailed', 'Failed to fetch announcements'),
         variant: 'error',
       });
+    } finally {
+      setAnnouncementsLoading(false);
     }
   }, [api, toast, t]);
 
@@ -75,7 +79,7 @@ export default function AdminAnnouncementsPage() {
     if (!api) return;
 
     try {
-      setLoading(true);
+      setPendingLoading(true);
       const response = await api.getAnnouncements({ status: 'pending' });
       if (response.status === 'success') {
         setPendingAnnouncements(response.data.announcements);
@@ -88,16 +92,19 @@ export default function AdminAnnouncementsPage() {
         variant: 'error',
       });
     } finally {
-      setLoading(false);
+      setPendingLoading(false);
     }
   }, [api, toast, t]);
 
   useEffect(() => {
     if (token) {
       fetchAnnouncements();
-      fetchPendingAnnouncements();
+      // Only principals view/manage pending approvals
+      if (user?.role === 'principal') {
+        fetchPendingAnnouncements();
+      }
     }
-  }, [token, fetchAnnouncements, fetchPendingAnnouncements]);
+  }, [token, user?.role, fetchAnnouncements, fetchPendingAnnouncements]);
 
   const handleApproveAnnouncement = async (announcementId: string) => {
     if (!api) return;
@@ -136,7 +143,7 @@ export default function AdminAnnouncementsPage() {
     const matchesPriority = priorityFilter === 'all' || announcement.priority === priorityFilter;
 
     return matchesSearch && matchesStatus && matchesType && matchesPriority;
-  });
+  }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -180,19 +187,21 @@ export default function AdminAnnouncementsPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
-                <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+        {user?.role === 'principal' && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
+                  <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">{t('announcements.common.pending', 'Pending')}</p>
+                  <p className="text-2xl font-bold">{pendingAnnouncements.length}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t('announcements.common.pending', 'Pending')}</p>
-                <p className="text-2xl font-bold">{pendingAnnouncements.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardContent className="p-4">
@@ -243,15 +252,17 @@ export default function AdminAnnouncementsPage() {
 
       {/* Main Content with Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className={`grid w-full ${user?.role === 'principal' ? 'grid-cols-2' : 'grid-cols-1'}`}>
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <MessageSquare className="w-4 h-4" />
             {t('announcements.list.tabs.overview', 'Overview')}
           </TabsTrigger>
-          <TabsTrigger value="pending" className="flex items-center gap-2">
-            <Clock className="w-4 h-4" />
-            {t('announcements.list.tabs.pending', 'Pending Approvals')} ({pendingAnnouncements.length})
-          </TabsTrigger>
+          {user?.role === 'principal' && (
+            <TabsTrigger value="pending" className="flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              {t('announcements.list.tabs.pending', 'Pending Approvals')} ({pendingAnnouncements.length})
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -318,7 +329,7 @@ export default function AdminAnnouncementsPage() {
           </Card>
 
           {/* Announcements Table */}
-          {loading ? (
+          {announcementsLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
@@ -407,6 +418,7 @@ export default function AdminAnnouncementsPage() {
           )}
         </TabsContent>
 
+        {user?.role === 'principal' && (
         <TabsContent value="pending" className="space-y-4">
           {/* Filters for Pending Tab */}
           <Card>
@@ -458,7 +470,7 @@ export default function AdminAnnouncementsPage() {
           </Card>
 
           {/* Pending Announcements Table */}
-          {loading ? (
+          {pendingLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
@@ -499,6 +511,7 @@ export default function AdminAnnouncementsPage() {
                         const matchesPriority = priorityFilter === 'all' || announcement.priority === priorityFilter;
                         return matchesSearch && matchesType && matchesPriority;
                       })
+                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                       .map((announcement) => (
                         <TableRow key={announcement.id} className="hover:bg-muted/50">
                           <TableCell>
@@ -560,6 +573,7 @@ export default function AdminAnnouncementsPage() {
             </Card>
           )}
         </TabsContent>
+        )}
 
 
       </Tabs>

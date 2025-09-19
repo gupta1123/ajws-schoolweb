@@ -48,7 +48,7 @@ export function usePrincipalChats() {
   const updateFilters = (newFilters: Partial<PrincipalChatsParams>) => {
     const updatedFilters = { ...filters, ...newFilters, page: 1 }; // Reset to page 1 when filters change
     setFilters(updatedFilters);
-    fetchChats(updatedFilters);
+    // Fetch will be triggered by useEffect watching `filters`
   };
 
   const loadMore = () => {
@@ -64,7 +64,8 @@ export function usePrincipalChats() {
     if (user?.role === 'principal' || user?.role === 'admin') {
       fetchChats(filters);
     }
-  }, [user?.role, token, fetchChats, filters]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role, token, filters]);
 
   const refreshChats = () => {
     fetchChats(filters);

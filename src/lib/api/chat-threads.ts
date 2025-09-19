@@ -91,8 +91,12 @@ export interface ChatMessagesResponse {
 }
 
 export const chatThreadsServices = {
-  getChatThreads: async (token: string): Promise<ChatThreadsResponse> => {
-    const response = await apiClient.get<ChatThreadsResponse['data']>('/api/chat/threads', token);
+  getChatThreads: async (token: string, params?: { limit?: number; page?: number }): Promise<ChatThreadsResponse> => {
+    const qp = new URLSearchParams();
+    if (params?.limit) qp.append('limit', String(params.limit));
+    if (params?.page) qp.append('page', String(params.page));
+    const url = `/api/chat/threads${qp.toString() ? `?${qp.toString()}` : ''}`;
+    const response = await apiClient.get<ChatThreadsResponse['data']>(url, token);
 
     // Handle Blob response (shouldn't happen for JSON endpoints)
     if (response instanceof Blob) {

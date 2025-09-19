@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+// Removed Select imports as role and status are now read-only
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/lib/i18n/context';
 import { useRouter } from 'next/navigation';
@@ -41,8 +41,7 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
     extractId();
   }, [params]);
 
-  // Available roles and departments
-  const availableRoles = ['teacher', 'principal', 'admin'];
+  // Roles and status are read-only on edit
 
   // Fetch staff details
   useEffect(() => {
@@ -68,14 +67,14 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
               isActive: foundStaff.is_active !== false
             });
           } else {
-            setError('Staff member not found');
+            setError(t('staff.detail.notFound', 'Staff member not found'));
           }
         } else {
-          setError('Failed to fetch staff details');
+          setError(t('staff.detail.errorTitle', 'Failed to fetch staff details'));
         }
       } catch (err) {
         console.error('Fetch staff details error:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch staff details');
+        setError(err instanceof Error ? err.message : t('staff.detail.errorTitle', 'Failed to fetch staff details'));
       } finally {
         setLoading(false);
       }
@@ -84,15 +83,15 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
     if (token && staffId) {
       fetchStaffDetails();
     }
-  }, [token, staffId]);
+  }, [token, staffId, t]);
 
   // Only allow admins and principals to access this page
   if (user?.role !== 'admin' && user?.role !== 'principal') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only admins and principals can access this page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="text-gray-600">{t('access.adminsOnly', 'Only admins and principals can access this page.')}</p>
         </div>
       </div>
     );
@@ -103,9 +102,7 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+  // No-op: role and account status are read-only in edit
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,11 +124,11 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
       if (response.status === 'success') {
         router.push(`/staff/${staffId}`);
       } else {
-        setError('Failed to update staff member');
+        setError(t('staff.edit.updateError', 'Failed to update staff member'));
       }
     } catch (err) {
       console.error('Update staff error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to update staff member');
+      setError(err instanceof Error ? err.message : t('staff.edit.updateError', 'Failed to update staff member'));
     } finally {
       setSaving(false);
     }
@@ -263,56 +260,31 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="role" className="text-sm font-medium">{t('staff.form.labels.role', 'Role')} *</Label>
+                      <Label htmlFor="role" className="text-sm font-medium">{t('staff.form.labels.role', 'Role')}</Label>
                       <div className="relative">
                         <Shield className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
-                        <Select
+                        <Input
+                          id="role"
                           name="role"
                           value={formData.role}
-                          onValueChange={(value) => handleSelectChange('role', value)}
-                        >
-                          <SelectTrigger className="pl-10">
-                            <SelectValue placeholder={t('staff.form.placeholders.selectRole', 'Select a role')} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableRoles.map(role => (
-                              <SelectItem key={role} value={role}>
-                                <div className="flex items-center gap-2">
-                                  <Shield className="h-4 w-4" />
-                                  {t(`common.${role}`, role.charAt(0).toUpperCase() + role.slice(1))}
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          readOnly
+                          disabled
+                          className="pl-10"
+                        />
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="isActive" className="text-sm font-medium">{t('staff.form.labels.accountStatus', 'Account Status')}</Label>
-                      <Select
-                        name="isActive"
-                        value={formData.isActive ? 'active' : 'inactive'}
-                        onValueChange={(value) => handleSelectChange('isActive', value === 'active' ? 'true' : 'false')}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('staff.form.placeholders.selectStatus', 'Select status')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="active">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 bg-green-500 rounded-full" />
-                              {t('academicSetup.status.active', 'Active')}
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="inactive">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 bg-gray-400 rounded-full" />
-                              {t('academicSetup.status.inactive', 'Inactive')}
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="relative">
+                        <Input
+                          id="isActive"
+                          name="isActive"
+                          value={formData.isActive ? t('academicSetup.status.active', 'Active') : t('academicSetup.status.inactive', 'Inactive')}
+                          readOnly
+                          disabled
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

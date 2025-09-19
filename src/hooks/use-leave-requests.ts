@@ -23,8 +23,10 @@ interface UseLeaveRequestsReturn {
   clearError: () => void;
 }
 
-export const useLeaveRequests = (): UseLeaveRequestsReturn => {
-  const { token } = useAuth();
+export const useLeaveRequests = (
+  options?: { autoFetch?: boolean; defaultParams?: ListLeaveRequestsParams }
+): UseLeaveRequestsReturn => {
+  const { token, user } = useAuth();
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +45,22 @@ export const useLeaveRequests = (): UseLeaveRequestsReturn => {
         return;
       }
       
-      const response = await leaveRequestServices.list(params, token);
+      let response;
+      // Teachers must use teacher-specific endpoint with from_date/to_date
+      if (user?.role === 'teacher') {
+        // Map provided start/end or default to current month
+        const from = params.start_date || (() => {
+          const now = new Date();
+          return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+        })();
+        const to = params.end_date || (() => {
+          const now = new Date();
+          return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+        })();
+        response = await leaveRequestServices.getTeacherClass({ from_date: from, to_date: to }, token);
+      } else {
+        response = await leaveRequestServices.list(params, token);
+      }
 
       // Handle Blob response (shouldn't happen for JSON endpoints)
       if (response instanceof Blob) {
@@ -77,7 +94,7 @@ export const useLeaveRequests = (): UseLeaveRequestsReturn => {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, user?.role]);
 
   const createLeaveRequest = useCallback(async (data: CreateLeaveRequest): Promise<LeaveRequest | null> => {
     try {
@@ -232,12 +249,12 @@ export const useLeaveRequests = (): UseLeaveRequestsReturn => {
     }
   }, [token]);
 
-  // Fetch leave requests on mount only if token is available
+  // Fetch leave requests on mount only if token is available and autoFetch not disabled
   useEffect(() => {
-    if (token) {
-      fetchLeaveRequests();
+    if (token && options?.autoFetch !== false) {
+      fetchLeaveRequests(options?.defaultParams || {});
     }
-  }, [fetchLeaveRequests, token]);
+  }, [fetchLeaveRequests, token, options?.autoFetch, options?.defaultParams]);
 
   return {
     leaveRequests,

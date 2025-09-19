@@ -197,13 +197,8 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
   } else if (user?.role === 'admin') {
     navConfig = adminNavItems;
   } else if (user?.role === 'principal') {
-
-    navConfig = adminNavItems.map(category => ({
-      ...category,
-      items: [...category.items]
-    }));
+    navConfig = adminNavItems.map(category => ({ ...category }));
     
-
     const managementCategory = navConfig.find(category => category.category === 'sidebar.category.management');
     if (managementCategory) {
       managementCategory.items = [...managementCategory.items, ...principalNavItems];

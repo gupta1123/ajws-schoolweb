@@ -53,7 +53,7 @@ export function CreateParentModal({ isOpen, onClose, onSuccess, studentAdmission
       const parentData: CreateParentRequest = {
         full_name: formData.full_name.trim(),
         phone_number: formData.phone_number.trim(),
-        email: formData.email.trim() || '',
+        ...(formData.email.trim() && { email: formData.email.trim() }),
         initial_password: formData.initial_password.trim(),
         ...(studentAdmissionNumber && relationship && {
           student_details: [{

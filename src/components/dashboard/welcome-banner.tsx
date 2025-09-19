@@ -7,8 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { 
   Sun,
   Moon,
-  Coffee,
-  Cloud
+  Coffee
 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/context';
 import { useEffect, useState } from 'react';
@@ -19,7 +18,6 @@ export function WelcomeBanner() {
   const { theme } = useTheme();
   const { t } = useI18n();
   const [greeting, setGreeting] = useState({ textKey: 'welcome.goodMorning', icon: <Sun className="h-5 w-5" /> });
-  const [weather, setWeather] = useState({ temp: 24, condition: 'Sunny' });
 
   // Set greeting based on time of day
   useEffect(() => {
@@ -33,14 +31,6 @@ export function WelcomeBanner() {
     }
   }, []);
 
-  // Mock weather data - in a real app this would come from an API
-  useEffect(() => {
-    // Simulate API call
-    const conditions = ['Sunny', 'Cloudy', 'Rainy', 'Partly Cloudy'];
-    const randomCondition = conditions[Math.floor(Math.random() * conditions.length)];
-    const temp = Math.floor(Math.random() * 15) + 15; // 15-30°C
-    setWeather({ temp, condition: randomCondition });
-  }, []);
 
   const getRoleSpecificSubtitle = () => {
     switch (user?.role) {
@@ -55,18 +45,6 @@ export function WelcomeBanner() {
     }
   };
 
-  const getWeatherIcon = () => {
-    switch (weather.condition.toLowerCase()) {
-      case 'sunny':
-        return <Sun className="h-4 w-4" />;
-      case 'cloudy':
-        return <Cloud className="h-4 w-4" />;
-      case 'rainy':
-        return <Cloud className="h-4 w-4" />;
-      default:
-        return <Sun className="h-4 w-4" />;
-    }
-  };
 
   return (
     <Card className="border-0 shadow-none bg-gradient-to-r from-primary/10 to-primary/5">
@@ -87,16 +65,6 @@ export function WelcomeBanner() {
           </div>
           
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm">
-              <div className="p-2 rounded-lg bg-muted">
-                {getWeatherIcon()}
-              </div>
-              <div>
-                <div className="font-medium">{weather.temp}°C</div>
-                <div className="text-muted-foreground text-xs">{t(`welcome.weather.${weather.condition.toLowerCase().replace(/\s+/g, '')}`, weather.condition)}</div>
-              </div>
-            </div>
-            
             <div className="hidden sm:flex items-center gap-2 text-sm">
               <div className="p-2 rounded-lg bg-muted">
                 {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}

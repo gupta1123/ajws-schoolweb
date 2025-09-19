@@ -99,8 +99,10 @@ interface ConversationResponse {
 }
 
 // Function to format date as "11 Aug' 25"
-const formatDate = (dateString: string): string => {
+const formatDate = (dateString?: string | null): string => {
+  if (!dateString) return '';
   const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return '';
   const day = date.getDate();
   const month = date.toLocaleDateString('en-US', { month: 'short' });
   const year = date.getFullYear().toString().slice(-2);
@@ -108,8 +110,10 @@ const formatDate = (dateString: string): string => {
 };
 
 // Function to format time as "8:00 PM"
-const formatTime = (dateString: string): string => {
+const formatTime = (dateString?: string | null): string => {
+  if (!dateString) return '';
   const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleTimeString('en-US', { 
     hour: 'numeric', 
     minute: '2-digit',
@@ -118,8 +122,10 @@ const formatTime = (dateString: string): string => {
 };
 
 // Function to get date label (Today, Yesterday, or formatted date)
-const getDateLabel = (dateString: string): string => {
+const getDateLabel = (dateString?: string | null): string => {
+  if (!dateString) return '';
   const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return '';
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
@@ -139,9 +145,11 @@ const getDateLabel = (dateString: string): string => {
 };
 
 // Function to check if two dates are on the same day
-const isSameDay = (date1: string, date2: string): boolean => {
+const isSameDay = (date1?: string | null, date2?: string | null): boolean => {
+  if (!date1 || !date2) return false;
   const d1 = new Date(date1);
   const d2 = new Date(date2);
+  if (Number.isNaN(d1.getTime()) || Number.isNaN(d2.getTime())) return false;
   return d1.getFullYear() === d2.getFullYear() &&
          d1.getMonth() === d2.getMonth() &&
          d1.getDate() === d2.getDate();
@@ -180,64 +188,102 @@ const transformPrincipalToContact = (principal: { id: string; full_name: string;
   };
 };
 
-// Function to sort contacts with pinned ones at the top
+// Sort contacts by most recent activity (last message or thread updated)
 const sortContactsWithPinned = (contacts: ChatContact[]): ChatContact[] => {
-  return contacts.sort((a, b) => {
-    // Pinned contacts come first
-    if (a.isPinned && !b.isPinned) return -1;
-    if (!a.isPinned && b.isPinned) return 1;
-    
-    // If both are pinned or both are not pinned, maintain original order
-    return 0;
-  });
+  const toTs = (c: ChatContact) => {
+    const th: Record<string, unknown> = (c.threadData as unknown as Record<string, unknown>) || {};
+    const last = Array.isArray(th.last_message)
+      ? (th.last_message.length ? th.last_message[th.last_message.length - 1] : null)
+      : th.last_message;
+    const stamp = last?.created_at || th.updated_at || th.created_at;
+    const d = stamp ? new Date(stamp) : null;
+    return d && !Number.isNaN(d.getTime()) ? d.getTime() : 0;
+  };
+  return [...contacts].sort((a, b) => toTs(b) - toTs(a));
 };
 
+
+
 // Function to transform chat threads to contacts
-const transformThreadsToContacts = (threads: ChatThread[], user: { id: string } | null): ChatContact[] => {
-  return threads.map(thread => {
-    const isGroup = thread.thread_type === 'group';
-    const lastMessage = thread.last_message && thread.last_message.length > 0 
-      ? thread.last_message[thread.last_message.length - 1] 
+const transformThreadsToContacts = (threads: unknown[], user: { id: string } | null): ChatContact[] => {
+  return threads.map((thread) => {
+    const threadObj = thread as { [key: string]: unknown };
+    // Normalize fields for different thread shapes (teacher vs principal/admin)
+    const threadId: string = (threadObj.id as string) || (threadObj.thread_id as string);
+    const isGroup: boolean = threadObj.thread_type === 'group';
+
+    // Handle different last_message formats
+    let lastMsg: { [key: string]: unknown } | null = null;
+    if (Array.isArray(threadObj.last_message)) {
+      lastMsg = threadObj.last_message.length > 0 ? threadObj.last_message[threadObj.last_message.length - 1] : null;
+    } else if (threadObj.last_message && typeof threadObj.last_message === 'object') {
+      lastMsg = threadObj.last_message as { [key: string]: unknown };
+    }
+
+    // Handle different participants formats
+    let participantsArr: Array<{ [key: string]: unknown }> = [];
+    if (Array.isArray(threadObj.participants)) {
+      participantsArr = threadObj.participants as Array<{ [key: string]: unknown }>;
+    } else if (threadObj.participants && typeof threadObj.participants === 'object') {
+      const participants = threadObj.participants as { all?: Array<{ [key: string]: unknown }> };
+      participantsArr = participants.all || [];
+    }
+
+    // Members excluding current user
+    const groupMembers: string[] = participantsArr
+      .filter((p) => {
+        const participant = p as { user_id?: string; user?: { id?: string } };
+        return (participant.user_id ?? participant.user?.id) !== user?.id;
+      })
+      .map((p) => {
+        const participant = p as { user?: { full_name?: string } };
+        return participant.user?.full_name ?? '';
+      });
+
+
+    // Extract a teacher participant if any
+    const teacherParticipant = participantsArr.find((p) => {
+      const participant = p as { user?: { role?: string }; role?: string };
+      return (participant.user?.role ?? participant.role) === 'teacher';
+    });
+    const teacherData = teacherParticipant
+      ? {
+          teacher_id: (teacherParticipant as { user_id?: string; user?: { id?: string } }).user_id ?? (teacherParticipant as { user?: { id?: string } }).user?.id ?? '',
+          full_name: (teacherParticipant as { user?: { full_name?: string } }).user?.full_name ?? '',
+          role: (teacherParticipant as { user?: { role?: string }; role?: string }).user?.role ?? 'teacher',
+        }
       : null;
-    
-    // Get group members (excluding the current user)
-    const groupMembers = thread.participants
-      .filter(p => p.user_id !== user?.id)
-      .map(p => p.user.full_name);
-    
-    // Check if current user is a participant
-    const isParticipant = thread.participants.some(p => p.user_id === user?.id);
-    
-    // Find teacher data if this is a teacher chat
-    const teacherParticipant = thread.participants.find(p => p.user.role === 'teacher');
-    const teacherData = teacherParticipant ? {
-      teacher_id: teacherParticipant.user_id,
-      full_name: teacherParticipant.user.full_name,
-      role: teacherParticipant.user.role
-    } : null;
-    
-    // Find parent data if this is a parent chat
-    const parentParticipant = thread.participants.find(p => p.user.role === 'parent');
-    const parentData = parentParticipant ? {
-      parent_id: parentParticipant.user_id,
-      full_name: parentParticipant.user.full_name,
-      role: parentParticipant.user.role
-    } : null;
-    
+
+    // Extract a parent participant if any
+    const parentParticipant = participantsArr.find((p) => {
+      const participant = p as { user?: { role?: string }; role?: string };
+      return (participant.user?.role ?? participant.role) === 'parent';
+    });
+    const parentData = parentParticipant
+      ? {
+          parent_id: (parentParticipant as { user_id?: string; user?: { id?: string } }).user_id ?? (parentParticipant as { user?: { id?: string } }).user?.id ?? '',
+          full_name: (parentParticipant as { user?: { full_name?: string } }).user?.full_name ?? '',
+          role: (parentParticipant as { user?: { role?: string }; role?: string }).user?.role ?? 'parent',
+        }
+      : null;
+
+    const dateSource: string | undefined = (lastMsg as { created_at?: string })?.created_at || (threadObj.updated_at as string) || (threadObj.created_at as string);
+
     return {
-      id: thread.id,
-      name: thread.title,
-      lastMessage: lastMessage ? lastMessage.content : 'No messages yet',
-      lastMessageTime: lastMessage ? formatDate(lastMessage.created_at) : formatDate(thread.created_at),
-      unreadCount: 0, // TODO: Implement unread count logic
+      id: threadId,
+      name: threadObj.title as string,
+      lastMessage: lastMsg ? (lastMsg.content as string) : 'No messages yet',
+      lastMessageTime: formatDate(dateSource),
+      unreadCount: 0,
       isOnline: false,
       type: isGroup ? 'group' : 'individual',
-      isGroup: isGroup,
-      groupMembers: groupMembers,
-      isPinned: isParticipant, // Pin chats where user is a participant
-      teacherData: teacherData, // Add teacher data for admin/principal
-      parentData: parentData, // Add parent data for admin/principal
-      threadData: thread
+      isGroup,
+      groupMembers,
+      isPinned: false,
+      teacherData,
+      parentData,
+      // Ensure threadData includes a normalized id for downstream consumers
+      threadData: { ...threadObj, id: threadId } as ChatThread,
     };
   });
 };
@@ -263,11 +309,11 @@ const transformApiMessagesToChatMessages = (apiMessages: ApiChatMessage[], user:
 interface ChatInterfaceProps {
   selectedParentId?: string;
   isAdminOrPrincipal?: boolean;
-  chatsData?: { threads?: ChatThread[] };
+  chatsData?: { threads?: unknown[] };
   activeTab?: 'direct' | 'group';
 }
 
-export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData, activeTab: externalActiveTab }: ChatInterfaceProps) {
+export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData }: ChatInterfaceProps) {
   const { token, user } = useAuth();
   const { t } = useI18n();
   const [contacts, setContacts] = useState<ChatContact[]>([]);
@@ -276,75 +322,27 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const [loadingGroups, setLoadingGroups] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chatThreads, setChatThreads] = useState<ChatThread[]>([]);
   const [websocket, setWebsocket] = useState<ChatWebSocket | null>(null);
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'direct' | 'group'>('direct');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectingParent, setSelectingParent] = useState(false);
 
   // Hooks for real API data
   const { messages: apiMessages } = useChatMessages(currentThreadId);
 
-  // Handle tab change
-  const handleTabChange = (tab: 'direct' | 'group') => {
-    setActiveTab(tab);
-    
-    // Clear search when switching tabs
-    setSearchTerm('');
-    
-    // If switching to group tab, refresh threads to ensure we have latest group data
-    if (tab === 'group' && token && !isAdminOrPrincipal) {
-      fetchThreads(true); // true indicates this is a group refresh
-    }
-    
-    // Select appropriate contact for the new tab
-    if (contacts.length > 0) {
-      if (tab === 'group') {
-        const firstGroup = contacts.find(c => c.isGroup);
-        if (firstGroup) {
-          setActiveChat(firstGroup);
-          // Ensure WebSocket subscription for the group
-          if (firstGroup.threadData && websocket) {
-            websocket.subscribeToThread(firstGroup.threadData.id);
-          }
-        }
-      } else {
-        const firstDirect = contacts.find(c => !c.isGroup);
-        if (firstDirect) {
-          setActiveChat(firstDirect);
-          // Ensure WebSocket subscription for the direct chat
-          if (firstDirect.threadData && websocket) {
-            websocket.subscribeToThread(firstDirect.threadData.id);
-          }
-        }
-      }
-    }
-  };
 
-  // Use external activeTab for admin/principal users
-  useEffect(() => {
-    if (isAdminOrPrincipal && externalActiveTab) {
-      setActiveTab(externalActiveTab);
-    }
-  }, [isAdminOrPrincipal, externalActiveTab]);
+  // Ignore external tabs; unified list
 
-  // Initialize WebSocket connection
+  // Initialize WebSocket connection (non-blocking)
   useEffect(() => {
     if (token) {
       const ws = new ChatWebSocket(token);
-      ws.connect().then(() => {
-        setWebsocket(ws);
-        console.log('WebSocket connected successfully');
-        // Clear any previous connection errors when WebSocket connects successfully
-        setError(null);
-      }).catch((error) => {
-        console.error('Failed to connect WebSocket:', error);
-        // Don't set error - allow chat to work without WebSocket
-        console.warn('Chat will work without real-time updates due to WebSocket connection failure');
-        setWebsocket(null);
+      // Set immediately so we can queue subscriptions even before open
+      setWebsocket(ws);
+      ws.connect().catch((error) => {
+        console.warn('WebSocket initial connect error (non-blocking):', error);
       });
 
       // Set up connection status monitoring
@@ -411,76 +409,15 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
     }
   }, [apiMessages, user, currentThreadId, isAdminOrPrincipal]);
 
-  // Fetch teacher-linked parents data (only for teachers)
-  const fetchParents = useCallback(async () => {
-    if (!token) {
-      console.log('No authentication token available');
-      setLoading(false);
-      return;
-    }
 
-    try {
-      setLoading(true);
-      const response = await getTeacherLinkedParents(token, user?.id);
-      console.log('API Response:', response); // Debug log
-
-      // Handle Blob response (shouldn't happen for this endpoint)
-      if (response instanceof Blob) {
-        console.error('Unexpected Blob response');
-        setError('Unexpected response format');
-        return;
-      }
-
-            // Check if response has error status
-      if (response.status === 'error') {
-        const errorMessage = (response as TeacherLinkedParentsResponse).message || 'Failed to fetch parents';
-        console.error('API Error:', errorMessage);
-        setError('Unexpected response format');
-        return;
-      }
-
-      // Check if response has success status
-      if (response.status === 'success' && 'data' in response && response.data && 'linked_parents' in response.data) {
-        const responseData = response.data as TeacherLinkedParentsResponse['data'];
-        if (!responseData) return; // Safety check
-        const linkedParents = responseData.linked_parents as TeacherLinkedParent[];
-        const transformedContacts = transformParentDataToContacts(linkedParents);
-
-        // Add principal to contacts if available
-        let allContacts = [...transformedContacts];
-        if (responseData.principal) {
-          const principalContact = transformPrincipalToContact(responseData.principal);
-          allContacts = [principalContact, ...allContacts]; // Principal appears first
-        }
-
-        // Sort contacts with pinned ones at the top
-        const sortedContacts = sortContactsWithPinned(allContacts);
-        setContacts(sortedContacts);
-        // Don't auto-select a contact here - let the thread loading handle it
-      } else {
-        console.error('Unexpected response format:', response);
-      }
-    } catch (error) {
-      console.error('Error fetching teacher-linked parents:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [token, user?.id]);
-
-  useEffect(() => {
-    if (isAdminOrPrincipal) return; // Skip for admin/principal users
-    fetchParents();
-  }, [isAdminOrPrincipal, fetchParents]);
+  // Do not auto-fetch parents on initial load to avoid extra calls
 
   // Fetch chat threads function
-  const fetchThreads = useCallback(async (isGroupRefresh = false) => {
+  const fetchThreads = useCallback(async () => {
     if (!token) return;
 
     try {
-      if (isGroupRefresh) {
-        setLoadingGroups(true);
-      }
-      
+      setLoading(true);
       const response = await getChatThreads(token);
       
       if (response instanceof Blob) {
@@ -495,44 +432,31 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
         // Transform threads to contacts and add them to the contacts list
         if (user) {
           const threadContacts = transformThreadsToContacts(threads, user);
-          setContacts(prevContacts => {
-            // Combine parent contacts with thread contacts, avoiding duplicates
-            const existingIds = new Set(prevContacts.map(c => c.id));
-            const newThreadContacts = threadContacts.filter(c => !existingIds.has(c.id));
-            const allContacts = [...prevContacts, ...newThreadContacts];
-            
-            // Sort contacts with pinned ones at the top
-            const sortedContacts = sortContactsWithPinned(allContacts);
-            
-            // Auto-select the first contact if none is currently selected AND no specific parent is selected
-            if (sortedContacts.length > 0 && !activeChat && !selectedParentId) {
-              // Select based on current active tab
-              if (activeTab === 'group') {
-                const firstGroup = sortedContacts.find(c => c.isGroup);
-                if (firstGroup) setActiveChat(firstGroup);
-              } else {
-                const firstDirect = sortedContacts.find(c => !c.isGroup);
-                if (firstDirect) setActiveChat(firstDirect);
-              }
-            }
-            
-            return sortedContacts;
-          });
+          const sortedContacts = sortContactsWithPinned(threadContacts);
+          setContacts(sortedContacts);
+          // Auto-select the most recent chat if none selected
+          if (sortedContacts.length > 0 && !activeChat) {
+            const first = sortedContacts[0];
+            setActiveChat(first);
+            if (first.threadData) setCurrentThreadId(first.threadData.id);
+          }
         }
       }
     } catch (error) {
       console.error('Error fetching chat threads:', error);
     } finally {
-      if (isGroupRefresh) {
-        setLoadingGroups(false);
-      }
+      setLoading(false);
     }
-  }, [token, user, activeTab, activeChat, selectedParentId]);
+  }, [token, user?.id, activeChat]);
 
   // Fetch chat threads on component mount
   useEffect(() => {
-    fetchThreads();
-  }, [token, user, fetchThreads]);
+    if (token) {
+      fetchThreads();
+    }
+    // Only run on token changes to avoid duplicate fetches when activeChat changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   // Clean up selecting state when selectedParentId changes or component unmounts
   useEffect(() => {
@@ -585,7 +509,6 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
           console.log('✅ Found selected contact:', selectedContact.name);
           console.log('Contact data:', selectedContact);
           setActiveChat(selectedContact);
-          setActiveTab('direct');
           setSearchTerm('');
           setSelectingParent(false);
           console.log('=== PARENT SELECTION SUCCESS ===');
@@ -625,7 +548,6 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
       if (selectedContact && !activeChat) {
         console.log('✅ Retry successful - Found selected contact:', selectedContact.name);
         setActiveChat(selectedContact);
-        setActiveTab('direct');
         setSearchTerm('');
         setSelectingParent(false);
         console.log('=== RETRY PARENT SELECTION SUCCESS ===');
@@ -646,24 +568,14 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
     
     // Only auto-select first contact if no specific parent is selected
     if (contacts.length > 0 && !activeChat && !selectedParentId) {
-      const firstDirect = contacts.find(c => !c.isGroup);
-      if (firstDirect) {
-        console.log('Auto-selecting first direct contact:', firstDirect.name);
-        setActiveChat(firstDirect);
-        setActiveTab('direct');
-      }
+      const first = contacts[0];
+      console.log('Auto-selecting most recent contact:', first.name);
+      setActiveChat(first);
     }
   }, [contacts, activeChat, selectedParentId, selectingParent]);
 
-  // Get counts for each tab
-  const directContactsCount = contacts.filter(c => !c.isGroup).length;
-  const groupContactsCount = contacts.filter(c => c.isGroup).length;
-
-  // Filter contacts based on search and active tab
+  // Filter contacts based on search
   const filteredContacts = contacts.filter(contact => {
-    // First filter by tab type
-    if (activeTab === 'direct' && contact.isGroup) return false;
-    if (activeTab === 'group' && !contact.isGroup) return false;
     
     const nameMatch = contact.name.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -694,7 +606,9 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
   useEffect(() => {
     if (websocket) {
       websocket.onMessage((message: WebSocketMessage) => {
-        if (message.type === 'message_received' && message.thread_id === currentThreadId) {
+        // Accept both message_received and other server variants that include content + thread_id
+        if ((message.type === 'message_received' || message.type === 'send_message' || message.type === 'thread_updated')
+            && message.thread_id === currentThreadId && typeof message.content === 'string') {
           // Add new message to the current chat
           const newMessage: ChatMessage = {
             id: Date.now().toString(),
@@ -775,28 +689,19 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
         console.log('Loading messages from existing thread:', existingThread);
         setCurrentThreadId(existingThread.id);
         
-        // For admin/principal users, we'll let the useChatMessages hook handle message loading
-        // For teachers, we'll load messages from the thread data
-        if (!isAdminOrPrincipal && existingThread.last_message && existingThread.last_message.length > 0) {
-          const threadMessages: ChatMessage[] = existingThread.last_message.map((msg: { sender: { full_name: string }; content: string; created_at: string }, index: number) => ({
-            id: `${existingThread.id}-${index}-${Date.now()}`,
-            senderId: msg.sender.full_name === user?.full_name ? 'me' : 'other',
-            senderName: msg.sender.full_name,
-            content: msg.content,
-            timestamp: msg.created_at,
-            status: 'read',
-            isOwn: msg.sender.full_name === user?.full_name,
-            created_at: msg.created_at
-          }));
-          console.log('Setting thread messages:', threadMessages);
-          setMessages(threadMessages);
-        } else if (isAdminOrPrincipal) {
-          // For admin/principal users, clear messages and let the hook load them
-          console.log('Clearing messages for admin/principal to let hook load them');
-          setMessages([]);
+        // Let the useChatMessages hook load messages for all roles
+        if (isAdminOrPrincipal) {
+          // For admin/principal users, let the useChatMessages hook load messages.
+          // Only clear local messages if switching to a different thread.
+          if (currentThreadId !== existingThread.id) {
+            console.log('Thread changed for admin/principal, clearing messages to let hook load them');
+            setMessages([]);
+          }
         } else {
-          console.log('No existing messages in thread, setting empty array');
-          setMessages([]);
+          // Teachers: also rely on hook, don't pre-populate from summary
+          if (currentThreadId !== existingThread.id) {
+            setMessages([]);
+          }
         }
         
         // Subscribe to the thread
@@ -810,7 +715,7 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
         setMessages([]);
       }
     }
-  }, [activeChat, chatThreads, websocket, user, selectingParent, isAdminOrPrincipal]);
+  }, [activeChat, chatThreads, websocket, user, selectingParent, isAdminOrPrincipal, currentThreadId]);
 
  
   useEffect(() => {
@@ -822,6 +727,7 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
 
     try {
       let threadId = currentThreadId;
+      let sentInCreate = false;
 
 
       if (!threadId) {
@@ -898,6 +804,8 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
                 };
                 console.log('Setting initial message:', initialMessage);
                 setMessages([initialMessage]);
+                setNewMessage('');
+                sentInCreate = true;
               } else {
                 console.log('No message data in response');
               }
@@ -984,6 +892,8 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
                 };
                 console.log('Setting initial message:', initialMessage);
                 setMessages([initialMessage]);
+                setNewMessage('');
+                sentInCreate = true;
               } else {
                 console.log('No message data in response');
               }
@@ -1004,7 +914,7 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
       }
 
  
-      if (threadId) {
+      if (threadId && !sentInCreate) {
         // Send message via API
         try {
           const payload: SendMessagePayload = {
@@ -1095,58 +1005,13 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
     <div className="flex h-[calc(100vh-200px)] border rounded-lg overflow-hidden bg-card">
       {/* Contacts List */}
       <div className="w-1/3 border-r flex flex-col bg-card">
-        {/* Tab Navigation - Only show for teachers */}
-        {!isAdminOrPrincipal && (
-          <div className="flex border-b">
-            <button
-              className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
-                activeTab === 'direct'
-                  ? 'bg-muted border-b-2 border-primary text-primary'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-              }`}
-              onClick={() => handleTabChange('direct')}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <User className="h-4 w-4" />
-                Direct
-                {directContactsCount > 0 && (
-                  <span className="ml-1 bg-primary/20 text-primary text-xs px-2 py-0.5 rounded-full">
-                    {directContactsCount}
-                  </span>
-                )}
-              </div>
-            </button>
-            <button
-              className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
-                activeTab === 'group'
-                  ? 'bg-muted border-b-2 border-primary text-primary'
-                  : 'bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted'
-              }`}
-              onClick={() => handleTabChange('group')}
-              disabled={loadingGroups}
-            >
-              <div className="flex items-center justify-center gap-2">
-                {loadingGroups ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Users className="h-4 w-4" />
-                )}
-                Group
-                {groupContactsCount > 0 && (
-                  <span className="ml-1 bg-primary/20 text-primary text-xs px-2 py-0.5 rounded-full">
-                    {groupContactsCount}
-                  </span>
-                )}
-              </div>
-            </button>
-          </div>
-        )}
+        {/* Unified chat list (no tabs) */}
         
         <div className="p-4 border-b">
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder={`Search ${isAdminOrPrincipal ? 'chats' : activeTab === 'direct' ? 'parents and principals' : 'groups'}...`}
+              placeholder={'Search chats...'}
               className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -1155,56 +1020,22 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
         </div>
         
         <div className="flex-grow overflow-y-auto">
-          {loading || (activeTab === 'group' && loadingGroups) ? (
+          {loading ? (
             <div className="p-4 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
               <p className="mt-2 text-sm text-muted-foreground">
-                {loading ? t('messages.loading', 'Loading chats...') : t('messages.refreshingGroups', 'Refreshing groups...')}
+                {t('messages.loading', 'Loading chats...')}
               </p>
             </div>
           ) : filteredContacts.length === 0 ? (
             <div className="p-4 text-center">
-              {isAdminOrPrincipal ? (
-                <>
-                  <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-1">
-                    No Chats Found
-                  </h3>
-                  <p className="text-muted-foreground">
-                    {activeTab === 'direct' ? 'No direct chats found for the selected filters.' : 'No group chats found for the selected filters.'}
-                  </p>
-                </>
-              ) : activeTab === 'direct' ? (
-                <>
-                  <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-1">
-                    No Direct Chats Found
-                  </h3>
-                  <p className="text-muted-foreground">
-                    You don&apos;t have any individual parent or principal chats yet.
-                  </p>
-                  {groupContactsCount > 0 && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Switch to Group tab to see {groupContactsCount} group chat{groupContactsCount > 1 ? 's' : ''}
-                    </p>
-                  )}
-                </>
-              ) : (
-                <>
-                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-1">
-                    No Group Chats Found
-                  </h3>
-                  <p className="text-muted-foreground">
-                    You don&apos;t have any group chats yet. Create one to get started!
-                  </p>
-                  {directContactsCount > 0 && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Switch to Direct tab to see {directContactsCount} parent chat{directContactsCount > 1 ? 's' : ''}
-                    </p>
-                  )}
-                </>
-              )}
+              <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-1">
+                No Chats Found
+              </h3>
+              <p className="text-muted-foreground">
+                You don&apos;t have any chats yet.
+              </p>
             </div>
           ) : (
             <div className="divide-y">
@@ -1280,11 +1111,7 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
                           {contact.isOnline && (
                             <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-background"></div>
                           )}
-                          {contact.isPinned && (
-                            <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center animate-pulse hover:bg-primary/90 hover:scale-110 transition-all duration-200 cursor-default shadow-lg shadow-primary/25" title="Pinned Chat">
-                              <Pin className="h-3 w-3 text-primary-foreground" />
-                            </div>
-                          )}
+                          {/* Pinned indicator removed */}
                         </div>
                         <div className="flex-grow min-w-0">
                           <div className="flex justify-between items-start">
@@ -1297,7 +1124,7 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
                               {isAdminOrPrincipal && contact.isPinned && (
                                 <Badge variant="outline" className="text-xs px-1 py-0 h-4">
                                   <UserCheck className="h-3 w-3 mr-1" />
-                                  You&apos;
+                                  You&apos;re
                                 </Badge>
                               )}
                             </div>
@@ -1305,7 +1132,14 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
                               {contact.lastMessageTime}
                             </span>
                           </div>
-                          {contact.parentData && 'linked_students' in contact.parentData ? (
+                          {user?.role === 'teacher' ? (
+                            // Teacher view: only show last message under the name
+                            <div className="mt-1">
+                              <p className="text-sm text-muted-foreground truncate">
+                                {contact.lastMessage}
+                              </p>
+                            </div>
+                          ) : contact.parentData && 'linked_students' in contact.parentData ? (
                             contact.parentData.linked_students.length > 0 ? (
                               contact.parentData.linked_students.map((student: { student_name: string; teacher_assignments: Array<{ class_name: string }> }, studentIndex: number) => (
                                 <div key={studentIndex}>
@@ -1435,8 +1269,15 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData,
                       )}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">
-                      {activeChat.isOnline ? 'Online' : 'Offline'}
+                    <p className="text-sm text-muted-foreground truncate">
+                      {activeChat.groupMembers && activeChat.groupMembers.length > 0
+                        ? activeChat.groupMembers.join(', ')
+                        : (() => {
+                            if (activeChat.parentData && 'full_name' in activeChat.parentData) {
+                              return activeChat.parentData.full_name;
+                            }
+                            return (activeChat.principalData as unknown as Record<string, unknown>)?.full_name as string || activeChat.name || '';
+                          })()}
                     </p>
                   )}
                 </div>

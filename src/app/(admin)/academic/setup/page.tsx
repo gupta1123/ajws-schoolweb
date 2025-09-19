@@ -12,19 +12,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Edit, Trash2, Loader2 } from 'lucide-react';
+import { TeacherSelector } from '@/components/teachers/teacher-selector';
 import { academicServices } from '@/lib/api/academic';
 import type { ClassLevel } from '@/types/academic';
 import { useToast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/context';
 
 // Interfaces
-interface AcademicYear {
-  id: string;
-  year_name: string;
-  start_date: string;
-  end_date: string;
-  is_active: boolean;
-}
 
 interface Teacher {
   id: string;
@@ -81,23 +75,12 @@ interface ApiDivision {
   student_count: number;
 }
 
-// Mock data for academic years
-const mockAcademicYears: AcademicYear[] = [
-  { id: 'ay1', year_name: '2023-2024', start_date: '2023-06-01', end_date: '2024-05-31', is_active: true },
-  { id: 'ay2', year_name: '2024-2025', start_date: '2024-06-01', end_date: '2025-05-31', is_active: false },
-  { id: 'ay3', year_name: '2025-2026', start_date: '2025-06-01', end_date: '2026-05-31', is_active: false },
-];
 
 export default function AcademicSystemSetupPage() {
   const { token } = useAuth();
   const { toast } = useToast();
   const { t } = useI18n();
   
-  // Academic Years State
-  const [academicYears, setAcademicYears] = useState<AcademicYear[]>(mockAcademicYears);
-  const [isAcademicYearDialogOpen, setIsAcademicYearDialogOpen] = useState(false);
-  const [currentAcademicYear, setCurrentAcademicYear] = useState<AcademicYear | null>(null);
-  const [isEditingAcademicYear, setIsEditingAcademicYear] = useState(false);
 
   // Divisions State
   const [divisions, setDivisions] = useState<Division[]>([]);
@@ -105,6 +88,7 @@ export default function AcademicSystemSetupPage() {
   const [isDivisionDialogOpen, setIsDivisionDialogOpen] = useState(false);
   const [currentDivision, setCurrentDivision] = useState<Division | null>(null);
   const [isEditingDivision, setIsEditingDivision] = useState(false);
+  const [isSavingDivision, setIsSavingDivision] = useState(false);
 
   // Class Levels State
   const [classLevels, setClassLevels] = useState<ClassLevel[]>([]);
@@ -120,6 +104,7 @@ export default function AcademicSystemSetupPage() {
   const [isSubjectDialogOpen, setIsSubjectDialogOpen] = useState(false);
   const [currentSubject, setCurrentSubject] = useState<Subject | null>(null);
   const [isEditingSubject, setIsEditingSubject] = useState(false);
+  const [subjectSearch, setSubjectSearch] = useState('');
 
   // Teachers State
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -130,12 +115,15 @@ export default function AcademicSystemSetupPage() {
   const [selectedClassDivision, setSelectedClassDivision] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedSubjectTeacher, setSelectedSubjectTeacher] = useState('');
+  // handled by TeacherSelector component
 
   // Subject Teacher Assignment State
   const [isSubjectTeacherDialogOpen, setIsSubjectTeacherDialogOpen] = useState(false);
   const [selectedDivision, setSelectedDivision] = useState<Division | null>(null);
   const [editingSubject, setEditingSubject] = useState<string>('');
   const [selectedTeacher, setSelectedTeacher] = useState<string>('');
+  const [isSavingSubjectTeacher, setIsSavingSubjectTeacher] = useState(false);
+  // handled by TeacherSelector component
 
   // Subject Assignment Loading State
   const [isAssigningSubject, setIsAssigningSubject] = useState(false);
@@ -260,84 +248,6 @@ export default function AcademicSystemSetupPage() {
     }
   }, [token]);
 
-  // Academic Year Functions
-  const handleAddAcademicYear = () => {
-    setIsEditingAcademicYear(false);
-    setCurrentAcademicYear({ id: '', year_name: '', start_date: '', end_date: '', is_active: false });
-    setIsAcademicYearDialogOpen(true);
-  };
-
-  const handleEditAcademicYear = (year: AcademicYear) => {
-    setIsEditingAcademicYear(true);
-    setCurrentAcademicYear({ 
-      ...year,
-      year_name: year.year_name,
-      start_date: year.start_date,
-      end_date: year.end_date,
-      is_active: year.is_active
-    });
-    setIsAcademicYearDialogOpen(true);
-  };
-
-  const handleDeleteAcademicYear = async (id: string) => {
-    if (!token) return;
-    
-    try {
-      const response = await academicServices.deleteAcademicYear(id, token);
-      
-      if (response.status === 'success') {
-        setAcademicYears(academicYears.filter(year => year.id !== id));
-      }
-    } catch (error) {
-      console.error('Error deleting academic year:', error);
-    }
-  };
-
-  const handleSaveAcademicYear = async () => {
-    if (!token) return;
-    
-    try {
-      if (isEditingAcademicYear && currentAcademicYear) {
-        const response = await academicServices.updateAcademicYear(
-          currentAcademicYear.id,
-          {
-            year_name: currentAcademicYear.year_name,
-            start_date: currentAcademicYear.start_date,
-            end_date: currentAcademicYear.end_date,
-            is_active: currentAcademicYear.is_active
-          },
-          token
-        );
-        
-        if (response.status === 'success') {
-          setAcademicYears(academicYears.map(year => 
-            year.id === currentAcademicYear.id ? response.data.academic_year : year
-          ));
-        }
-      } else if (currentAcademicYear) {
-        const response = await academicServices.createAcademicYear(
-          {
-            year_name: currentAcademicYear.year_name,
-            start_date: currentAcademicYear.start_date,
-            end_date: currentAcademicYear.end_date,
-            is_active: currentAcademicYear.is_active
-          },
-          token
-        );
-        
-        if (response.status === 'success') {
-          setAcademicYears([
-            ...academicYears,
-            response.data.academic_year
-          ]);
-        }
-      }
-    } catch (error) {
-      console.error('Error saving academic year:', error);
-    }
-    
-    setIsAcademicYearDialogOpen(false);
-  };
 
   // Division Functions
   const handleAddDivision = () => {
@@ -371,6 +281,7 @@ export default function AcademicSystemSetupPage() {
     if (!token || !currentDivision) return;
     
     try {
+      setIsSavingDivision(true);
       if (isEditingDivision && currentDivision.id) {
         // Update the existing division
         const response = await academicServices.updateClassDivision(
@@ -452,6 +363,9 @@ export default function AcademicSystemSetupPage() {
     } catch (error) {
       console.error('Error saving division:', error);
     }
+    finally {
+      setIsSavingDivision(false);
+    }
     
     setIsDivisionDialogOpen(false);
   };
@@ -529,6 +443,7 @@ export default function AcademicSystemSetupPage() {
   const handleAddClassLevel = () => {
     setIsEditingClassLevel(false);
     setEditingClassLevelId(null);
+    // Sequence number is not editable; compute on save
     setCurrentClassLevel({ name: '', sequence_number: 0 });
     setIsClassLevelDialogOpen(true);
   };
@@ -555,9 +470,38 @@ export default function AcademicSystemSetupPage() {
         if (refreshResponse.status === 'success') {
           setClassLevels(refreshResponse.data.class_levels);
         }
+      } else {
+        const err = response as { status: string; message: string; details?: { data?: { class_level_name?: string; divisions_with_students?: string[] } }; data?: { class_level_name?: string; divisions_with_students?: string[] } };
+        const baseMsg = t(
+          'academicSetup.errors.classLevelDelete.hasStudents',
+          'Cannot delete class level because one or more class divisions have enrolled students'
+        );
+        const detailsData = err?.details?.data || err?.data;
+        const className = detailsData?.class_level_name || '';
+        const divisions = Array.isArray(detailsData?.divisions_with_students)
+          ? detailsData.divisions_with_students.join(', ')
+          : '';
+        const detailTemplate = t(
+          'academicSetup.errors.classLevelDelete.detail',
+          'Class level "{name}" has enrolled students in divisions: {divs}.'
+        );
+        const detail = detailTemplate
+          .replace('{name}', className)
+          .replace('{divs}', divisions);
+        toast({
+          title: t('academicSetup.errors.classLevelDelete.title', 'Cannot Delete Class Level'),
+          description: detailsData ? `${baseMsg} ${detail}` : (err?.message || baseMsg),
+          variant: 'error',
+        });
       }
     } catch (error) {
       console.error('Error deleting class level:', error);
+      const baseMsg = t('academicSetup.errors.generic', 'Something went wrong. Please try again.');
+      toast({
+        title: t('academicSetup.errors.title', 'Error'),
+        description: (error as Error)?.message || baseMsg,
+        variant: 'error',
+      });
     }
   };
 
@@ -569,8 +513,7 @@ export default function AcademicSystemSetupPage() {
         const response = await academicServices.updateClassLevel(
           editingClassLevelId,
           {
-            name: currentClassLevel.name,
-            sequence_number: currentClassLevel.sequence_number
+            name: currentClassLevel.name
           },
           token
         );
@@ -583,10 +526,12 @@ export default function AcademicSystemSetupPage() {
           }
         }
       } else {
+        // Auto-assign sequence number: next after current max
+        const nextSeq = (classLevels.reduce((max, lvl) => Math.max(max, lvl.sequence_number), 0) || 0) + 1;
         const response = await academicServices.createClassLevel(
           {
             name: currentClassLevel.name,
-            sequence_number: currentClassLevel.sequence_number
+            sequence_number: nextSeq
           },
           token
         );
@@ -739,6 +684,7 @@ export default function AcademicSystemSetupPage() {
 
   const handleSaveSubjectTeacher = async () => {
     if (!token || !selectedDivision || !editingSubject) return;
+    setIsSavingSubjectTeacher(true);
 
     try {
       // Validate input data
@@ -961,12 +907,10 @@ export default function AcademicSystemSetupPage() {
     setSelectedDivision(null);
     setEditingSubject('');
     setSelectedTeacher('');
+    setIsSavingSubjectTeacher(false);
   };
 
       // Helper functions
-    const handleAcademicYearChange = (field: string, value: string | boolean) => {
-      setCurrentAcademicYear({ ...currentAcademicYear!, [field]: value });
-    };
   
     const handleDivisionChange = (field: string, value: string) => {
       if (field === 'className') {
@@ -1047,60 +991,12 @@ export default function AcademicSystemSetupPage() {
 
   return (
     <div className="p-4 md:p-8">
-      <Tabs defaultValue="years" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="years">{t('academicSetup.tabs.years', 'Academic Years')}</TabsTrigger>
+      <Tabs defaultValue="divisions" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="divisions">{t('academicSetup.tabs.divisions', 'Classes & Divisions')}</TabsTrigger>
           <TabsTrigger value="subjects">{t('academicSetup.tabs.subjects', 'Subjects')}</TabsTrigger>
         </TabsList>
 
-        {/* Academic Years Tab */}
-        <TabsContent value="years">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>{t('academicSetup.years.title', 'Academic Years')}</CardTitle>
-              <Button onClick={handleAddAcademicYear}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                {t('academicSetup.years.add', 'Add Academic Year')}
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('academicSetup.cols.name', 'Name')}</TableHead>
-                    <TableHead>{t('academicSetup.cols.startDate', 'Start Date')}</TableHead>
-                    <TableHead>{t('academicSetup.cols.endDate', 'End Date')}</TableHead>
-                    <TableHead>{t('academicSetup.cols.status', 'Status')}</TableHead>
-                    <TableHead className="text-right">{t('academicSetup.cols.actions', 'Actions')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {academicYears.map((year) => (
-                    <TableRow key={year.id}>
-                      <TableCell className="font-medium">{year.year_name}</TableCell>
-                      <TableCell>{year.start_date}</TableCell>
-                      <TableCell>{year.end_date}</TableCell>
-                      <TableCell>
-                        <Badge variant={year.is_active ? "default" : "secondary"}>
-                          {year.is_active ? t('academicSetup.status.active', 'Active') : t('academicSetup.status.inactive', 'Inactive')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="outline" size="sm" className="mr-2" onClick={() => handleEditAcademicYear(year)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleDeleteAcademicYear(year.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         {/* Classes & Divisions Tab */}
         <TabsContent value="divisions">
@@ -1125,7 +1021,6 @@ export default function AcademicSystemSetupPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>{t('academicSetup.cols.name', 'Name')}</TableHead>
-                        <TableHead>{t('academicSetup.cols.sequence', 'Sequence')}</TableHead>
                         <TableHead className="text-right">{t('academicSetup.cols.actions', 'Actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1133,7 +1028,6 @@ export default function AcademicSystemSetupPage() {
                       {classLevels.map((classLevel) => (
                         <TableRow key={classLevel.id}>
                           <TableCell className="font-medium">{classLevel.name}</TableCell>
-                          <TableCell>{classLevel.sequence_number}</TableCell>
                           <TableCell className="text-right">
                             <Button variant="outline" size="sm" className="mr-2" onClick={() => handleEditClassLevel(classLevel)}>
                               <Edit className="h-4 w-4" />
@@ -1258,31 +1152,43 @@ export default function AcademicSystemSetupPage() {
                     <span>{t('academicSetup.loading.subjects', 'Loading subjects...')}</span>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t('academicSetup.cols.code', 'Code')}</TableHead>
-                        <TableHead>{t('academicSetup.cols.name', 'Name')}</TableHead>
-                        <TableHead className="text-right">{t('academicSetup.cols.actions', 'Actions')}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {subjects.map((subject) => (
-                        <TableRow key={subject.id}>
-                          <TableCell className="font-medium">{subject.code}</TableCell>
-                          <TableCell>{subject.name}</TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="outline" size="sm" className="mr-2" onClick={() => handleEditSubject(subject)}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="destructive" size="sm" onClick={() => handleDeleteSubject(subject.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
+                  <>
+                    <div className="mb-3">
+                      <Input
+                        placeholder={t('academicSetup.subjects.searchPlaceholder', 'Search subjects...')}
+                        value={subjectSearch}
+                        onChange={(e) => setSubjectSearch(e.target.value)}
+                      />
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t('academicSetup.cols.code', 'Code')}</TableHead>
+                          <TableHead>{t('academicSetup.cols.name', 'Name')}</TableHead>
+                          <TableHead className="text-right">{t('academicSetup.cols.actions', 'Actions')}</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {(subjectSearch ? subjects.filter(s =>
+                          s.name.toLowerCase().includes(subjectSearch.toLowerCase()) ||
+                          s.code.toLowerCase().includes(subjectSearch.toLowerCase())
+                        ) : subjects).map((subject) => (
+                          <TableRow key={subject.id}>
+                            <TableCell className="font-medium">{subject.code}</TableCell>
+                            <TableCell>{subject.name}</TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="outline" size="sm" className="mr-2" onClick={() => handleEditSubject(subject)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="destructive" size="sm" onClick={() => handleDeleteSubject(subject.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -1425,56 +1331,6 @@ export default function AcademicSystemSetupPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Academic Year Dialog */}
-      <Dialog open={isAcademicYearDialogOpen} onOpenChange={setIsAcademicYearDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{isEditingAcademicYear ? t('academicSetup.years.edit', 'Edit Academic Year') : t('academicSetup.years.add', 'Add Academic Year')}</DialogTitle>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="yearName">{t('academicSetup.years.yearName', 'Year Name')}</Label>
-              <Input 
-                id="yearName" 
-                value={currentAcademicYear?.year_name || ''} 
-                onChange={(e) => handleAcademicYearChange('year_name', e.target.value)} 
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="startDate">{t('academicSetup.cols.startDate', 'Start Date')}</Label>
-              <Input 
-                id="startDate" 
-                type="date" 
-                value={currentAcademicYear?.start_date || ''} 
-                onChange={(e) => handleAcademicYearChange('start_date', e.target.value)} 
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="endDate">{t('academicSetup.cols.endDate', 'End Date')}</Label>
-              <Input 
-                id="endDate" 
-                type="date" 
-                value={currentAcademicYear?.end_date || ''} 
-                onChange={(e) => handleAcademicYearChange('end_date', e.target.value)} 
-              />
-            </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="isActive"
-                checked={currentAcademicYear?.is_active || false}
-                onChange={(e) => handleAcademicYearChange('is_active', e.target.checked)}
-                className="h-4 w-4"
-              />
-              <Label htmlFor="isActive">{t('academicSetup.years.setActive', 'Set as Active Year')}</Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsAcademicYearDialogOpen(false)}>{t('actions.cancel', 'Cancel')}</Button>
-            <Button onClick={handleSaveAcademicYear}>{t('actions.save', 'Save')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Division Dialog */}
       <Dialog open={isDivisionDialogOpen} onOpenChange={setIsDivisionDialogOpen}>
@@ -1512,26 +1368,29 @@ export default function AcademicSystemSetupPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="teacher">{t('academicSetup.divisions.assignClassTeacher', 'Assign Class Teacher')}</Label>
-              <Select 
-                value={currentDivision?.teacherId || ''} 
-                onValueChange={(value) => handleDivisionChange('teacherId', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t('academicSetup.placeholders.selectTeacher', 'Select a teacher')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {teachers.map((teacher) => (
-                    <SelectItem key={teacher.id} value={teacher.id}>
-                      {teacher.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <TeacherSelector
+                teachers={teachers}
+                value={currentDivision?.teacherId || ''}
+                onChange={(id) => handleDivisionChange('teacherId', id)}
+                allowNone
+                noneLabel={t('academicSetup.noTeacherAssigned', 'No teacher assigned')}
+                placeholder={t('academicSetup.placeholders.selectTeacher', 'Select a teacher')}
+                dialogTitle={t('academicSetup.divisions.assignClassTeacher', 'Assign Class Teacher')}
+              />
             </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsDivisionDialogOpen(false)}>{t('actions.cancel', 'Cancel')}</Button>
-            <Button onClick={handleSaveDivision} disabled={loadingClassLevels || !currentDivision?.className || !currentDivision?.name}>{t('actions.save', 'Save')}</Button>
+            <Button onClick={handleSaveDivision} disabled={isSavingDivision || loadingClassLevels || !currentDivision?.className || !currentDivision?.name}>
+              {isSavingDivision ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  {t('actions.saving', 'Saving...')}
+                </>
+              ) : (
+                t('actions.save', 'Save')
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1582,21 +1441,12 @@ export default function AcademicSystemSetupPage() {
                 onChange={(e) => handleClassLevelChange('name', e.target.value)} 
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="sequenceNumber">Sequence Number</Label>
-              <Input 
-                id="sequenceNumber" 
-                type="number"
-                value={currentClassLevel?.sequence_number || ''} 
-                onChange={(e) => handleClassLevelChange('sequence_number', parseInt(e.target.value) || 0)} 
-              />
-            </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsClassLevelDialogOpen(false)}>Cancel</Button>
             <Button 
               onClick={handleSaveClassLevel}
-              disabled={!currentClassLevel?.name || currentClassLevel?.sequence_number === undefined}
+              disabled={!currentClassLevel?.name}
             >
               Save
             </Button>
@@ -1662,22 +1512,15 @@ export default function AcademicSystemSetupPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="subjectTeacher">{t('academicSetup.assignments.subjectTeacherOptional', 'Subject Teacher (Optional)')}</Label>
-              <Select 
-                value={selectedSubjectTeacher || "none"} 
-                onValueChange={(value) => setSelectedSubjectTeacher(value === "none" ? "" : value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t('academicSetup.placeholders.selectTeacher', 'Select a teacher')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">{t('academicSetup.noTeacherAssigned', 'No teacher assigned')}</SelectItem>
-                  {teachers.map((teacher) => (
-                    <SelectItem key={teacher.id} value={teacher.id}>
-                      {teacher.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <TeacherSelector
+                teachers={teachers}
+                value={selectedSubjectTeacher}
+                onChange={(id) => setSelectedSubjectTeacher(id)}
+                allowNone
+                noneLabel={t('academicSetup.noTeacherAssigned', 'No teacher assigned')}
+                placeholder={t('academicSetup.placeholders.selectTeacher', 'Select a teacher')}
+                dialogTitle={t('academicSetup.assignments.assignTeacherDialog', 'Assign Teacher to Subject')}
+              />
             </div>
           </div>
           <DialogFooter>
@@ -1717,27 +1560,29 @@ export default function AcademicSystemSetupPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="teacher">{t('academicSetup.cols.teacher', 'Teacher')}</Label>
-              <Select
-                value={selectedTeacher || "none"}
-                onValueChange={(value) => setSelectedTeacher(value === "none" ? "" : value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t('academicSetup.placeholders.selectTeacher', 'Select a teacher')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">{t('academicSetup.noTeacherAssigned', 'No teacher assigned')}</SelectItem>
-                  {teachers.map((teacher) => (
-                    <SelectItem key={teacher.id} value={teacher.id}>
-                      {teacher.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <TeacherSelector
+                teachers={teachers}
+                value={selectedTeacher}
+                onChange={(id) => setSelectedTeacher(id)}
+                placeholder={t('academicSetup.placeholders.selectTeacher', 'Select a teacher')}
+                dialogTitle={t('academicSetup.assignments.assignTeacherDialog', 'Assign Teacher to Subject')}
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsSubjectTeacherDialogOpen(false)}>{t('actions.cancel', 'Cancel')}</Button>
-            <Button onClick={handleSaveSubjectTeacher}>{t('actions.save', 'Save')}</Button>
+            <Button variant="ghost" onClick={() => setIsSubjectTeacherDialogOpen(false)} disabled={isSavingSubjectTeacher}>
+              {t('actions.cancel', 'Cancel')}
+            </Button>
+            <Button onClick={handleSaveSubjectTeacher} disabled={isSavingSubjectTeacher}>
+              {isSavingSubjectTeacher ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t('actions.saving', 'Saving...')}
+                </>
+              ) : (
+                t('actions.save', 'Save')
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -119,7 +119,7 @@ export default function AnnouncementsPage() {
     const matchesPriority = priorityFilter === 'all' || announcement.priority === priorityFilter;
     
     return matchesSearch && matchesStatus && matchesType && matchesPriority;
-  });
+  }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
 
 
@@ -273,7 +273,7 @@ export default function AnnouncementsPage() {
                   <TableHead>{t('announcements.table.type', 'Type')}</TableHead>
                   <TableHead>{t('announcements.table.status', 'Status')}</TableHead>
                   <TableHead>{t('announcements.table.priority', 'Priority')}</TableHead>
-                  <TableHead>{t('announcements.table.publishDate', 'Publish Date')}</TableHead>
+                  <TableHead>{t('announcements.table.createdDate', 'Created Date')}</TableHead>
                   <TableHead className="text-right">{t('announcements.table.actions', 'Actions')}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -305,7 +305,7 @@ export default function AnnouncementsPage() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm text-muted-foreground">
-                        {formatDate(announcement.publish_at)}
+                        {formatDate(announcement.created_at)}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">

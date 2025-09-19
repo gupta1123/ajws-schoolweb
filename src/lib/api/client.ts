@@ -28,6 +28,7 @@ export const apiClient = {
     token?: string, 
     options?: {
       responseType?: 'json' | 'blob';
+      signal?: AbortSignal;
     }
   ): Promise<ApiResponseWithCache<T> | ApiErrorResponse | Blob> => {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -36,6 +37,7 @@ export const apiClient = {
         'Content-Type': 'application/json',
         ...(token && { Authorization: `Bearer ${token}` }),
       },
+      signal: options?.signal,
     });
 
     // 304 Not Modified is a successful response, not an error
@@ -233,9 +235,11 @@ export const apiClient = {
 
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-      
+      let errorDetails: unknown = null;
+
       try {
         const errorData = await response.json();
+        errorDetails = errorData;
         if (errorData.message) {
           errorMessage = errorData.message;
         } else if (errorData.error) {
@@ -246,13 +250,14 @@ export const apiClient = {
       } catch {
         // If we can't parse the error response, use the status text
       }
-      
+
       // Return error response instead of throwing
       return {
         status: 'error',
         message: errorMessage,
         statusCode: response.status,
-        error: response.statusText
+        error: response.statusText,
+        details: errorDetails,
       };
     }
 

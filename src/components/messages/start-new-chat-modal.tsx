@@ -61,6 +61,9 @@ export function StartNewChatModal({ open, onOpenChange, onParentSelected }: Star
 
   // Filter parents based on search term
   useEffect(() => {
+    // Only act when modal is open to avoid background API calls for admins/principals
+    if (!open) return;
+
     if (searchTerm.trim() === '') {
       // If no search term, refetch all parents
       if (token && user?.id) {
@@ -78,7 +81,7 @@ export function StartNewChatModal({ open, onOpenChange, onParentSelected }: Star
       });
       setFilteredParents(filtered);
     }
-  }, [searchTerm, filteredParents, token, user?.id, fetchParents]);
+  }, [open, searchTerm, filteredParents, token, user?.id, fetchParents]);
 
   const handleParentSelect = (parent: TeacherLinkedParent) => {
     onParentSelected(parent);

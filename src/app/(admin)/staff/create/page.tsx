@@ -129,9 +129,9 @@ export default function CreateStaffPage() {
           <form onSubmit={handleSubmit}>
             <Card>
               <CardHeader>
-                <CardTitle>Personal Information</CardTitle>
+                <CardTitle>{t('staff.form.personalInfo', 'Personal Information')}</CardTitle>
                 <CardDescription>
-                  Enter the staff member&apos;s personal details
+                  {t('staff.create.personalDetailsDesc', 'Enter the staff member\'s personal details')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">

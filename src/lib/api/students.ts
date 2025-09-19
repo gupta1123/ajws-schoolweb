@@ -219,6 +219,7 @@ export const studentServices = {
       academic_year_id?: string;
       status?: string;
       unlinked_only?: boolean;
+      signal?: AbortSignal;
     }
   ): Promise<ApiResponseWithCache<StudentsListResponse> | ApiErrorResponse | Blob> => {
     const queryParams = new URLSearchParams();
@@ -227,12 +228,13 @@ export const studentServices = {
     if (params?.search) queryParams.append('search', params.search);
     if (params?.class_division_id) queryParams.append('class_division_id', params.class_division_id);
     if (params?.class_level_id) queryParams.append('class_level_id', params.class_level_id);
-    if (params?.academic_year_id) queryParams.append('academic_year_id', params.academic_year_id);
+    // API expects 'academic_year' (not academic_year_id) per latest docs
+    if (params?.academic_year_id) queryParams.append('academic_year', params.academic_year_id);
     if (params?.status) queryParams.append('status', params.status);
     if (params?.unlinked_only !== undefined) queryParams.append('unlinked_only', params.unlinked_only.toString());
 
     const url = `/api/students${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    return apiClient.get(url, token);
+    return apiClient.get(url, token, { signal: params?.signal });
   },
 
   // Create a new student
