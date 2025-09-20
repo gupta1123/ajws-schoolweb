@@ -35,9 +35,10 @@ import {
 } from '@/lib/api/messages';
 import { useAuth } from '@/lib/auth/context';
 import { useI18n } from '@/lib/i18n/context';
-import { ChatWebSocket, WebSocketMessage } from '@/lib/api/websocket';
+// WebSocket functionality moved to useWebSocketChat hook
 import { useChatMessages } from '@/hooks/use-chat-threads';
 import { ChatMessage as ApiChatMessage } from '@/lib/api/chat-threads';
+import { useWebSocketChat } from '@/hooks/use-websocket-chat';
 
 interface ChatMessage {
   id: string;
@@ -324,7 +325,7 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chatThreads, setChatThreads] = useState<ChatThread[]>([]);
-  const [websocket, setWebsocket] = useState<ChatWebSocket | null>(null);
+  // WebSocket is now handled by useWebSocketChat hook
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectingParent, setSelectingParent] = useState(false);
@@ -332,35 +333,55 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData 
   // Hooks for real API data
   const { messages: apiMessages } = useChatMessages(currentThreadId);
 
+  // WebSocket chat hook for real-time messaging
+  const {
+    isConnected: wsConnected,
+    connectionStatus,
+    sendMessageWebSocket,
+    lastError: wsError,
+    reconnect: reconnectWebSocket
+  } = useWebSocketChat({
+    threadId: currentThreadId,
+    onMessageReceived: (wsMessage) => {
+      // Convert WebSocket message to ChatMessage format
+      const chatMessage: ChatMessage = {
+        id: wsMessage.id,
+        senderId: wsMessage.sender_id,
+        senderName: wsMessage.sender?.full_name || 'Unknown',
+        content: wsMessage.content,
+        timestamp: wsMessage.timestamp,
+        status: wsMessage.status as 'sent' | 'delivered' | 'read',
+        isOwn: wsMessage.isOwn,
+        created_at: wsMessage.timestamp
+      };
+      
+      // Add to messages if not already present
+      setMessages(prev => {
+        const exists = prev.some(msg => msg.id === chatMessage.id);
+        if (!exists) {
+          return [...prev, chatMessage];
+        }
+        return prev;
+      });
+    },
+    onMessageStatusUpdate: (messageId, status) => {
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === messageId ? { ...msg, status: status as 'sent' | 'delivered' | 'read' } : msg
+        )
+      );
+    },
+    onTypingIndicator: (isTyping, sender) => {
+      // Handle typing indicators - could be implemented later
+      console.log(`${sender} is ${isTyping ? 'typing' : 'not typing'}`);
+    }
+  });
+
 
   // Ignore external tabs; unified list
 
-  // Initialize WebSocket connection (non-blocking)
-  useEffect(() => {
-    if (token) {
-      const ws = new ChatWebSocket(token);
-      // Set immediately so we can queue subscriptions even before open
-      setWebsocket(ws);
-      ws.connect().catch((error) => {
-        console.warn('WebSocket initial connect error (non-blocking):', error);
-      });
-
-      // Set up connection status monitoring
-      const checkConnection = () => {
-        if (ws.isConnected()) {
-          setError(null);
-        }
-      };
-
-      // Check connection status every 2 seconds
-      const interval = setInterval(checkConnection, 2000);
-
-      return () => {
-        clearInterval(interval);
-        ws.disconnect();
-      };
-    }
-  }, [token]);
+  // WebSocket connection is now handled by useWebSocketChat hook
+  // Remove the old WebSocket initialization
 
   // Handle principal chats data for admin/principal users
   useEffect(() => {
@@ -602,48 +623,8 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData 
     return nameMatch;
   });
 
-  // Set up WebSocket message handling
-  useEffect(() => {
-    if (websocket) {
-      websocket.onMessage((message: WebSocketMessage) => {
-        // Accept both message_received and other server variants that include content + thread_id
-        if ((message.type === 'message_received' || message.type === 'send_message' || message.type === 'thread_updated')
-            && message.thread_id === currentThreadId && typeof message.content === 'string') {
-          // Add new message to the current chat
-          const newMessage: ChatMessage = {
-            id: Date.now().toString(),
-            senderId: 'other',
-            senderName: message.sender?.full_name || 'Unknown',
-            content: message.content || '',
-            timestamp: message.created_at || new Date().toISOString(),
-            status: 'delivered',
-            isOwn: false,
-            created_at: message.created_at
-          };
-          setMessages(prev => [...prev, newMessage]);
-          
-          // Update the contact's last message for real-time updates
-          setContacts(prevContacts => 
-            prevContacts.map(contact => {
-              if (contact.threadData?.id === message.thread_id) {
-                return {
-                  ...contact,
-                  lastMessage: message.content || '',
-                  lastMessageTime: message.created_at ? getDateLabel(message.created_at) : getDateLabel(new Date().toISOString())
-                };
-              }
-              return contact;
-            })
-          );
-        }
-      });
-
-      // Clear connection errors when WebSocket is available
-      if (websocket.isConnected()) {
-        setError(null);
-      }
-    }
-  }, [websocket, currentThreadId]);
+  // WebSocket message handling is now done by useWebSocketChat hook
+  // Remove the old WebSocket message handling
 
   // Update messages when active chat changes
   useEffect(() => {
@@ -704,18 +685,16 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData 
           }
         }
         
-        // Subscribe to the thread
-        if (websocket) {
-          websocket.subscribeToThread(existingThread.id);
-          console.log(`Subscribed to ${existingThread.thread_type} thread:`, existingThread.id);
-        }
+        // Thread subscription is now handled by useWebSocketChat hook
+        // The hook will automatically subscribe when currentThreadId changes
+        console.log(`Thread ${existingThread.thread_type} opened:`, existingThread.id);
       } else {
         console.log('No existing thread found, clearing messages and thread ID');
         setCurrentThreadId(null);
         setMessages([]);
       }
     }
-  }, [activeChat, chatThreads, websocket, user, selectingParent, isAdminOrPrincipal, currentThreadId]);
+  }, [activeChat, chatThreads, user, selectingParent, isAdminOrPrincipal, currentThreadId]);
 
  
   useEffect(() => {
@@ -756,11 +735,8 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData 
               threadId = existingThreadId;
               setCurrentThreadId(threadId);
 
-              // Subscribe to the existing thread
-              if (websocket && threadId) {
-                websocket.subscribeToThread(threadId);
-                console.log('Subscribed to existing thread:', threadId);
-              }
+              // WebSocket subscription handled automatically by useWebSocketChat hook
+              console.log('Existing thread found:', threadId);
             }
           }
 
@@ -810,10 +786,8 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData 
                 console.log('No message data in response');
               }
 
-              if (websocket && threadId) {
-                websocket.subscribeToThread(threadId);
-                console.log('Subscribed to new thread:', threadId);
-              }
+              // WebSocket subscription handled automatically by useWebSocketChat hook
+              console.log('New thread created:', threadId);
             } else {
               console.error('Failed to create conversation:', response);
               return;
@@ -844,11 +818,8 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData 
               threadId = existingThreadId;
               setCurrentThreadId(threadId);
 
-              // Subscribe to the existing thread
-              if (websocket && threadId) {
-                websocket.subscribeToThread(threadId);
-                console.log('Subscribed to existing thread:', threadId);
-              }
+              // WebSocket subscription handled automatically by useWebSocketChat hook
+              console.log('Existing thread found:', threadId);
             }
           }
 
@@ -898,10 +869,8 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData 
                 console.log('No message data in response');
               }
 
-              if (websocket && threadId) {
-                websocket.subscribeToThread(threadId);
-                console.log('Subscribed to new thread:', threadId);
-              }
+              // WebSocket subscription handled automatically by useWebSocketChat hook
+              console.log('New thread created:', threadId);
             } else {
               console.error('Failed to create conversation:', response);
               return;
@@ -915,8 +884,22 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData 
 
  
       if (threadId && !sentInCreate) {
-        // Send message via API
+        // Try WebSocket first (preferred method like mobile app)
+        if (wsConnected) {
+          try {
+            console.log('Sending message via WebSocket');
+            await sendMessageWebSocket(newMessage);
+            setNewMessage('');
+            return; // Success via WebSocket
+          } catch (error) {
+            console.warn('WebSocket send failed, falling back to HTTP:', error);
+            // Continue to HTTP fallback
+          }
+        }
+
+        // HTTP fallback (like mobile app)
         try {
+          console.log('Sending message via HTTP fallback');
           const payload: SendMessagePayload = {
             thread_id: threadId,
             content: newMessage
@@ -946,11 +929,6 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData 
             
             setMessages(prev => [...prev, message]);
             setNewMessage('');
-            
-            // Also send via WebSocket if available
-            if (websocket) {
-              websocket.sendMessage(threadId, newMessage);
-            }
           } else {
             console.error('Failed to send message:', response);
             setError('Failed to send message');
@@ -1086,14 +1064,11 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData 
                         console.log('Is Admin/Principal:', isAdminOrPrincipal);
                         
                         setActiveChat(contact);
-                        // Set current thread ID for API message fetching
+                        // Set current thread ID for API message fetching and WebSocket subscription
                         if (contact.threadData) {
                           console.log('Setting thread ID:', contact.threadData.id);
                           setCurrentThreadId(contact.threadData.id);
-                          // Subscribe to WebSocket if available
-                          if (websocket) {
-                            websocket.subscribeToThread(contact.threadData.id);
-                          }
+                          // WebSocket subscription is handled automatically by useWebSocketChat hook
                         } else {
                           console.log('No thread data, clearing thread ID');
                           setCurrentThreadId(null);
@@ -1221,8 +1196,9 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData 
                   </div>
 
                   <div className={`absolute bottom-0 right-0 w-2 h-2 rounded-full transition-colors duration-200 border-2 border-background ${
-                    websocket?.isConnected() ? 'bg-green-500' : 'bg-gray-300'
-                  }`} />
+                    wsConnected ? 'bg-green-500' : connectionStatus === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
+                  }`} 
+                  title={wsConnected ? 'Connected' : connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'} />
                 </div>
                 <div>
                   <h2 className="font-medium">
@@ -1285,15 +1261,49 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData 
             </div>
             
        
-            {error && (
+            {(error || wsError) && (
               <div className="p-4 bg-red-50 border-l-4 border-red-400">
                 <div className="flex">
                   <div className="flex-shrink-0">
                     <AlertCircle className="h-5 w-5 text-red-400" />
                   </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-red-700">{error}</p>
+                  <div className="ml-3 flex-1">
+                    <p className="text-sm text-red-700">{error || wsError}</p>
+                    {wsError && (
+                      <div className="mt-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={reconnectWebSocket}
+                          className="text-xs"
+                        >
+                          Reconnect
+                        </Button>
+                      </div>
+                    )}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* WebSocket Connection Status */}
+            {!wsConnected && connectionStatus !== 'connecting' && (
+              <div className="p-2 bg-yellow-50 border-l-4 border-yellow-400">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
+                    <p className="text-xs text-yellow-700">
+                      Using HTTP polling (WebSocket disconnected)
+                    </p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={reconnectWebSocket}
+                    className="text-xs h-6"
+                  >
+                    Reconnect
+                  </Button>
                 </div>
               </div>
             )}

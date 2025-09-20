@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Edit, Trash2, Loader2 } from 'lucide-react';
 import { TeacherSelector } from '@/components/teachers/teacher-selector';
+import { TeacherAssignment } from '@/components/academic/teacher-assignment';
 import { academicServices } from '@/lib/api/academic';
 import type { ClassLevel } from '@/types/academic';
 import { useToast } from '@/hooks/use-toast';
@@ -267,10 +268,56 @@ export default function AcademicSystemSetupPage() {
     setIsDivisionDialogOpen(true);
   };
 
-  const handleEditDivision = (division: Division) => {
-    setIsEditingDivision(true);
-    setCurrentDivision({ ...division });
-    setIsDivisionDialogOpen(true);
+  const handleAssignClassTeacher = (division: Division) => {
+    setAssigningTeacher(division.id);
+  };
+
+  const handleSaveTeacherAssignment = async (divisionId: string, teacherId: string) => {
+    if (!teacherId) return;
+    
+    try {
+      const response = await academicServices.assignTeacherToClass(divisionId, {
+        class_division_id: divisionId,
+        teacher_id: teacherId,
+        assignment_type: 'class_teacher',
+        is_primary: true
+      }, token!);
+
+      if (response.status === 'success') {
+        // Find the assigned teacher details
+        const assignedTeacher = teachers.find(t => t.id === teacherId);
+        
+        // Update the local state immediately to reflect the change
+        setDivisions(prevDivisions => 
+          prevDivisions.map(division => 
+            division.id === divisionId 
+              ? { 
+                  ...division, 
+                  teacherId: teacherId,
+                  teacherName: assignedTeacher?.name || 'Unknown Teacher'
+                }
+              : division
+          )
+        );
+        
+        setAssigningTeacher(null);
+        toast({
+          title: 'Success',
+          description: 'Class teacher assigned successfully!',
+        });
+      }
+    } catch (error) {
+      console.error('Error assigning teacher:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to assign teacher. Please try again.',
+        variant: 'error',
+      });
+    }
+  };
+
+  const handleCancelTeacherAssignment = () => {
+    setAssigningTeacher(null);
   };
 
   // const handleDeleteDivision = (id: string) => {
@@ -874,6 +921,9 @@ export default function AcademicSystemSetupPage() {
   const [subjectGradeFilter, setSubjectGradeFilter] = useState('all');
   const [subjectDivisionFilter, setSubjectDivisionFilter] = useState('all');
 
+  // Teacher assignment state
+  const [assigningTeacher, setAssigningTeacher] = useState<string | null>(null);
+
   // Filtered divisions based on grade filter
   const filteredDivisions = gradeFilter === 'all' 
     ? divisions 
@@ -1043,8 +1093,8 @@ export default function AcademicSystemSetupPage() {
                             </TableCell>
                             <TableCell>{division.studentCount || 0}</TableCell>
                             <TableCell className="text-right">
-                              <Button variant="outline" size="sm" onClick={() => handleEditDivision(division)}>
-                                <Edit className="h-4 w-4" />
+                              <Button variant="outline" size="sm" onClick={() => handleAssignClassTeacher(division)}>
+                                Assign Class Teacher
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -1520,6 +1570,49 @@ export default function AcademicSystemSetupPage() {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Teacher Assignment Dialog */}
+      <Dialog open={!!assigningTeacher} onOpenChange={(open) => !open && handleCancelTeacherAssignment()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Class Teacher</DialogTitle>
+          </DialogHeader>
+          {assigningTeacher && divisions.find(d => d.id === assigningTeacher) ? (
+            <TeacherAssignment
+              division={{
+                id: divisions.find(d => d.id === assigningTeacher)!.id,
+                academic_year_id: '', // Not needed for this API call
+                class_level_id: '', // Not needed for this API call
+                division: divisions.find(d => d.id === assigningTeacher)!.name,
+                teacher_id: divisions.find(d => d.id === assigningTeacher)!.teacherId || undefined,
+                created_at: '',
+                teacher: divisions.find(d => d.id === assigningTeacher)!.teacherName ? {
+                  id: divisions.find(d => d.id === assigningTeacher)!.teacherId || '',
+                  full_name: divisions.find(d => d.id === assigningTeacher)!.teacherName || ''
+                } : undefined
+              }}
+              teachers={teachers.map(t => ({
+                teacher_id: t.id,
+                user_id: '',
+                staff_id: '',
+                full_name: t.name,
+                phone_number: t.phone,
+                email: t.email,
+                department: '',
+                designation: '',
+                is_active: true
+              }))}
+              onSave={handleSaveTeacherAssignment}
+              onCancel={handleCancelTeacherAssignment}
+            />
+          ) : (
+            <div className="flex items-center justify-center py-8">
+              <div className="flex items-center gap-3">
+                <span>Loading...</span>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

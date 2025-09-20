@@ -19,6 +19,10 @@ import {
   AlertTriangle,
   Plus
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { TeacherAssignment } from './teacher-assignment';
+import { useAcademicStructure } from '@/hooks/use-academic-structure';
+import { useAuth } from '@/lib/auth/context';
 
 interface ClassLevel {
   id: string;
@@ -51,6 +55,11 @@ export function AcademicYearSetupWizard() {
   // Wizard state
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  
+  // Teacher assignment state
+  const [assigningTeacher, setAssigningTeacher] = useState<string | null>(null);
+  const { token } = useAuth();
+  const { classDivisions: realClassDivisions, teachers, assignTeacherToClass } = useAcademicStructure();
   
   // Form data
   const [academicYearData, setAcademicYearData] = useState({
@@ -149,6 +158,34 @@ export function AcademicYearSetupWizard() {
     setIsOpen(false);
     setCurrentStep(0);
     alert('Academic year setup completed successfully!');
+  };
+
+  // Teacher assignment handlers
+  const handleAssignClassTeacher = (divisionId: string) => {
+    setAssigningTeacher(divisionId);
+  };
+
+  const handleSaveTeacherAssignment = async (divisionId: string, teacherId: string) => {
+    if (!teacherId) return;
+    
+    try {
+      const success = await assignTeacherToClass(divisionId, {
+        class_division_id: divisionId,
+        teacher_id: teacherId,
+        assignment_type: 'class_teacher',
+        is_primary: true
+      });
+
+      if (success) {
+        setAssigningTeacher(null);
+      }
+    } catch (error) {
+      console.error('Error assigning teacher:', error);
+    }
+  };
+
+  const handleCancelTeacherAssignment = () => {
+    setAssigningTeacher(null);
   };
   
   // Progress calculation
@@ -447,8 +484,12 @@ export function AcademicYearSetupWizard() {
                           <td className="p-3 font-medium">{level?.name || 'Unknown'}</td>
                           <td className="p-3">{division.name}</td>
                           <td className="p-3 text-right">
-                            <Button variant="ghost" size="sm">
-                              Edit
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleAssignClassTeacher(division.id)}
+                            >
+                              Assign Class Teacher
                             </Button>
                           </td>
                         </tr>
@@ -587,6 +628,32 @@ export function AcademicYearSetupWizard() {
           </div>
         </CardFooter>
       </Card>
+
+      {/* Teacher Assignment Dialog */}
+      <Dialog open={!!assigningTeacher} onOpenChange={(open) => !open && handleCancelTeacherAssignment()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Class Teacher</DialogTitle>
+            <DialogDescription>
+              Assign a teacher to this class section
+            </DialogDescription>
+          </DialogHeader>
+          {assigningTeacher && realClassDivisions.find(d => d.id === assigningTeacher) ? (
+            <TeacherAssignment
+              division={realClassDivisions.find(d => d.id === assigningTeacher)!}
+              teachers={teachers}
+              onSave={handleSaveTeacherAssignment}
+              onCancel={handleCancelTeacherAssignment}
+            />
+          ) : (
+            <div className="flex items-center justify-center py-8">
+              <div className="flex items-center gap-3">
+                <span>Loading...</span>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

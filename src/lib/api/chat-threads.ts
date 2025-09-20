@@ -123,5 +123,26 @@ export const chatThreadsServices = {
     }
 
     return response as ChatMessagesResponse;
+  },
+
+  // HTTP polling fallback - get messages after a specific message ID
+  getMessagesAfter: async (threadId: string, afterId: string | null, token: string): Promise<ChatMessagesResponse> => {
+    const params = new URLSearchParams({ thread_id: threadId });
+    if (afterId) {
+      params.append('after_id', afterId);
+    }
+    
+    const response = await apiClient.get<ChatMessagesResponse['data']>(`/api/chat/messages?${params.toString()}`, token);
+
+    // Handle Blob response (shouldn't happen for JSON endpoints)
+    if (response instanceof Blob) {
+      throw new Error('Unexpected blob response for chat messages');
+    }
+
+    if (response.status === 'error') {
+      throw new Error((response as { message: string }).message || 'Failed to fetch new messages');
+    }
+
+    return response as ChatMessagesResponse;
   }
 };

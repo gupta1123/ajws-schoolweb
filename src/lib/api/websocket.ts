@@ -1,24 +1,32 @@
 export interface WebSocketMessage {
-  type: 'subscribe_thread' | 'send_message' | 'message_received' | 'thread_updated';
+  type: 'subscribe_thread' | 'send_message' | 'message_received' | 'thread_updated' | 'message_status_update' | 'typing_indicator' | 'connection_status';
   thread_id?: string;
   content?: string;
   message_type?: 'text';
+  message_id?: string;
+  status?: 'sent' | 'delivered' | 'read';
   sender?: {
     full_name: string;
     role: string;
+    id?: string;
   };
   created_at?: string;
+  is_typing?: boolean;
+  connection_status?: 'connected' | 'disconnected';
 }
 
 export class ChatWebSocket {
   private ws: WebSocket | null = null;
   private token: string;
   private onMessageCallback: ((message: WebSocketMessage) => void) | null = null;
+  private onConnectionStatusCallback: ((connected: boolean) => void) | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
   private pendingSubscriptions: Set<string> = new Set();
   private lastErrorLoggedAt = 0;
+  private isManualDisconnect = false;
+  private heartbeatInterval: NodeJS.Timeout | null = null;
 
   constructor(token: string) {
     this.token = token;
@@ -43,6 +51,16 @@ export class ChatWebSocket {
           console.log('WebSocket connected');
           clearTimeout(connectionTimeout);
           this.reconnectAttempts = 0;
+          this.isManualDisconnect = false;
+          
+          // Start heartbeat to keep connection alive
+          this.startHeartbeat();
+          
+          // Notify connection status callback
+          if (this.onConnectionStatusCallback) {
+            this.onConnectionStatusCallback(true);
+          }
+          
           // Flush any pending subscriptions
           this.pendingSubscriptions.forEach((threadId) => {
             const message: WebSocketMessage = { type: 'subscribe_thread', thread_id: threadId };
@@ -66,8 +84,15 @@ export class ChatWebSocket {
         this.ws.onclose = (event) => {
           console.log('WebSocket closed:', event.code, event.reason);
           clearTimeout(connectionTimeout);
-          // Do not reject; attempt reconnection
-          if (this.reconnectAttempts < this.maxReconnectAttempts) {
+          this.stopHeartbeat();
+          
+          // Notify connection status callback
+          if (this.onConnectionStatusCallback) {
+            this.onConnectionStatusCallback(false);
+          }
+          
+          // Only attempt reconnection if not manually disconnected
+          if (!this.isManualDisconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
             setTimeout(() => {
               console.log(`Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
@@ -124,6 +149,8 @@ export class ChatWebSocket {
   }
 
   disconnect(): void {
+    this.isManualDisconnect = true;
+    this.stopHeartbeat();
     if (this.ws) {
       this.ws.close();
       this.ws = null;
@@ -132,5 +159,41 @@ export class ChatWebSocket {
 
   isConnected(): boolean {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
+  }
+
+  onConnectionStatus(callback: (connected: boolean) => void): void {
+    this.onConnectionStatusCallback = callback;
+  }
+
+  sendTypingIndicator(threadId: string, isTyping: boolean): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      const message: WebSocketMessage = {
+        type: 'typing_indicator',
+        thread_id: threadId,
+        is_typing: isTyping
+      };
+      this.ws.send(JSON.stringify(message));
+    }
+  }
+
+  private startHeartbeat(): void {
+    this.stopHeartbeat(); // Clear any existing heartbeat
+    this.heartbeatInterval = setInterval(() => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        // Send a ping message to keep connection alive
+        const pingMessage: WebSocketMessage = {
+          type: 'connection_status',
+          connection_status: 'connected'
+        };
+        this.ws.send(JSON.stringify(pingMessage));
+      }
+    }, 30000); // Send heartbeat every 30 seconds
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
   }
 }
