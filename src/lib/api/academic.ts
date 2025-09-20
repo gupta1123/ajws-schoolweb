@@ -185,6 +185,113 @@ export const academicServices = {
     return response as { status: string; data: { assignment: TeacherAssignment } };
   },
 
+  // Get class division details including assignment IDs
+  getClassDivisionDetails: async (
+    classDivisionId: string,
+    token: string
+  ): Promise<{
+    status: string;
+    data: {
+      class_division: {
+        id: string;
+        division: string;
+        class_level: {
+          id: string;
+          name: string;
+          sequence_number: number;
+        };
+        academic_year: {
+          id: string;
+          year_name: string;
+        };
+      };
+      principal: {
+        id: string;
+        full_name: string;
+      };
+      teachers: Array<{
+        assignment_id: string;
+        teacher_id: string;
+        assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
+        subject?: string;
+        is_primary: boolean;
+        assigned_date: string;
+        is_active: boolean;
+        teacher_info: {
+          id: string;
+          full_name: string;
+          phone_number: string;
+          email: string;
+        };
+      }>;
+      students: Array<{
+        id: string;
+        full_name: string;
+        admission_number: string;
+        date_of_birth: string;
+        status: string;
+        student_academic_records: Array<{
+          id: string;
+          status: string;
+          roll_number: string;
+          class_division_id: string;
+        }>;
+      }>;
+    };
+  }> => {
+    const response = await apiClient.get(`/api/students/class/${classDivisionId}/details`, token);
+    return response as {
+      status: string;
+      data: {
+        class_division: {
+          id: string;
+          division: string;
+          class_level: {
+            id: string;
+            name: string;
+            sequence_number: number;
+          };
+          academic_year: {
+            id: string;
+            year_name: string;
+          };
+        };
+        principal: {
+          id: string;
+          full_name: string;
+        };
+        teachers: Array<{
+          assignment_id: string;
+          teacher_id: string;
+          assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
+          subject?: string;
+          is_primary: boolean;
+          assigned_date: string;
+          is_active: boolean;
+          teacher_info: {
+            id: string;
+            full_name: string;
+            phone_number: string;
+            email: string;
+          };
+        }>;
+        students: Array<{
+          id: string;
+          full_name: string;
+          admission_number: string;
+          date_of_birth: string;
+          status: string;
+          student_academic_records: Array<{
+            id: string;
+            status: string;
+            roll_number: string;
+            class_division_id: string;
+          }>;
+        }>;
+      };
+    };
+  },
+
   // Reassign subject teacher to a different teacher (using the reassign endpoint)
   reassignSubjectTeacher: async (
     classDivisionId: string,

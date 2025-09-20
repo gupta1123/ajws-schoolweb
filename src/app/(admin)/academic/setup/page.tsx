@@ -732,20 +732,40 @@ export default function AcademicSystemSetupPage() {
 
       if (existingAssignment && existingAssignment.assignmentId) {
         // There's already a subject teacher assigned for this subject in this division
-        // We need to reassign to the new teacher using the reassign API
-        console.log('Reassigning existing assignment:', {
-          assignmentId: existingAssignment.assignmentId,
+        // First, fetch class details to get the actual assignment ID
+        console.log('Fetching class details for reassignment:', {
           classDivisionId: selectedDivision.id,
-          newTeacherId: selectedTeacher,
           subject: editingSubject
         }); // Debug log
         
-        response = await academicServices.reassignSubjectTeacher(
-          selectedDivision.id, // classDivisionId
-          existingAssignment.assignmentId, // Use the existing assignment ID
-          selectedTeacher, // new teacher ID
-          token
-        );
+        const classDetailsResponse = await academicServices.getClassDivisionDetails(selectedDivision.id, token);
+        
+        if (classDetailsResponse.status === 'success') {
+          // Find the assignment for this specific subject
+          const subjectAssignment = classDetailsResponse.data.teachers.find(
+            teacher => teacher.assignment_type === 'subject_teacher' && teacher.subject === editingSubject
+          );
+          
+          if (subjectAssignment) {
+            console.log('Found assignment for reassignment:', {
+              assignmentId: subjectAssignment.assignment_id,
+              classDivisionId: selectedDivision.id,
+              newTeacherId: selectedTeacher,
+              subject: editingSubject
+            }); // Debug log
+            
+            response = await academicServices.reassignSubjectTeacher(
+              selectedDivision.id, // classDivisionId
+              subjectAssignment.assignment_id, // Use the actual assignment ID from class details
+              selectedTeacher, // new teacher ID
+              token
+            );
+          } else {
+            throw new Error(`No assignment found for subject: ${editingSubject}`);
+          }
+        } else {
+          throw new Error('Failed to fetch class division details');
+        }
       } else {
         // Create new assignment (POST request)
         const originalPayload = {

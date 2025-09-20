@@ -30,6 +30,7 @@ export function SubjectManager() {
     removeSubjectFromClass,
     fetchSubjectsByClassDivision,
     assignTeacherToClass,
+    getClassDivisionDetails,
     reassignSubjectTeacher
   } = useAcademicStructure();
   
@@ -157,17 +158,34 @@ export function SubjectManager() {
 
   const handleAssignSubjectTeacher = async (divisionId: string, teacherId: string, subject: string, isPrimary: boolean) => {
     try {
-      const success = await assignTeacherToClass(divisionId, {
-        class_division_id: divisionId,
-        teacher_id: teacherId,
-        assignment_type: 'subject_teacher',
-        subject: subject,
-        is_primary: isPrimary
-      });
+      // First, check if there's an existing assignment for this subject
+      const classDetails = await getClassDivisionDetails(divisionId);
       
-      if (success) {
-        // You might want to refresh teacher assignments here
-        console.log('Subject teacher assigned successfully');
+      if (classDetails) {
+        const existingAssignment = classDetails.teachers.find(
+          teacher => teacher.assignment_type === 'subject_teacher' && teacher.subject === subject
+        );
+        
+        if (existingAssignment) {
+          // Reassign existing assignment
+          const success = await reassignSubjectTeacher(divisionId, existingAssignment.assignment_id, teacherId);
+          if (success) {
+            console.log('Subject teacher reassigned successfully');
+          }
+        } else {
+          // Create new assignment
+          const success = await assignTeacherToClass(divisionId, {
+            class_division_id: divisionId,
+            teacher_id: teacherId,
+            assignment_type: 'subject_teacher',
+            subject: subject,
+            is_primary: isPrimary
+          });
+          
+          if (success) {
+            console.log('Subject teacher assigned successfully');
+          }
+        }
       }
     } catch (error) {
       console.error('Error assigning subject teacher:', error);

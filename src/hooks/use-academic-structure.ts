@@ -77,6 +77,53 @@ interface UseAcademicStructureReturn {
   assignTeacherToClass: (classDivisionId: string, data: CreateTeacherAssignmentRequest) => Promise<boolean>;
   updateTeacherAssignment: (assignmentId: string, data: UpdateTeacherAssignmentRequest) => Promise<boolean>;
   removeTeacherFromClass: (classDivisionId: string, teacherId: string, assignmentType?: string) => Promise<boolean>;
+  getClassDivisionDetails: (classDivisionId: string) => Promise<{
+    class_division: {
+      id: string;
+      division: string;
+      class_level: {
+        id: string;
+        name: string;
+        sequence_number: number;
+      };
+      academic_year: {
+        id: string;
+        year_name: string;
+      };
+    };
+    principal: {
+      id: string;
+      full_name: string;
+    };
+    teachers: Array<{
+      assignment_id: string;
+      teacher_id: string;
+      assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
+      subject?: string;
+      is_primary: boolean;
+      assigned_date: string;
+      is_active: boolean;
+      teacher_info: {
+        id: string;
+        full_name: string;
+        phone_number: string;
+        email: string;
+      };
+    }>;
+    students: Array<{
+      id: string;
+      full_name: string;
+      admission_number: string;
+      date_of_birth: string;
+      status: string;
+      student_academic_records: Array<{
+        id: string;
+        status: string;
+        roll_number: string;
+        class_division_id: string;
+      }>;
+    }>;
+  } | null>;
   reassignSubjectTeacher: (classDivisionId: string, assignmentId: string, newTeacherId: string) => Promise<boolean>;
   bulkAssignTeachers: (data: BulkTeacherAssignmentRequest) => Promise<boolean>;
   
@@ -645,6 +692,71 @@ export const useAcademicStructure = (): UseAcademicStructureReturn => {
     }
   }, [token, fetchClassDivisions]);
 
+  const getClassDivisionDetails = useCallback(async (classDivisionId: string): Promise<{
+    class_division: {
+      id: string;
+      division: string;
+      class_level: {
+        id: string;
+        name: string;
+        sequence_number: number;
+      };
+      academic_year: {
+        id: string;
+        year_name: string;
+      };
+    };
+    principal: {
+      id: string;
+      full_name: string;
+    };
+    teachers: Array<{
+      assignment_id: string;
+      teacher_id: string;
+      assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
+      subject?: string;
+      is_primary: boolean;
+      assigned_date: string;
+      is_active: boolean;
+      teacher_info: {
+        id: string;
+        full_name: string;
+        phone_number: string;
+        email: string;
+      };
+    }>;
+    students: Array<{
+      id: string;
+      full_name: string;
+      admission_number: string;
+      date_of_birth: string;
+      status: string;
+      student_academic_records: Array<{
+        id: string;
+        status: string;
+        roll_number: string;
+        class_division_id: string;
+      }>;
+    }>;
+  } | null> => {
+    if (!token) return null;
+    
+    try {
+      const response = await academicServices.getClassDivisionDetails(classDivisionId, token);
+      
+      if (response.status === 'success') {
+        return response.data;
+      } else {
+        setError('Failed to fetch class division details');
+        return null;
+      }
+    } catch (err) {
+      console.error('Get class division details error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch class division details');
+      return null;
+    }
+  }, [token]);
+
   const reassignSubjectTeacher = useCallback(async (classDivisionId: string, assignmentId: string, newTeacherId: string): Promise<boolean> => {
     if (!token) return false;
     
@@ -894,6 +1006,7 @@ export const useAcademicStructure = (): UseAcademicStructureReturn => {
     assignTeacherToClass,
     updateTeacherAssignment,
     removeTeacherFromClass,
+    getClassDivisionDetails,
     reassignSubjectTeacher,
     bulkAssignTeachers,
     createSubject,
