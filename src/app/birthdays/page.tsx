@@ -6,18 +6,16 @@ import { useTheme } from '@/lib/theme/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Cake, Send, Calendar, Users, Gift, AlertTriangle, User, GraduationCap, Briefcase, X, Loader2 } from 'lucide-react';
+import { Cake, Calendar, Users, Gift, AlertTriangle, User, GraduationCap, Briefcase, X, Loader2 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useBirthdays, BirthdayData } from '@/hooks/use-birthdays';
 import { useI18n } from '@/lib/i18n/context';
 
 // Modern, compact Birthday card component
 const BirthdayCard = ({ 
-  birthday,
-  onSendWish
+  birthday
 }: { 
   birthday: BirthdayData;
-  onSendWish: (birthday: BirthdayData) => void;
 }) => {
   const isToday = birthday.daysUntil === 0;
   const { colorScheme } = useTheme();
@@ -157,8 +155,8 @@ const BirthdayCard = ({
               )}
             </div>
             
-            {/* Days until and action */}
-            <div className="flex items-center justify-between mt-3">
+            {/* Days until */}
+            <div className="mt-3">
               <div className={`text-sm font-medium ${isToday ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300'}`}>
                 {isToday ? (
                   <span className="flex items-center gap-1">
@@ -172,17 +170,6 @@ const BirthdayCard = ({
                   </span>
                 )}
               </div>
-              {isToday && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => onSendWish(birthday)}
-                  className="h-7 px-2 text-xs border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
-                >
-                  <Send className="h-3 w-3 mr-1" />
-                  {t('birthdays.sendWish')}
-                </Button>
-              )}
             </div>
           </div>
         </div>
@@ -307,12 +294,6 @@ export default function BirthdaysPage() {
     return filtered;
   }, [getAllBirthdays, getBirthdaysByDateRange, getBirthdaysByType, getBirthdaysForTomorrow, dateFilter, typeFilter]);
 
-  const handleSendWish = (birthday: BirthdayData) => {
-    // Here you would typically send the wish to your API or open a message composer
-    console.log(`Sending birthday wish to ${birthday.name}`);
-    // For now, we'll just show an alert
-    alert(`Birthday wish sent to ${birthday.name}!`);
-  };
 
   const clearFilters = () => {
     setDateFilter(null);
@@ -495,7 +476,6 @@ export default function BirthdaysPage() {
                           <BirthdayCard
                             key={birthday.id}
                             birthday={birthday}
-                            onSendWish={handleSendWish}
                           />
                         ))
                     ) : (

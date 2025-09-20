@@ -46,11 +46,6 @@ const DashboardPage = () => {
       href: '/students'
     },
     {
-      title: t('dashboard.cards.parents'),
-      icon: <UserCheck className="h-5 w-5" />,
-      href: '/parents'
-    },
-    {
       title: t('dashboard.cards.staff'),
       icon: <User className="h-5 w-5" />,
       href: '/staff'
@@ -58,7 +53,7 @@ const DashboardPage = () => {
     {
       title: t('dashboard.cards.academic'),
       icon: <Building2 className="h-5 w-5" />,
-      href: '/academic'
+      href: '/academic/setup'
     }
   ], [t]);
 

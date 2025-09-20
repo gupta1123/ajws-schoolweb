@@ -42,14 +42,15 @@ export default function StaffPage() {
   // UI states
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Filter staff based on search only (removed role and status filters)
+  // Filter and sort staff by name by default
   const filteredStaff = useMemo(() => {
     return staff
       .filter(staffMember => 
         searchTerm === '' || 
         staffMember.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (staffMember.phone_number && staffMember.phone_number.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+      )
+      .sort((a, b) => a.full_name.localeCompare(b.full_name));
   }, [staff, searchTerm]);
 
   const handleAddNew = () => {

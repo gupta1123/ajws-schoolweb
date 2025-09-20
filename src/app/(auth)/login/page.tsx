@@ -24,7 +24,7 @@ export default function LoginPage() {
 
   // Predefined credentials for different user roles
   const userCredentials = {
-    teacher: { phone: '1234567894', password: 'password123' },
+    teacher: { phone: '9158834913', password: 'Temp@1234' },
     admin: { phone: '1234567890', password: 'Shilpa@123' },
     principal: { phone: '1234567891', password: 'password123' }
   };

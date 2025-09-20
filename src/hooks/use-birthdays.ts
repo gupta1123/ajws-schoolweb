@@ -58,14 +58,23 @@ export const useBirthdays = () => {
     
     const today = new Date();
     const birthDate = new Date(student.date_of_birth);
-    const nextBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
     
-    // If this year's birthday has passed, calculate for next year
-    if (nextBirthday < today) {
-      nextBirthday.setFullYear(today.getFullYear() + 1);
+    // Calculate this year's birthday
+    const thisYearBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+    
+    let daysUntil: number;
+    
+    // Check if birthday is today
+    if (thisYearBirthday.toDateString() === today.toDateString()) {
+      daysUntil = 0;
+    } else if (thisYearBirthday > today) {
+      // Birthday is later this year
+      daysUntil = Math.ceil((thisYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    } else {
+      // Birthday has passed this year, calculate for next year
+      const nextYearBirthday = new Date(today.getFullYear() + 1, birthDate.getMonth(), birthDate.getDate());
+      daysUntil = Math.ceil((nextYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     }
-    
-    const daysUntil = Math.ceil((nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     
     // Get initials for avatar
     const initials = student.full_name
@@ -172,13 +181,13 @@ export const useBirthdays = () => {
       
       let response;
       
-      // Set date range for next 30 days
+      // Set date range for current month from today onwards
       const today = new Date();
-      const endDate = new Date();
-      endDate.setDate(today.getDate() + 30); // Get next 30 days
+      const startDate = new Date(today); // Start from today
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
       
-      const startDateStr = today.toISOString().split('T')[0];
-      const endDateStr = endDate.toISOString().split('T')[0];
+      const startDateStr = startDate.toISOString().split('T')[0];
+      const endDateStr = endOfMonth.toISOString().split('T')[0];
       
       if (user?.role === 'teacher') {
         // For teachers, get birthdays for their classes with date range
@@ -271,7 +280,29 @@ export const useBirthdays = () => {
       case 'this-week':
         return all.filter(birthday => birthday.daysUntil <= 7);
       case 'this-month':
-        return all.filter(birthday => birthday.daysUntil <= 30);
+        // Filter by current calendar month, excluding past birthdays
+        const today = new Date();
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+        const currentDay = today.getDate();
+        
+        return all.filter(birthday => {
+          const birthDate = new Date(birthday.date);
+          const birthMonth = birthDate.getMonth();
+          const birthYear = birthDate.getFullYear();
+          const birthDay = birthDate.getDate();
+          
+          // Check if birthday is in current month and hasn't passed yet
+          if (birthMonth === currentMonth) {
+            // If it's the current year, check if the day hasn't passed
+            if (birthYear === currentYear) {
+              return birthDay >= currentDay;
+            }
+            // If it's a future year, always include it
+            return birthYear > currentYear;
+          }
+          return false;
+        });
       default:
         return all;
     }

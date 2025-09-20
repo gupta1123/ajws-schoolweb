@@ -32,13 +32,13 @@ export function UpcomingBirthdays() {
     const fetchUpcomingBirthdays = async () => {
       if (!token) return;
 
-      // Get current date and next 30 days for date range
+      // Get current month date range from today onwards
       const today = new Date();
-      const endDate = new Date();
-      endDate.setDate(today.getDate() + 30);
+      const startDate = new Date(today); // Start from today
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-      const startDateStr = today.toISOString().split('T')[0];
-      const endDateStr = endDate.toISOString().split('T')[0];
+      const startDateStr = startDate.toISOString().split('T')[0];
+      const endDateStr = endOfMonth.toISOString().split('T')[0];
 
       try {
         setLoading(true);
@@ -159,13 +159,22 @@ export function UpcomingBirthdays() {
                     const birthDate = new Date(birthday.date_of_birth);
                     const today = new Date();
 
-                    // Calculate next birthday
-                    const nextBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
-                    if (nextBirthday < today) {
-                      nextBirthday.setFullYear(today.getFullYear() + 1);
+                    // Calculate this year's birthday
+                    const thisYearBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+                    
+                    let daysUntilBirthday: number;
+                    
+                    // Check if birthday is today
+                    if (thisYearBirthday.toDateString() === today.toDateString()) {
+                      daysUntilBirthday = 0;
+                    } else if (thisYearBirthday > today) {
+                      // Birthday is later this year
+                      daysUntilBirthday = Math.ceil((thisYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                    } else {
+                      // Birthday has passed this year, calculate for next year
+                      const nextYearBirthday = new Date(today.getFullYear() + 1, birthDate.getMonth(), birthDate.getDate());
+                      daysUntilBirthday = Math.ceil((nextYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
                     }
-
-                    const daysUntilBirthday = Math.ceil((nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
                     const age = today.getFullYear() - birthDate.getFullYear();
 
                     // Extract class info from academic records

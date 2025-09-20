@@ -6,6 +6,12 @@ URL:
 https://ajws-school-ba8ae5e3f955.herokuapp.com
 
 
+Teacher Login:
+{
+  "phone_number": "9158834913",
+  "password": "Temp@1234"
+}
+
 Principal Login:
  {
      "phone_number":1234567891,
