@@ -34,7 +34,7 @@ export const staffServices = {
     return response as StaffListResponse;
   },
 
-  // Get teachers mapping
+  // Get teachers mapping (includes subjects_taught)
   getTeachersMapping: async (token: string): Promise<{
     status: string;
     data: {
@@ -43,7 +43,12 @@ export const staffServices = {
         staff_id: string;
         user_id: string;
         full_name: string;
-        role: string;
+        phone_number?: string;
+        email?: string | null;
+        department?: string;
+        designation?: string;
+        is_active?: boolean;
+        subjects_taught?: string[];
       }>;
     };
   }> => {
@@ -56,7 +61,12 @@ export const staffServices = {
           staff_id: string;
           user_id: string;
           full_name: string;
-          role: string;
+          phone_number?: string;
+          email?: string | null;
+          department?: string;
+          designation?: string;
+          is_active?: boolean;
+          subjects_taught?: string[];
         }>;
       };
     };

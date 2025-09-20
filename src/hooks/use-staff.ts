@@ -144,25 +144,37 @@ export const useStaff = (): UseStaffReturn => {
           const teachersResponse = await staffServices.getTeachersMapping(token);
           
           if (teachersResponse.status === 'success') {
-            // Create a map of staff_id/user_id to teacher_id
-            const teacherMap = new Map<string, string>();
-            
-            teachersResponse.data.teachers.forEach(teacher => {
-              // Map by staff_id (preferred) or user_id
+            // Create a map of staff_id/user_id to teacher data (includes subjects_taught)
+            const teacherMap = new Map<string, { teacher_id: string; subjects_taught?: string[] }>();
+
+            teachersResponse.data.teachers.forEach((teacher) => {
+              const value = { teacher_id: teacher.teacher_id, subjects_taught: teacher.subjects_taught };
               if (teacher.staff_id) {
-                teacherMap.set(teacher.staff_id, teacher.teacher_id);
+                teacherMap.set(teacher.staff_id, value);
               }
               if (teacher.user_id) {
-                teacherMap.set(teacher.user_id, teacher.teacher_id);
+                teacherMap.set(teacher.user_id, value);
               }
             });
-            
-            // Enrich staff data with teacher_id
-            const enrichedStaff = staffResponse.data.staff.map(staffMember => ({
-              ...staffMember,
-              teacher_id: teacherMap.get(staffMember.id) || teacherMap.get(staffMember.user_id || '') || undefined
-            }));
-            
+
+            // Enrich staff data with teacher_id and subjects_taught from teachers API
+            const enrichedStaff = staffResponse.data.staff.map((staffMember) => {
+              const mapEntry = teacherMap.get(staffMember.id) || teacherMap.get(staffMember.user_id || '');
+              const subjectsFromTeachers = mapEntry?.subjects_taught || [];
+
+              return {
+                ...staffMember,
+                teacher_id: mapEntry?.teacher_id || undefined,
+                teaching_details: {
+                  ...staffMember.teaching_details,
+                  // Always prefer teachers API subjects, if provided
+                  subjects_taught: subjectsFromTeachers.length > 0
+                    ? subjectsFromTeachers
+                    : (staffMember.teaching_details?.subjects_taught || []),
+                },
+              };
+            });
+
             setStaff(enrichedStaff);
             setPagination(staffResponse.data.pagination);
           } else {

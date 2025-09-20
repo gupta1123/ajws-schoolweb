@@ -23,6 +23,7 @@ import { useStaff } from '@/hooks/use-staff';
 import { useI18n } from '@/lib/i18n/context';
 
 import Link from 'next/link';
+import type { Staff as StaffType } from '@/types/staff';
 
 
 
@@ -86,24 +87,10 @@ export default function StaffPage() {
     return classTeacherOf.map((cls) => cls.class_name).join(', ');
   };
 
-  // Format subjects taught with class details
-  const formatSubjectsTaught = (subjectsTaught: string[], subjectTeacherOf?: Array<{
-    class_division_id: string;
-    class_name: string;
-    academic_year: string;
-    subject: string;
-  }>) => {
-    if (!subjectsTaught || subjectsTaught.length === 0) return t('common.none', 'None');
-    
-    // If we have detailed subject teaching info, show it
-    if (subjectTeacherOf && subjectTeacherOf.length > 0) {
-      return subjectTeacherOf.map((teaching) => 
-        `${teaching.subject} (${teaching.class_name})`
-      ).join(', ');
-    }
-    
-    // Fallback to just subjects
-    return subjectsTaught.join(', ');
+  // Build display string for subjects taught (from teachers API enrichment only)
+  const getSubjectsText = (staffMember: StaffType): string => {
+    const subjects = staffMember.teaching_details?.subjects_taught || [];
+    return subjects.length > 0 ? subjects.join(', ') : t('common.none', 'None');
   };
 
   return (
@@ -199,11 +186,7 @@ export default function StaffPage() {
                               ? formatClassTeacherInfo(staff.teaching_details.class_teacher_of)
                               : t('common.none', 'None')}
                           </TableCell>
-                          <TableCell>
-                            {staff.teaching_details?.subjects_taught && staff.teaching_details.subjects_taught.length > 0
-                              ? formatSubjectsTaught(staff.teaching_details.subjects_taught)
-                              : t('common.none', 'None')}
-                          </TableCell>
+                          <TableCell>{getSubjectsText(staff)}</TableCell>
                         <TableCell className="text-right">
                           <Button variant="outline" size="sm" className="mr-2" asChild>
                             <Link href={`/staff/${staff.id}`}>

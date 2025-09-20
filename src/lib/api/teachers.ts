@@ -71,6 +71,8 @@ export interface SimpleTeacher {
   department: string;
   designation: string;
   is_active: boolean;
+  // From /api/academic/teachers response
+  subjects_taught?: string[];
 }
 
 export interface TeachersResponse {

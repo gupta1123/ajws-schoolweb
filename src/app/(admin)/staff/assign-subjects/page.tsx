@@ -109,7 +109,8 @@ export default function AssignSubjectsPage() {
             teaching_details: {
               class_teacher_of: [],
               subject_teacher_of: [],
-              subjects_taught: []
+              // Preload subjects directly from API if present
+              subjects_taught: teacher.subjects_taught || []
             }
           }));
           setTeachers(teacherStaff);

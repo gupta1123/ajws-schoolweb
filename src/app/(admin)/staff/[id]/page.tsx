@@ -163,33 +163,34 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
           const teachersResponse = await staffServices.getTeachersMapping(token);
 
           if (teachersResponse.status === 'success') {
-            // Create a map of staff_id/user_id to teacher_id
-            const teacherMap = new Map<string, string>();
+            // Create a map of staff_id/user_id to teacher data (includes subjects_taught)
+            const teacherMap = new Map<string, { teacher_id: string; subjects_taught?: string[] }>();
 
-            teachersResponse.data.teachers.forEach(teacher => {
-              // Map by staff_id (preferred) or user_id
+            teachersResponse.data.teachers.forEach((teacher) => {
+              const value = { teacher_id: teacher.teacher_id, subjects_taught: teacher.subjects_taught };
               if (teacher.staff_id) {
-                teacherMap.set(teacher.staff_id, teacher.teacher_id);
+                teacherMap.set(teacher.staff_id, value);
               }
               if (teacher.user_id) {
-                teacherMap.set(teacher.user_id, teacher.teacher_id);
+                teacherMap.set(teacher.user_id, value);
               }
             });
 
-            console.log('Teacher mapping:', Object.fromEntries(teacherMap));
-
-            // Find the specific staff member and enrich with teacher_id
-            const foundStaff = staffResponse.data.staff.find(s => s.id === staffId);
+            // Find the specific staff member and enrich with teacher_id and subjects_taught
+            const foundStaff = staffResponse.data.staff.find((s) => s.id === staffId);
             if (foundStaff) {
-              const enrichedStaff = {
+              const mapEntry = teacherMap.get(foundStaff.id) || teacherMap.get(foundStaff.user_id || '');
+              const enrichedStaff: Staff = {
                 ...foundStaff,
-                teacher_id: teacherMap.get(foundStaff.id) || teacherMap.get(foundStaff.user_id || '') || undefined
+                teacher_id: mapEntry?.teacher_id || undefined,
+                teaching_details: {
+                  ...foundStaff.teaching_details,
+                  subjects_taught: mapEntry?.subjects_taught && mapEntry.subjects_taught.length > 0
+                    ? mapEntry.subjects_taught
+                    : (foundStaff.teaching_details?.subjects_taught || [])
+                }
               };
 
-              console.log('Staff member found:', enrichedStaff);
-              console.log('Teacher ID:', enrichedStaff.teacher_id);
-              console.log('User ID:', enrichedStaff.user_id);
-              console.log('Role:', enrichedStaff.role);
               setStaff(enrichedStaff);
             } else {
               setError('Staff member not found');
@@ -198,12 +199,12 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
             // If teachers mapping fails, still show staff data without teacher_id
             const foundStaff = staffResponse.data.staff.find(s => s.id === staffId);
             if (foundStaff) {
-              console.log('Staff member found (without teacher mapping):', foundStaff);
-              setStaff(foundStaff);
-            } else {
-              setError('Staff member not found');
-            }
+            console.log('Staff member found (without teacher mapping):', foundStaff);
+          setStaff(foundStaff);
+        } else {
+          setError('Staff member not found');
           }
+        }
         } catch (teachersErr) {
           console.warn('Failed to fetch teachers mapping, showing staff without teacher_id:', teachersErr);
           // Still show staff data without teacher_id
