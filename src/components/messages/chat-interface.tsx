@@ -161,10 +161,20 @@ const transformParentDataToContacts = (parents: TeacherLinkedParent[]): ChatCont
   return parents.map(parent => {
     const studentNames = parent.linked_students.map(student => student.student_name).join(', ');
 
+    // Use a more descriptive message when thread exists
+    let lastMessage = 'No messages yet';
+    if (parent.chat_info.has_thread) {
+      if (parent.chat_info.message_count && parent.chat_info.message_count > 0) {
+        lastMessage = `${parent.chat_info.message_count} message${parent.chat_info.message_count > 1 ? 's' : ''}`;
+      } else {
+        lastMessage = 'Conversation started';
+      }
+    }
+
     return {
       id: parent.parent_id,
       name: `${parent.full_name} (Parent of ${studentNames})`,
-      lastMessage: parent.chat_info.has_thread ? 'Previous conversation available' : 'No messages yet',
+      lastMessage,
       lastMessageTime: parent.chat_info.updated_at ? formatDate(parent.chat_info.updated_at) : 'New',
       unreadCount: parent.chat_info.message_count || 0,
       isOnline: false, // We'll keep this as false for now since API doesn't provide online status
@@ -309,12 +319,13 @@ const transformApiMessagesToChatMessages = (apiMessages: ApiChatMessage[], user:
 
 interface ChatInterfaceProps {
   selectedParentId?: string;
+  selectedParentData?: TeacherLinkedParent;
   isAdminOrPrincipal?: boolean;
   chatsData?: { threads?: unknown[] };
   activeTab?: 'direct' | 'group';
 }
 
-export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData }: ChatInterfaceProps) {
+export function ChatInterface({ selectedParentId, selectedParentData, isAdminOrPrincipal, chatsData }: ChatInterfaceProps) {
   const { token, user } = useAuth();
   const { t } = useI18n();
   const [contacts, setContacts] = useState<ChatContact[]>([]);
@@ -470,6 +481,84 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData 
     }
   }, [token, user?.id, activeChat]);
 
+  // Fetch teacher linked parents function
+  const fetchTeacherLinkedParents = useCallback(async () => {
+    if (!token || !user?.id || user?.role !== 'teacher') return;
+
+    try {
+      console.log('Fetching teacher linked parents...');
+      const response = await getTeacherLinkedParents(token, user.id);
+      
+      if (response instanceof Blob) {
+        console.error('Unexpected Blob response from teacher linked parents');
+        return;
+      }
+      
+      if (response.status === 'success' && 'data' in response && response.data && 'linked_parents' in response.data) {
+        const linkedParents = response.data.linked_parents as TeacherLinkedParent[];
+        console.log('Fetched teacher linked parents:', linkedParents);
+        
+        // Filter parents to only include those with existing threads
+        const parentsWithThreads = linkedParents.filter(parent => parent.chat_info.has_thread);
+        console.log('Parents with existing threads:', parentsWithThreads.length);
+        
+        // Transform parents to contacts (only those with existing threads)
+        const parentContacts = transformParentDataToContacts(parentsWithThreads);
+        
+        // Merge with existing contacts (from threads) and sort
+        setContacts(prevContacts => {
+          const mergedContacts = [...prevContacts];
+          
+          // Add parent contacts that don't already exist
+          parentContacts.forEach(parentContact => {
+            const exists = mergedContacts.some(existing => 
+              existing.id === parentContact.id || 
+              (existing.parentData && parentContact.parentData && 
+               existing.parentData.parent_id === parentContact.parentData.parent_id)
+            );
+            if (!exists) {
+              mergedContacts.push(parentContact);
+            } else {
+              // Update existing contact with real data if we have a temporary one
+              const existingIndex = mergedContacts.findIndex(existing => 
+                existing.parentData && parentContact.parentData && 
+                existing.parentData.parent_id === parentContact.parentData.parent_id
+              );
+              if (existingIndex !== -1) {
+                const existingContact = mergedContacts[existingIndex];
+                // Preserve the last message from threads if it exists and is more specific
+                const shouldPreserveLastMessage = existingContact.lastMessage && 
+                  existingContact.lastMessage !== 'No messages yet' && 
+                  existingContact.lastMessage !== 'Previous conversation available';
+                
+                mergedContacts[existingIndex] = {
+                  ...parentContact,
+                  // Keep the actual last message from threads if available
+                  lastMessage: shouldPreserveLastMessage ? existingContact.lastMessage : parentContact.lastMessage,
+                  lastMessageTime: shouldPreserveLastMessage ? existingContact.lastMessageTime : parentContact.lastMessageTime
+                };
+              }
+            }
+          });
+          
+          // Add principal contact if available
+          if ('principal' in response.data && response.data.principal) {
+            const principal = response.data.principal as { id: string; full_name: string; role: string };
+            const principalContact = transformPrincipalToContact(principal);
+            const principalExists = mergedContacts.some(existing => existing.id === principalContact.id);
+            if (!principalExists) {
+              mergedContacts.push(principalContact);
+            }
+          }
+          
+          return sortContactsWithPinned(mergedContacts);
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching teacher linked parents:', error);
+    }
+  }, [token, user?.id, user?.role]);
+
   // Fetch chat threads on component mount
   useEffect(() => {
     if (token) {
@@ -478,6 +567,13 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData 
     // Only run on token changes to avoid duplicate fetches when activeChat changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  // Fetch teacher linked parents for teachers
+  useEffect(() => {
+    if (token && user?.role === 'teacher') {
+      fetchTeacherLinkedParents();
+    }
+  }, [token, user?.role, fetchTeacherLinkedParents]);
 
   // Clean up selecting state when selectedParentId changes or component unmounts
   useEffect(() => {
@@ -488,97 +584,53 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData 
 
   // Auto-select parent chat when selectedParentId is provided
   useEffect(() => {
-    if (selectedParentId) {
+    if (selectedParentId && selectedParentData) {
       console.log('=== PARENT SELECTION START ===');
       console.log('Selected Parent ID:', selectedParentId);
-      console.log('Available contacts:', contacts.length);
-      console.log('Contact details:', contacts.map((c: ChatContact) => ({
-        id: c.id,
-        name: c.name,
-        parentId: c.parentData?.parent_id,
-        isGroup: c.isGroup
-      })));
+      console.log('Selected Parent Data:', selectedParentData);
       
-      // Debug: Log all parent IDs to see what's available
-      const allParentIds = contacts
-        .filter((c: ChatContact) => c.parentData)
-        .map((c: ChatContact) => c.parentData?.parent_id);
-      console.log('All available parent IDs:', allParentIds);
-      console.log('Looking for parent ID:', selectedParentId);
-      console.log('Parent ID found in list:', allParentIds.includes(selectedParentId));
-      
-      setSelectingParent(true);
-      
-      // Clear any existing active chat to prevent showing default chat
+      // Clear any existing active chat
       setActiveChat(null);
       setMessages([]);
       setCurrentThreadId(null);
+      setSelectingParent(false); // Don't show loading state
       
-      if (contacts.length === 0) {
-        // If contacts are not loaded yet, wait a bit and try again
-        console.log('Contacts not loaded yet, will retry...');
-        return;
-      }
+      // Create a contact with real parent data immediately
+      const studentNames = selectedParentData.linked_students.map(student => student.student_name).join(', ');
+      const parentContact: ChatContact = {
+        id: selectedParentId,
+        name: `${selectedParentData.full_name} (Parent of ${studentNames})`,
+        lastMessage: selectedParentData.chat_info.has_thread ? 'Previous conversation available' : 'No messages yet',
+        lastMessageTime: selectedParentData.chat_info.updated_at ? formatDate(selectedParentData.chat_info.updated_at) : 'New',
+        unreadCount: selectedParentData.chat_info.message_count || 0,
+        isOnline: false,
+        type: 'individual',
+        parentData: selectedParentData
+      };
       
-      // Add a small delay to ensure contacts are properly processed
-      setTimeout(() => {
-        const selectedContact = contacts.find(contact => 
-          contact.parentData?.parent_id === selectedParentId
-        );
-        
-        if (selectedContact) {
-          console.log('✅ Found selected contact:', selectedContact.name);
-          console.log('Contact data:', selectedContact);
-          setActiveChat(selectedContact);
-          setSearchTerm('');
-          setSelectingParent(false);
-          console.log('=== PARENT SELECTION SUCCESS ===');
-          
-          // Ensure the contact is visible by scrolling to it if needed
-          setTimeout(() => {
-            const contactElement = document.querySelector(`[data-contact-id="${selectedContact.id}"]`);
-            if (contactElement) {
-              contactElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-          }, 100);
-        } else {
-          console.log('❌ Selected parent not found in contacts:', selectedParentId);
-          console.log('Available parent IDs:', contacts.filter(c => c.parentData).map(c => c.parentData?.parent_id));
-          // If the parent is not found, it might be because contacts are still loading
-          // We'll let the contacts loading effect handle this
-        }
-      }, 100); // Small delay to ensure contacts are ready
+      console.log('✅ Created parent contact with real data:', parentContact);
+      setActiveChat(parentContact);
+      setSearchTerm('');
+      
+      // Fetch the actual parent data in the background to update contacts list
+      fetchTeacherLinkedParents();
     }
-  }, [selectedParentId, contacts]);
+  }, [selectedParentId, selectedParentData]);
 
-  // Retry parent selection when contacts finish loading
+  // Update parent contact with real data when fetched
   useEffect(() => {
-    if (selectedParentId && contacts.length > 0 && !loading && selectingParent) {
-      console.log('=== RETRYING PARENT SELECTION ===');
-      console.log('Selected Parent ID:', selectedParentId);
-      console.log('Contacts loaded:', contacts.length);
-      console.log('Loading state:', loading);
-      console.log('Selecting parent state:', selectingParent);
-      console.log('Active chat:', activeChat);
-      
-      // Check if we need to retry the selection
-      const selectedContact = contacts.find(contact => 
+    if (selectedParentId && contacts.length > 0) {
+      // Find if we have the real parent data now
+      const realParentContact = contacts.find(contact => 
         contact.parentData?.parent_id === selectedParentId
       );
       
-      if (selectedContact && !activeChat) {
-        console.log('✅ Retry successful - Found selected contact:', selectedContact.name);
-        setActiveChat(selectedContact);
-        setSearchTerm('');
-        setSelectingParent(false);
-        console.log('=== RETRY PARENT SELECTION SUCCESS ===');
-      } else {
-        console.log('❌ Retry failed - Contact not found or already active');
-        console.log('Selected contact found:', !!selectedContact);
-        console.log('Active chat exists:', !!activeChat);
+      if (realParentContact && activeChat?.parentData?.parent_id === selectedParentId) {
+        console.log('✅ Updating parent contact with real data:', realParentContact.name);
+        setActiveChat(realParentContact);
       }
     }
-  }, [selectedParentId, contacts, loading, activeChat, selectingParent]);
+  }, [selectedParentId, contacts, activeChat]);
 
   // Prevent auto-selection of first contact when we have a selectedParentId
   useEffect(() => {
@@ -889,15 +941,18 @@ export function ChatInterface({ selectedParentId, isAdminOrPrincipal, chatsData 
           try {
             console.log('Sending message via WebSocket');
             await sendMessageWebSocket(newMessage);
+            console.log('WebSocket message sent successfully');
             setNewMessage('');
-            return; // Success via WebSocket
+            return; // Success via WebSocket - don't try HTTP
           } catch (error) {
             console.warn('WebSocket send failed, falling back to HTTP:', error);
-            // Continue to HTTP fallback
+            // Continue to HTTP fallback only if WebSocket actually failed
           }
+        } else {
+          console.log('WebSocket not connected, using HTTP directly');
         }
 
-        // HTTP fallback (like mobile app)
+        // HTTP fallback (only if WebSocket is not connected or failed)
         try {
           console.log('Sending message via HTTP fallback');
           const payload: SendMessagePayload = {

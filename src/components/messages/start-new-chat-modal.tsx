@@ -17,6 +17,7 @@ interface StartNewChatModalProps {
 export function StartNewChatModal({ open, onOpenChange, onParentSelected }: StartNewChatModalProps) {
   const { token, user } = useAuth();
   const { t } = useI18n();
+  const [allParents, setAllParents] = useState<TeacherLinkedParent[]>([]);
   const [filteredParents, setFilteredParents] = useState<TeacherLinkedParent[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,7 +30,12 @@ export function StartNewChatModal({ open, onOpenChange, onParentSelected }: Star
       setLoading(true);
       setError(null);
 
+      console.log('=== START NEW CHAT MODAL - FETCHING PARENTS ===');
+      console.log('Token exists:', !!token);
+      console.log('User ID:', user?.id);
+      
       const response = await getTeacherLinkedParents(token, user?.id);
+      console.log('API Response:', response);
 
       if (response instanceof Blob) {
         console.error('Unexpected Blob response');
@@ -39,6 +45,9 @@ export function StartNewChatModal({ open, onOpenChange, onParentSelected }: Star
 
       if (response.status === 'success' && 'data' in response && response.data && 'linked_parents' in response.data) {
         const linkedParents = response.data.linked_parents as TeacherLinkedParent[];
+        console.log('Linked parents found:', linkedParents.length);
+        console.log('First parent:', linkedParents[0]);
+        setAllParents(linkedParents);
         setFilteredParents(linkedParents);
       } else {
         console.error('Unexpected response format:', response);
@@ -54,8 +63,22 @@ export function StartNewChatModal({ open, onOpenChange, onParentSelected }: Star
 
   // Fetch linked parents when modal opens
   useEffect(() => {
+    console.log('=== START NEW CHAT MODAL - USE EFFECT ===');
+    console.log('Modal open:', open);
+    console.log('Token exists:', !!token);
+    console.log('User exists:', !!user);
+    console.log('User ID:', user?.id);
+    console.log('User role:', user?.role);
+    
     if (open && token && user?.id) {
+      console.log('Calling fetchParents...');
       fetchParents();
+    } else {
+      console.log('Not calling fetchParents because:', {
+        open,
+        hasToken: !!token,
+        hasUserId: !!user?.id
+      });
     }
   }, [open, token, user?.id, fetchParents]);
 
@@ -65,12 +88,11 @@ export function StartNewChatModal({ open, onOpenChange, onParentSelected }: Star
     if (!open) return;
 
     if (searchTerm.trim() === '') {
-      // If no search term, refetch all parents
-      if (token && user?.id) {
-        fetchParents();
-      }
+      // If no search term, show all parents
+      setFilteredParents(allParents);
     } else {
-      const filtered = filteredParents.filter(parent => {
+      // Filter parents based on search term
+      const filtered = allParents.filter(parent => {
         const parentName = parent.full_name.toLowerCase();
         const studentNames = parent.linked_students
           .map(student => student.student_name.toLowerCase())
@@ -81,7 +103,7 @@ export function StartNewChatModal({ open, onOpenChange, onParentSelected }: Star
       });
       setFilteredParents(filtered);
     }
-  }, [open, searchTerm, filteredParents, token, user?.id, fetchParents]);
+  }, [open, searchTerm, allParents]);
 
   const handleParentSelect = (parent: TeacherLinkedParent) => {
     onParentSelected(parent);

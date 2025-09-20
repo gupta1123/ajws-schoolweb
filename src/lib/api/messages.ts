@@ -20,7 +20,7 @@ export interface TeacherLinkedParent {
   }[];
   chat_info: {
     has_thread: boolean;
-    thread_id: string;
+    thread_id: string | null;
     message_count: number;
     participants: {
       role: string;
@@ -31,10 +31,10 @@ export interface TeacherLinkedParent {
       user_id: string;
       last_read_at: string | null;
     }[];
-    thread_title: string;
-    thread_type: string;
-    created_at: string;
-    updated_at: string;
+    thread_title?: string;
+    thread_type?: string;
+    created_at?: string;
+    updated_at?: string;
   };
 }
 
@@ -59,6 +59,10 @@ export interface TeacherLinkedParentsResponse {
       email: string | null;
       phone_number: string;
       role: string;
+    };
+    filters?: {
+      class_division_id: string | null;
+      class_division_name: string | null;
     };
     summary: {
       total_linked_parents: number;

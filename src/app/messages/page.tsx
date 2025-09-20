@@ -20,6 +20,7 @@ export default function MessagesPage() {
   const [isStartNewChatAdminModalOpen, setIsStartNewChatAdminModalOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
+  const [selectedParentData, setSelectedParentData] = useState<import('@/lib/api/messages').TeacherLinkedParent | null>(null);
   const [activeTab, setActiveTab] = useState<'direct' | 'group'>('direct');
 
   // Optimized: No page-level fetches; ChatInterface handles threads/messages.
@@ -43,12 +44,15 @@ export default function MessagesPage() {
     console.log('Group created with thread ID:', threadId);
   };
 
-  const handleParentSelected = (parent: { parent_id: string; full_name: string }) => {
+  const handleParentSelected = (parent: import('@/lib/api/messages').TeacherLinkedParent) => {
     // Close the modal
     setIsStartNewChatModalOpen(false);
     
     // Set the selected parent ID to open their chat
     setSelectedParentId(parent.parent_id);
+    
+    // Store the full parent data for the ChatInterface to use
+    setSelectedParentData(parent);
     
     // Don't trigger refresh key for parent selection - let the ChatInterface handle it
     // setRefreshKey(prev => prev + 1);
@@ -148,6 +152,7 @@ export default function MessagesPage() {
       {/* Chat Interface */}
       <ChatInterface
         selectedParentId={selectedParentId || undefined}
+        selectedParentData={selectedParentData || undefined}
         isAdminOrPrincipal={isAdminOrPrincipal}
         activeTab={activeTab}
       />

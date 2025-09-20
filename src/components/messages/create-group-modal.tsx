@@ -27,6 +27,7 @@ import {
 import { 
   getTeacherLinkedParents, 
   TeacherLinkedParent,
+  TeacherLinkedParentsResponse,
   startConversation,
   StartConversationPayload
 } from '@/lib/api/messages';
@@ -67,9 +68,15 @@ export function CreateGroupModal({ open, onOpenChange, onGroupCreated }: CreateG
         throw new Error('Unexpected response format');
       }
 
-      if (response.status === 'success' && 'data' in response && response.data && 'linked_parents' in response.data) {
-        const linkedParents = response.data.linked_parents as TeacherLinkedParent[];
-        setParents(linkedParents);
+      console.log('Create Group Modal - API Response received:', response);
+      
+      if (response.status === 'success' && 'data' in response && response.data) {
+        // The response.data should contain linked_parents directly
+        const responseData = response.data as unknown as TeacherLinkedParentsResponse['data'];
+        const linkedParents = responseData.linked_parents;
+        
+        console.log('Create Group Modal - Linked parents found:', linkedParents);
+        setParents(linkedParents || []);
       } else {
         throw new Error('Failed to fetch parents');
       }

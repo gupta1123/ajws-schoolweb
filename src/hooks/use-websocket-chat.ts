@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/lib/auth/context';
 import { ChatWebSocket, WebSocketMessage } from '@/lib/api/websocket';
-import { sendMessage } from '@/lib/api/messages';
+import { sendMessage, SendMessageResponse } from '@/lib/api/messages';
 import { chatThreadsServices } from '@/lib/api/chat-threads';
 
 interface ChatMessage {
@@ -253,25 +253,66 @@ export function useWebSocketChat({
         throw new Error('Unexpected blob response');
       }
 
+      console.log('=== WEBSOCKET RESPONSE DEBUG ===');
+      console.log('Full response:', response);
+      console.log('Response status:', response.status);
+      console.log('Response has data property:', 'data' in response);
+      console.log('Response type:', typeof response);
+      console.log('Response keys:', Object.keys(response));
+      
       if (response.status === 'success' && 'data' in response && response.data) {
-        const messageData = response.data;
+        console.log('Response.data:', response.data);
+        console.log('Response.data type:', typeof response.data);
+        console.log('Response.data keys:', response.data ? Object.keys(response.data) : 'no data');
         
-        const sentMessage: ChatMessage = {
-          id: messageData.data.id,
-          thread_id: messageData.data.thread_id || threadId,
-          sender_id: messageData.data.sender_id,
-          content: messageData.data.content,
-          timestamp: messageData.data.created_at,
-          status: 'sent',
-          isOwn: messageData.data.sender_id === user?.id,
-          sender: messageData.data.sender ? {
-            full_name: messageData.data.sender.full_name,
-            role: messageData.data.sender.role || 'unknown'
-          } : undefined
-        };
+        const responseData = response.data;
+        let messageData: SendMessageResponse['data'] | null = null;
+        
+        // Handle different possible response structures
+        if (responseData && typeof responseData === 'object') {
+          // Check if it's the nested structure (SendMessageResponse with status and data)
+          if ('status' in responseData && 'data' in responseData && responseData.status === 'success') {
+            console.log('Using nested SendMessageResponse structure');
+            messageData = (responseData as SendMessageResponse).data;
+          }
+          // Check if response.data directly contains the message data
+          else if ('id' in responseData && 'content' in responseData) {
+            console.log('Using direct message data structure');
+            messageData = responseData as unknown as SendMessageResponse['data'];
+          }
+          // Handle empty object case
+          else if (Object.keys(responseData).length === 0) {
+            console.error('Received empty response data object');
+            return; // Exit early for empty response
+          }
+          else {
+            console.log('Unknown response structure, trying to use as message data');
+            messageData = responseData as unknown as SendMessageResponse['data'];
+          }
+        }
+        
+        // Safety check to ensure messageData has required fields
+        if (messageData && messageData.id && messageData.content) {
+          const sentMessage: ChatMessage = {
+            id: messageData.id,
+            thread_id: messageData.thread_id || threadId,
+            sender_id: messageData.sender_id,
+            content: messageData.content,
+            timestamp: messageData.created_at,
+            status: 'sent',
+            isOwn: messageData.sender_id === user?.id,
+            sender: messageData.sender ? {
+              full_name: messageData.sender.full_name,
+              role: messageData.sender.role || 'unknown'
+            } : undefined
+          };
 
-        if (onMessageReceived) {
-          onMessageReceived(sentMessage);
+          if (onMessageReceived) {
+            onMessageReceived(sentMessage);
+          }
+        } else {
+          console.error('Invalid or missing message data:', messageData);
+          console.error('Full response.data:', responseData);
         }
       } else {
         throw new Error('Failed to send message via HTTP');
