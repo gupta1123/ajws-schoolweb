@@ -146,11 +146,6 @@ const adminNavItems = [
     category: 'sidebar.category.management',
     items: [
       {
-        title: 'common.messages',
-        href: '/messages',
-        icon: MessageSquare,
-      },
-      {
         title: 'common.announcements',
         href: '/admin/announcements',
         icon: AlertCircle,

@@ -80,12 +80,6 @@ export function QuickActionsCarousel() {
           label: 'Reports', 
           description: 'View reports' 
         },
-        { 
-          href: '/messages', 
-          icon: <Mail className="h-5 w-5" />, 
-          label: 'Messages', 
-          description: 'Check messages' 
-        },
       ];
     }
     

@@ -77,6 +77,7 @@ interface UseAcademicStructureReturn {
   assignTeacherToClass: (classDivisionId: string, data: CreateTeacherAssignmentRequest) => Promise<boolean>;
   updateTeacherAssignment: (assignmentId: string, data: UpdateTeacherAssignmentRequest) => Promise<boolean>;
   removeTeacherFromClass: (classDivisionId: string, teacherId: string, assignmentType?: string) => Promise<boolean>;
+  reassignSubjectTeacher: (classDivisionId: string, assignmentId: string, newTeacherId: string) => Promise<boolean>;
   bulkAssignTeachers: (data: BulkTeacherAssignmentRequest) => Promise<boolean>;
   
   createSubject: (data: CreateSubjectRequest) => Promise<boolean>;
@@ -643,6 +644,26 @@ export const useAcademicStructure = (): UseAcademicStructureReturn => {
       return false;
     }
   }, [token, fetchClassDivisions]);
+
+  const reassignSubjectTeacher = useCallback(async (classDivisionId: string, assignmentId: string, newTeacherId: string): Promise<boolean> => {
+    if (!token) return false;
+    
+    try {
+      const response = await academicServices.reassignSubjectTeacher(classDivisionId, assignmentId, newTeacherId, token);
+      
+      if (response.status === 'success') {
+        await fetchClassDivisions(); // Refresh the list
+        return true;
+      } else {
+        setError('Failed to reassign subject teacher');
+        return false;
+      }
+    } catch (err) {
+      console.error('Reassign subject teacher error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to reassign subject teacher');
+      return false;
+    }
+  }, [token, fetchClassDivisions]);
   
   const bulkAssignTeachers = useCallback(async (data: BulkTeacherAssignmentRequest): Promise<boolean> => {
     if (!token) return false;
@@ -873,6 +894,7 @@ export const useAcademicStructure = (): UseAcademicStructureReturn => {
     assignTeacherToClass,
     updateTeacherAssignment,
     removeTeacherFromClass,
+    reassignSubjectTeacher,
     bulkAssignTeachers,
     createSubject,
     updateSubject,

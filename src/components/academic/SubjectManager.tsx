@@ -29,7 +29,8 @@ export function SubjectManager() {
     assignSubjectsToClass,
     removeSubjectFromClass,
     fetchSubjectsByClassDivision,
-    assignTeacherToClass
+    assignTeacherToClass,
+    reassignSubjectTeacher
   } = useAcademicStructure();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);

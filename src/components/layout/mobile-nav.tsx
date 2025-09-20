@@ -89,11 +89,6 @@ const adminNavItems = [
     href: '/birthdays',
     icon: Cake,
   },
-  {
-    title: 'Messages',
-    href: '/messages',
-    icon: MessageSquare,
-  },
 ];
 
 export function MobileNav() {

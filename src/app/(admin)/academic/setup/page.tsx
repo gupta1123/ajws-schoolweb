@@ -731,105 +731,21 @@ export default function AcademicSystemSetupPage() {
       let response;
 
       if (existingAssignment && existingAssignment.assignmentId) {
-        // For updates, we need to fetch the current user's assignment data to get the correct assignment ID
-        try {
-          // Fetch assignment data for the selected teacher
-          const teacherDataResponse = await academicServices.getTeacherClasses(selectedTeacher, token);
-
-          console.log('Selected teacher data response:', teacherDataResponse); // Debug log
-
-          if (teacherDataResponse.status === 'success') {
-            // Find the assignment for this specific class and subject combination
-            const selectedTeacherAssignment = teacherDataResponse.data.assignments?.find(
-              assignment =>
-                assignment.class_info.class_division_id === selectedDivision.id &&
-                assignment.subject === editingSubject &&
-                assignment.assignment_type === 'subject_teacher'
-            );
-
-            console.log('Looking for assignment with:', {
-              classDivisionId: selectedDivision.id,
-              subject: editingSubject,
-              assignmentType: 'subject_teacher'
-            }); // Debug log
-
-            console.log('Found selected teacher assignment:', selectedTeacherAssignment); // Debug log
-
-            if (selectedTeacherAssignment) {
-              console.log('Updating existing assignment:', {
-                assignmentId: selectedTeacherAssignment.assignment_id,
-                classDivisionId: selectedDivision.id,
-                subject: editingSubject,
-                isPrimary: selectedTeacherAssignment.is_primary
-              }); // Debug log
-              // Update existing assignment using the selected teacher's assignment ID
-              response = await academicServices.updateClassDivisionTeacherAssignment(
-                selectedDivision.id, // classDivisionId
-                selectedTeacherAssignment.assignment_id, // Use the selected teacher's assignment ID
-                {
-                  assignment_type: 'subject_teacher',
-                  is_primary: selectedTeacherAssignment.is_primary, // Use the existing is_primary value
-                  subject: editingSubject,
-                  assignment_id: selectedTeacherAssignment.assignment_id // Include assignment_id in payload
-                },
-                token
-              );
-            } else {
-              console.log('No existing assignment found for selected teacher in this class/subject'); // Debug log
-              console.log('Available assignments for selected teacher:', teacherDataResponse.data.assignments); // Debug log
-              console.log('Creating new assignment for:', {
-                teacherId: selectedTeacher,
-                classDivisionId: selectedDivision.id,
-                subject: editingSubject
-              }); // Debug log
-
-              // If the selected teacher doesn't have an assignment for this subject/class,
-              // we need to create a new assignment instead of updating
-              const assignmentPayload = {
-                class_division_id: selectedDivision.id,
-                teacher_id: selectedTeacher,
-                assignment_type: 'subject_teacher' as const,
-                subject: editingSubject,
-                is_primary: false,
-                assignment_id: undefined // No assignment_id for new assignments
-              };
-
-              console.log('Creating new assignment with payload:', assignmentPayload); // Debug log
-
-              response = await academicServices.assignTeacherToClass(
-                selectedDivision.id,
-                assignmentPayload,
-                token
-              );
-            }
-          } else {
-            const errorMessage = (teacherDataResponse as { status: 'error'; message: string; statusCode: number }).message || 'Unknown error occurred while fetching selected teacher data';
-            console.error('Selected teacher data fetch failed:', teacherDataResponse); // Debug log
-            throw new Error(`Failed to fetch selected teacher assignment data: ${errorMessage}`);
-          }
-        } catch (apiError) {
-          console.error('API Error:', apiError); // Debug log
-
-          // If the API call fails completely, fall back to creating a new assignment
-          console.log('API failed, falling back to creating new assignment'); // Debug log
-
-          const fallbackPayload = {
-            class_division_id: selectedDivision.id,
-            teacher_id: selectedTeacher,
-            assignment_type: 'subject_teacher' as const,
-            subject: editingSubject,
-            is_primary: false,
-            assignment_id: undefined // No assignment_id for fallback new assignment
-          };
-
-          console.log('Fallback assignment payload:', fallbackPayload); // Debug log
-
-          response = await academicServices.assignTeacherToClass(
-            selectedDivision.id,
-            fallbackPayload,
-            token
-          );
-        }
+        // There's already a subject teacher assigned for this subject in this division
+        // We need to reassign to the new teacher using the reassign API
+        console.log('Reassigning existing assignment:', {
+          assignmentId: existingAssignment.assignmentId,
+          classDivisionId: selectedDivision.id,
+          newTeacherId: selectedTeacher,
+          subject: editingSubject
+        }); // Debug log
+        
+        response = await academicServices.reassignSubjectTeacher(
+          selectedDivision.id, // classDivisionId
+          existingAssignment.assignmentId, // Use the existing assignment ID
+          selectedTeacher, // new teacher ID
+          token
+        );
       } else {
         // Create new assignment (POST request)
         const originalPayload = {
