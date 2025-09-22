@@ -1,390 +1,410 @@
 // src/hooks/use-websocket-chat.ts
 
+'use client';
+
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useAuth } from '@/lib/auth/context';
-import { ChatWebSocket, WebSocketMessage } from '@/lib/api/websocket';
-import { sendMessage, SendMessageResponse } from '@/lib/api/messages';
-import { chatThreadsServices } from '@/lib/api/chat-threads';
 
-interface ChatMessage {
-  id: string;
-  thread_id: string;
-  sender_id: string;
-  content: string;
-  timestamp: string;
-  status: 'sending' | 'sent' | 'delivered' | 'read';
-  isOwn: boolean;
-  sender?: {
-    full_name: string;
-    role: string;
+interface WebSocketMessage {
+  type: string;
+  thread_id?: string;
+  content?: string;
+  message_type?: string;
+  message?: {
+    id: string;
+    content: string;
+    sender_id: string;
+    sender: {
+      full_name: string;
+    };
+    created_at: string;
   };
-}
-
-interface UseWebSocketChatOptions {
-  threadId: string | null;
-  onMessageReceived?: (message: ChatMessage) => void;
-  onMessageStatusUpdate?: (messageId: string, status: string) => void;
-  onTypingIndicator?: (isTyping: boolean, sender: string) => void;
+  data?: {
+    id: string;
+    thread_id: string;
+    sender_id: string;
+    content: string;
+    message_type: string;
+    created_at: string;
+    sender: {
+      full_name: string;
+    };
+  };
 }
 
 interface UseWebSocketChatReturn {
   isConnected: boolean;
-  connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error';
-  sendMessageWebSocket: (content: string) => Promise<void>;
-  lastError: string | null;
-  reconnect: () => void;
+  connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'failed';
+  sendMessage: (threadId: string, content: string, messageType: string) => Promise<void>;
+  subscribeToThread: (threadId: string, messageHandler?: (message: WebSocketMessage['message']) => void) => void;
+  unsubscribeFromThread: (threadId: string) => void;
+  onMessage?: (message: WebSocketMessage['message']) => void;
+  startPolling: (threadId: string, callback: (messages: WebSocketMessage['message'][]) => void) => void;
+  stopPolling: (threadId: string) => void;
+  fetchNewMessages: (threadId: string, lastMessageId?: string) => Promise<WebSocketMessage['message'][]>;
 }
 
-export function useWebSocketChat({
-  threadId,
-  onMessageReceived,
-  onMessageStatusUpdate,
-  onTypingIndicator
-}: UseWebSocketChatOptions): UseWebSocketChatReturn {
-  const { token, user } = useAuth();
+export function useWebSocketChat(): UseWebSocketChatReturn {
   const [isConnected, setIsConnected] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
-  const [lastError, setLastError] = useState<string | null>(null);
-  
-  const websocketRef = useRef<ChatWebSocket | null>(null);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastMessageIdRef = useRef<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'failed'>('disconnected');
+  const [activeSubscriptions, setActiveSubscriptions] = useState(0);
+  const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const subscribedThreadsRef = useRef<Set<string>>(new Set());
+  const messageHandlersRef = useRef<Map<string, (message: WebSocketMessage['message']) => void>>(new Map());
+  const pollingIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const pollingCallbacksRef = useRef<Map<string, (messages: WebSocketMessage['message'][]) => void>>(new Map());
+  const lastMessageIdsRef = useRef<Map<string, string>>(new Map());
+  const connectionAttemptsRef = useRef(0);
+  const lastConnectionAttemptRef = useRef(0);
+  const isConnectingRef = useRef(false);
 
-  // Clear any existing timeouts/intervals
-  const clearTimeouts = useCallback(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
+  const connect = useCallback(() => {
+    // Prevent multiple connections
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('🔌 WebSocket already connected, skipping');
+      return;
     }
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
+
+    if (wsRef.current?.readyState === WebSocket.CONNECTING) {
+      console.log('🔌 WebSocket already connecting, skipping');
+      return;
     }
-  }, []);
 
-  // HTTP Polling as backup (every 3 seconds like mobile app)
-  const startPolling = useCallback(async () => {
-    if (!token || !threadId || pollingIntervalRef.current) return;
+    // Throttle connection attempts
+    const now = Date.now();
+    const timeSinceLastAttempt = now - lastConnectionAttemptRef.current;
+    if (timeSinceLastAttempt < 2000) { // Wait at least 2 seconds between attempts
+      console.log('🔌 Connection throttled, waiting...');
+      return;
+    }
 
-    console.log('Starting HTTP polling for thread:', threadId);
+    if (isConnectingRef.current) {
+      console.log('🔌 Already connecting, skipping');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.error('No token found for WebSocket connection');
+      setConnectionStatus('failed');
+      return;
+    }
+
+    // Don't close existing connection, just skip if already exists
+    if (wsRef.current) {
+      console.log('🔌 WebSocket already exists, skipping new connection');
+      return;
+    }
+
+    isConnectingRef.current = true;
+    lastConnectionAttemptRef.current = now;
+    connectionAttemptsRef.current++;
     
-    pollingIntervalRef.current = setInterval(async () => {
+    setConnectionStatus('connecting');
+    console.log('🔌 Connecting to WebSocket... (attempt:', connectionAttemptsRef.current, ')');
+
+    // Try multiple WebSocket endpoints for compatibility
+    const wsUrls = [
+      `wss://ajws-school-ba8ae5e3f955.herokuapp.com?token=${encodeURIComponent(token)}`,
+      `wss://ajws-school-ba8ae5e3f955.herokuapp.com/ws?token=${encodeURIComponent(token)}`,
+      `wss://ajws-school-ba8ae5e3f955.herokuapp.com/websocket?token=${encodeURIComponent(token)}`
+    ];
+
+    let connected = false;
+
+    const tryConnect = async (urlIndex = 0) => {
+      if (connected || urlIndex >= wsUrls.length) {
+        if (!connected) {
+          setConnectionStatus('failed');
+          setIsConnected(false);
+        }
+        return;
+      }
+
       try {
-        console.log('Polling for new messages...');
+        const ws = new WebSocket(wsUrls[urlIndex]);
         
-        const response = await chatThreadsServices.getMessagesAfter(threadId, lastMessageIdRef.current, token);
-        if (response.data.messages.length > 0) {
-          response.data.messages.forEach((msg) => {
-            const chatMessage: ChatMessage = {
-              id: msg.id,
-              thread_id: msg.thread_id,
-              sender_id: msg.sender_id,
-              content: msg.content,
-              timestamp: msg.created_at,
-              status: msg.status as 'sent' | 'delivered' | 'read',
-              isOwn: msg.sender_id === user?.id,
-              sender: msg.sender
-            };
-            
-            if (onMessageReceived) {
-              onMessageReceived(chatMessage);
-            }
+        ws.onopen = () => {
+          console.log('🔌 WebSocket connected:', wsUrls[urlIndex]);
+          wsRef.current = ws;
+          setIsConnected(true);
+          setConnectionStatus('connected');
+          connected = true;
+          isConnectingRef.current = false; // Reset connecting flag
+          connectionAttemptsRef.current = 0; // Reset attempts on successful connection
+
+          // Re-subscribe to all threads
+          subscribedThreadsRef.current.forEach(threadId => {
+            ws.send(JSON.stringify({
+              type: 'subscribe_thread',
+              thread_id: threadId
+            }));
           });
-          lastMessageIdRef.current = response.data.messages[response.data.messages.length - 1].id;
-        }
-      } catch (error) {
-        console.warn('Polling error:', error);
-      }
-    }, 3000); // Poll every 3 seconds like mobile app
-  }, [token, threadId, onMessageReceived, user?.id]);
+        };
 
-  // Stop polling
-  const stopPolling = useCallback(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-      console.log('Stopped HTTP polling');
-    }
-  }, []);
+        ws.onmessage = (event) => {
+          try {
+            const message: WebSocketMessage = JSON.parse(event.data);
+            console.log('📨 WebSocket message received:', message);
 
-  // Initialize WebSocket connection
-  const initializeWebSocket = useCallback(async () => {
-    if (!token || websocketRef.current) return;
-
-    try {
-      setConnectionStatus('connecting');
-      setLastError(null);
-
-      const ws = new ChatWebSocket(token);
-      websocketRef.current = ws;
-
-      // Set up message handler
-      ws.onMessage((message: WebSocketMessage) => {
-        console.log('WebSocket message received:', message);
-
-        switch (message.type) {
-          case 'message_received':
-          case 'send_message':
-          case 'thread_updated':
-            if (message.thread_id === threadId && message.content) {
-              const chatMessage: ChatMessage = {
-                id: Date.now().toString(), // Temporary ID
-                thread_id: message.thread_id,
-                sender_id: 'other', // Will be updated with actual sender ID
-                content: message.content,
-                timestamp: message.created_at || new Date().toISOString(),
-                status: 'delivered',
-                isOwn: false,
-                sender: message.sender
-              };
-
-              if (onMessageReceived) {
-                onMessageReceived(chatMessage);
+            if (message.type === 'new_message' && message.data?.thread_id) {
+              const threadId = message.data.thread_id;
+              console.log('📨 Processing new_message for thread:', threadId);
+              const handler = messageHandlersRef.current.get(threadId);
+              console.log('📨 Handler found:', !!handler, 'Message data:', !!message.data);
+              if (handler && message.data) {
+                console.log('📨 Calling handler with message:', message.data);
+                handler(message.data);
+              } else {
+                console.log('📨 No handler or message - Handler:', !!handler, 'Message data:', !!message.data);
               }
+            } else {
+              console.log('📨 Message not processed - Type:', message.type, 'Thread ID:', message.data?.thread_id);
             }
-            break;
-
-          case 'message_status_update':
-            if (message.thread_id === threadId && onMessageStatusUpdate) {
-              // Handle message status updates (delivered, read, etc.)
-              // This would need the message ID from the server
-              console.log('Message status update:', message);
-            }
-            break;
-
-          case 'typing_indicator':
-            if (message.thread_id === threadId && onTypingIndicator) {
-              // Handle typing indicators
-              onTypingIndicator(true, message.sender?.full_name || 'Someone');
-            }
-            break;
-
-          default:
-            console.log('Unhandled WebSocket message type:', message.type);
-        }
-      });
-
-      // Connect to WebSocket
-      await ws.connect();
-      
-      if (ws.isConnected()) {
-        setIsConnected(true);
-        setConnectionStatus('connected');
-        console.log('WebSocket connected successfully');
-        
-        // Subscribe to thread if threadId is provided
-        if (threadId) {
-          ws.subscribeToThread(threadId);
-          console.log('🔗 WebSocket: Auto-subscribed to thread on connection:', threadId);
-        }
-        
-        // Stop polling when WebSocket is connected
-        stopPolling();
-      } else {
-        setConnectionStatus('error');
-        setLastError('Failed to establish WebSocket connection');
-      }
-    } catch (error) {
-      console.error('WebSocket initialization error:', error);
-      setConnectionStatus('error');
-      setLastError(error instanceof Error ? error.message : 'WebSocket connection failed');
-      
-      // Start polling as fallback
-      startPolling();
-    }
-  }, [token, threadId, onMessageReceived, onMessageStatusUpdate, onTypingIndicator, stopPolling, startPolling]);
-
-  // Send message via WebSocket with HTTP fallback
-  const sendMessageWebSocket = useCallback(async (content: string) => {
-    if (!threadId || !token) {
-      throw new Error('Thread ID or token not available');
-    }
-
-    const ws = websocketRef.current;
-    
-    // Try WebSocket first (preferred method like mobile app)
-    if (ws && ws.isConnected()) {
-      try {
-        console.log('Sending message via WebSocket');
-        ws.sendMessage(threadId, content);
-        
-        // Add optimistic message to UI
-        const optimisticMessage: ChatMessage = {
-          id: `temp-${Date.now()}`,
-          thread_id: threadId,
-          sender_id: user?.id || 'me',
-          content,
-          timestamp: new Date().toISOString(),
-          status: 'sending',
-          isOwn: true,
-          sender: {
-            full_name: user?.full_name || 'You',
-            role: user?.role || 'user'
+          } catch (error) {
+            console.error('Error parsing WebSocket message:', error);
           }
         };
 
-        if (onMessageReceived) {
-          onMessageReceived(optimisticMessage);
-        }
-
-        // Update status to sent after WebSocket sends
-        setTimeout(() => {
-          if (onMessageStatusUpdate) {
-            onMessageStatusUpdate(optimisticMessage.id, 'sent');
+        ws.onclose = (event) => {
+          console.log('🔌 WebSocket closed:', event.code, event.reason);
+          wsRef.current = null;
+          setIsConnected(false);
+          isConnectingRef.current = false; // Reset connecting flag
+          
+          if (event.code === 1006) {
+            console.log('WebSocket closed with 1006. Disabling WebSocket for this session.');
+            setConnectionStatus('failed');
+          } else {
+            setConnectionStatus('disconnected');
+            // Try to reconnect after a delay
+            if (reconnectTimeoutRef.current) {
+              clearTimeout(reconnectTimeoutRef.current);
+            }
+            reconnectTimeoutRef.current = setTimeout(() => {
+              setConnectionStatus('reconnecting');
+              tryConnect(urlIndex + 1);
+            }, 3000);
           }
-        }, 100);
+        };
 
-        return;
+        ws.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          isConnectingRef.current = false; // Reset connecting flag
+          if (!connected) {
+            tryConnect(urlIndex + 1);
+          }
+        };
+
       } catch (error) {
-        console.warn('WebSocket send failed, falling back to HTTP:', error);
+        console.error('WebSocket connection error:', error);
+        isConnectingRef.current = false; // Reset connecting flag
+        tryConnect(urlIndex + 1);
       }
+    };
+
+    tryConnect();
+  }, []);
+
+  const disconnect = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
     }
-
-    // Fallback to HTTP (like mobile app)
-    console.log('Sending message via HTTP fallback');
-    try {
-      const response = await sendMessage(
-        { thread_id: threadId, content },
-        token
-      );
-
-      if (response instanceof Blob) {
-        throw new Error('Unexpected blob response');
-      }
-
-      console.log('=== WEBSOCKET RESPONSE DEBUG ===');
-      console.log('Full response:', response);
-      console.log('Response status:', response.status);
-      console.log('Response has data property:', 'data' in response);
-      console.log('Response type:', typeof response);
-      console.log('Response keys:', Object.keys(response));
-      
-      if (response.status === 'success' && 'data' in response && response.data) {
-        console.log('Response.data:', response.data);
-        console.log('Response.data type:', typeof response.data);
-        console.log('Response.data keys:', response.data ? Object.keys(response.data) : 'no data');
-        
-        const responseData = response.data;
-        let messageData: SendMessageResponse['data'] | null = null;
-        
-        // Handle different possible response structures
-        if (responseData && typeof responseData === 'object') {
-          // Check if it's the nested structure (SendMessageResponse with status and data)
-          if ('status' in responseData && 'data' in responseData && responseData.status === 'success') {
-            console.log('Using nested SendMessageResponse structure');
-            messageData = (responseData as SendMessageResponse).data;
-          }
-          // Check if response.data directly contains the message data
-          else if ('id' in responseData && 'content' in responseData) {
-            console.log('Using direct message data structure');
-            messageData = responseData as unknown as SendMessageResponse['data'];
-          }
-          // Handle empty object case
-          else if (Object.keys(responseData).length === 0) {
-            console.error('Received empty response data object');
-            return; // Exit early for empty response
-          }
-          else {
-            console.log('Unknown response structure, trying to use as message data');
-            messageData = responseData as unknown as SendMessageResponse['data'];
-          }
-        }
-        
-        // Safety check to ensure messageData has required fields
-        if (messageData && messageData.id && messageData.content) {
-          const sentMessage: ChatMessage = {
-            id: messageData.id,
-            thread_id: messageData.thread_id || threadId,
-            sender_id: messageData.sender_id,
-            content: messageData.content,
-            timestamp: messageData.created_at,
-            status: 'sent',
-            isOwn: messageData.sender_id === user?.id,
-            sender: messageData.sender ? {
-              full_name: messageData.sender.full_name,
-              role: messageData.sender.role || 'unknown'
-            } : undefined
-          };
-
-          if (onMessageReceived) {
-            onMessageReceived(sentMessage);
-          }
-        } else {
-          console.error('Invalid or missing message data:', messageData);
-          console.error('Full response.data:', responseData);
-        }
-      } else {
-        throw new Error('Failed to send message via HTTP');
-      }
-    } catch (error) {
-      console.error('HTTP send failed:', error);
-      throw error;
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
     }
-  }, [threadId, token, user, onMessageReceived, onMessageStatusUpdate]);
-
-  // Reconnect function
-  const reconnect = useCallback(async () => {
-    console.log('Manual reconnect requested');
-    clearTimeouts();
-    
-    if (websocketRef.current) {
-      websocketRef.current.disconnect();
-      websocketRef.current = null;
-    }
-    
     setIsConnected(false);
     setConnectionStatus('disconnected');
+  }, []);
+
+  const sendMessage = useCallback(async (threadId: string, content: string, messageType: string = 'text'): Promise<void> => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      throw new Error('WebSocket not connected');
+    }
+
+    const message: WebSocketMessage = {
+      type: 'send_message',
+      thread_id: threadId,
+      content,
+      message_type: messageType
+    };
+
+    wsRef.current.send(JSON.stringify(message));
+  }, []);
+
+  const subscribeToThread = useCallback((threadId: string, messageHandler?: (message: WebSocketMessage['message']) => void) => {
+    console.log('📨 Subscribing to thread:', threadId, 'Handler:', !!messageHandler);
     
-    await initializeWebSocket();
-  }, [clearTimeouts, initializeWebSocket]);
-
-  // Initialize WebSocket when token or threadId changes
-  useEffect(() => {
-    if (token) {
-      initializeWebSocket();
-    }
-
-    return () => {
-      clearTimeouts();
-      if (websocketRef.current) {
-        websocketRef.current.disconnect();
-        websocketRef.current = null;
+    // Check if already subscribed to this thread
+    if (subscribedThreadsRef.current.has(threadId)) {
+      console.log('📨 Already subscribed to thread:', threadId);
+      // Update handler if provided
+      if (messageHandler) {
+        messageHandlersRef.current.set(threadId, messageHandler);
+        console.log('📨 Handler updated for thread:', threadId);
       }
-    };
-  }, [token, initializeWebSocket, clearTimeouts]);
+      return;
+    }
+    
+    const wasEmpty = subscribedThreadsRef.current.size === 0;
+    subscribedThreadsRef.current.add(threadId);
+    
+    // Update subscription count
+    setActiveSubscriptions(subscribedThreadsRef.current.size);
+    
+    // Store message handler for this thread
+    if (messageHandler) {
+      messageHandlersRef.current.set(threadId, messageHandler);
+      console.log('📨 Handler stored for thread:', threadId);
+    }
+    
+    // Connect WebSocket if this is the first subscription
+    if (wasEmpty && !isConnected) {
+      console.log('📨 First subscription, connecting WebSocket');
+      connect();
+    } else if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      const subscribeMessage = {
+        type: 'subscribe_thread',
+        thread_id: threadId
+      };
+      console.log('📨 Sending subscribe message:', subscribeMessage);
+      wsRef.current.send(JSON.stringify(subscribeMessage));
+    } else {
+      console.log('📨 WebSocket not open, cannot subscribe. State:', wsRef.current?.readyState);
+    }
+  }, [isConnected, connect]);
 
-  // Subscribe to thread when threadId changes
-  useEffect(() => {
-    if (websocketRef.current && threadId) {
-      if (websocketRef.current.isConnected()) {
-        websocketRef.current.subscribeToThread(threadId);
-        console.log('🔗 WebSocket: Subscribed to thread:', threadId);
+  const unsubscribeFromThread = useCallback((threadId: string) => {
+    console.log('📨 Unsubscribing from thread:', threadId);
+    subscribedThreadsRef.current.delete(threadId);
+    messageHandlersRef.current.delete(threadId);
+    
+    // Update subscription count
+    setActiveSubscriptions(subscribedThreadsRef.current.size);
+    
+    // Disconnect WebSocket if no more subscriptions
+    if (subscribedThreadsRef.current.size === 0 && isConnected) {
+      console.log('📨 No more subscriptions, disconnecting WebSocket');
+      disconnect();
+    }
+  }, [isConnected, disconnect]);
+
+  // Polling functionality for when WebSocket is unavailable
+  const fetchNewMessages = useCallback(async (threadId: string, lastMessageId?: string): Promise<WebSocketMessage['message'][]> => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return [];
+
+      let url = `https://ajws-school-ba8ae5e3f955.herokuapp.com/api/chat/messages?thread_id=${threadId}`;
+      
+      if (lastMessageId) {
+        url += `&after_id=${lastMessageId}`;
       } else {
-        console.log('🔗 WebSocket: Connection not ready, will subscribe when connected');
-        // The subscription will be handled when connection is established
+        url += `&limit=10`;
       }
-    }
-  }, [threadId]);
 
-  // Start polling if WebSocket is not connected
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.status === 'success') {
+        return data.data.messages || [];
+      }
+      return [];
+    } catch (error) {
+      console.error('Error polling for messages:', error);
+      return [];
+    }
+  }, []);
+
+  const startPolling = useCallback((threadId: string, callback: (messages: WebSocketMessage['message'][]) => void) => {
+    // Stop existing polling for this thread
+    stopPolling(threadId);
+    
+    // Store the callback
+    pollingCallbacksRef.current.set(threadId, callback);
+    
+    // Start polling every 3-5 seconds when WebSocket is disconnected
+    const pollInterval = setInterval(async () => {
+      if ((!isConnected || connectionStatus === 'disconnected' || connectionStatus === 'failed') && pollingCallbacksRef.current.has(threadId)) {
+        console.log('🔄 Polling: Fetching messages for thread:', threadId);
+        const lastMessageId = lastMessageIdsRef.current.get(threadId);
+        const newMessages = await fetchNewMessages(threadId, lastMessageId);
+        
+        if (newMessages.length > 0) {
+          console.log('🔄 Polling: Found new messages:', newMessages.length);
+          const callback = pollingCallbacksRef.current.get(threadId);
+          if (callback) {
+            callback(newMessages);
+            // Update last message ID
+            const latestMessage = newMessages[newMessages.length - 1];
+            if (latestMessage?.id) {
+              lastMessageIdsRef.current.set(threadId, latestMessage.id);
+            }
+          }
+        } else {
+          console.log('🔄 Polling: No new messages');
+        }
+      }
+        }, 5000); // Poll every 5 seconds (reduced frequency)
+
+    pollingIntervalsRef.current.set(threadId, pollInterval);
+  }, [isConnected, connectionStatus, fetchNewMessages]);
+
+  const stopPolling = useCallback((threadId: string) => {
+    const interval = pollingIntervalsRef.current.get(threadId);
+    if (interval) {
+      clearInterval(interval);
+      pollingIntervalsRef.current.delete(threadId);
+    }
+    pollingCallbacksRef.current.delete(threadId);
+    lastMessageIdsRef.current.delete(threadId);
+  }, []);
+
+  // Monitor subscription changes and manage WebSocket connection
   useEffect(() => {
-    if (!isConnected && threadId && token) {
-      startPolling();
-    } else if (isConnected) {
-      stopPolling();
+    console.log('🔌 Active subscriptions:', activeSubscriptions, 'Connected:', isConnected);
+    
+    if (activeSubscriptions > 0 && !isConnected && connectionStatus !== 'connecting') {
+      console.log('🔌 Connecting WebSocket due to active subscriptions');
+      connect();
+    } else if (activeSubscriptions === 0 && isConnected) {
+      console.log('🔌 Disconnecting WebSocket - no active subscriptions');
+      disconnect();
     }
+  }, [activeSubscriptions, isConnected, connectionStatus, connect, disconnect]);
 
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
-      stopPolling();
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      // Clear all polling intervals
+      pollingIntervalsRef.current.forEach(interval => clearInterval(interval));
+      pollingIntervalsRef.current.clear();
+      pollingCallbacksRef.current.clear();
+      lastMessageIdsRef.current.clear();
     };
-  }, [isConnected, threadId, token, startPolling, stopPolling]);
+  }, []);
 
   return {
     isConnected,
     connectionStatus,
-    sendMessageWebSocket,
-    lastError,
-    reconnect
+    sendMessage,
+    subscribeToThread,
+    unsubscribeFromThread,
+    startPolling,
+    stopPolling,
+    fetchNewMessages
   };
 }

@@ -11,7 +11,7 @@ import {
   SheetContent,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { Menu, BookOpen, Home, Users, Clipboard, FileText, MessageSquare, User, School, Calendar, Cake, CheckSquare } from 'lucide-react';
+import { Menu, BookOpen, Home, Users, Clipboard, FileText, User, School, Calendar, Cake, CheckSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
 
@@ -50,11 +50,6 @@ const teacherNavItems = [
     title: 'Birthdays',
     href: '/birthdays',
     icon: Cake,
-  },
-  {
-    title: 'Messages',
-    href: '/messages',
-    icon: MessageSquare,
   },
 ];
 

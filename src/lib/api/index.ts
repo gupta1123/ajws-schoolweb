@@ -12,8 +12,6 @@ export { academicServices } from './academic';
 export { staffServices } from './staff';
 export { studentServices } from './students';
 export { parentServices } from './parents';
-export { getTeacherLinkedParents } from './messages';
-export type { TeacherLinkedParent, TeacherLinkedParentsResponse } from './messages';
 export { attendanceApi } from './attendance';
 export type * from './attendance';
 export { timetableApi } from './timetable';

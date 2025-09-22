@@ -29,7 +29,7 @@ const headerKeyByPath: Record<string, string> = {
   '/students': 'topbar.students',
   '/homework': 'topbar.homework',
   '/classwork': 'topbar.classwork',
-  '/messages': 'topbar.messages',
+  '/messaging': 'topbar.messaging',
   '/calendar': 'topbar.calendar',
   '/calendar/create': 'topbar.calendarCreate',
   '/calendar/[id]/edit': 'topbar.calendarEdit',

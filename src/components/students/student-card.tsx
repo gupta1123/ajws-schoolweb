@@ -129,7 +129,7 @@ export function StudentCard({
           
           <div className="flex gap-1">
             <Button variant="outline" size="icon" className="h-8 w-8" asChild>
-              <Link href={`/messages?studentId=${id}`}>
+              <Link href={`/messaging?studentId=${id}`}>
                 <MessageSquare className="h-4 w-4" />
               </Link>
             </Button>

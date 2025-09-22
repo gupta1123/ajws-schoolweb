@@ -4,7 +4,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { BookOpen, Home, Users, Clipboard, FileText,AlertCircle, User, School, Calendar, Cake, LogOut, MessageSquare, CheckSquare, Clock } from 'lucide-react';
+import { BookOpen, Home, Users, Clipboard, FileText,AlertCircle, User, School, Calendar, Cake, LogOut, CheckSquare, Clock, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
 import { useRouter } from 'next/navigation';
@@ -71,9 +71,9 @@ const teacherNavItems: NavCategory[] = [
     category: 'sidebar.category.management',
     items: [
       {
-        title: 'common.messages',
-        href: '/messages',
-        icon: MessageSquare,
+        title: 'common.messaging',
+        href: '/messaging',
+        icon: MessageCircle,
       },
       {
         title: 'common.announcements',

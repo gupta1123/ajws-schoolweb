@@ -59,12 +59,14 @@ export function useChatMessages(threadId: string | null) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchMessages = useCallback(async () => {
-    console.log('=== useChatMessages fetchMessages called ===');
-    console.log('Thread ID:', threadId);
-    console.log('Token available:', !!token);
+    console.log('📡 HOOK: useChatMessages fetchMessages called:', {
+      threadId,
+      hasToken: !!token,
+      timestamp: new Date().toISOString()
+    });
     
     if (!token || !threadId) {
-      console.log('No token or thread ID, clearing messages');
+      console.log('🧹 HOOK: No token or thread ID, clearing messages');
       setMessages([]);
       return;
     }
@@ -73,14 +75,23 @@ export function useChatMessages(threadId: string | null) {
       setLoading(true);
       setError(null);
       
-      console.log('Fetching messages for thread:', threadId);
+      console.log('🔄 HOOK: Fetching messages for thread:', threadId);
       const response = await chatThreadsServices.getChatMessages(threadId, token);
-      console.log('Messages response:', response);
+      console.log('📨 HOOK: Messages response received:', {
+        status: response.status,
+        messageCount: response.data?.messages?.length || 0,
+        messages: response.data?.messages?.map(m => ({
+          id: m.id,
+          content: m.content?.substring(0, 20) + '...',
+          sender: m.sender?.full_name
+        }))
+      });
       setMessages(response.data.messages);
+      console.log('✅ HOOK: Messages set successfully, count:', response.data.messages.length);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch messages';
       setError(errorMessage);
-      console.error('Chat messages fetch error:', err);
+      console.error('❌ HOOK: Chat messages fetch error:', err);
       setMessages([]);
     } finally {
       setLoading(false);
@@ -88,8 +99,11 @@ export function useChatMessages(threadId: string | null) {
   }, [threadId, token]);
 
   useEffect(() => {
-    console.log('=== useChatMessages useEffect triggered ===');
-    console.log('Thread ID changed to:', threadId);
+    console.log('🔄 HOOK: useChatMessages useEffect triggered:', {
+      threadId,
+      hasToken: !!token,
+      timestamp: new Date().toISOString()
+    });
     fetchMessages();
   }, [threadId, token, fetchMessages]);
 
