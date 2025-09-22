@@ -171,6 +171,11 @@ const adminNavItems = [
 
 
 const principalNavItems: NavItem[] = [
+  {
+    title: 'common.messaging',
+    href: '/admin/messaging',
+    icon: MessageCircle,
+  },
   // Approvals section removed/hidden
 ];
 

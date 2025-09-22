@@ -35,6 +35,11 @@ interface Announcement {
   view_count: number;
   created_at: string;
   updated_at: string;
+  target_class_names?: string[];
+  target_classes_detailed?: Array<{
+    id: string;
+    name: string;
+  }>;
   creator: {
     id: string;
     role: string;
@@ -287,9 +292,9 @@ export default function AnnouncementViewPage() {
                   <div>
                     <h4 className="text-sm font-medium mb-3">Target Classes</h4>
                     <div className="flex flex-wrap gap-2">
-                      {announcement.target_classes.map((classId) => (
-                        <Badge key={classId} variant="secondary" className="px-3 py-1">
-                          {classId}
+                      {(announcement.target_class_names || announcement.target_classes_detailed?.map(c => c.name) || announcement.target_classes).map((className, index) => (
+                        <Badge key={index} variant="secondary" className="px-3 py-1">
+                          {className}
                         </Badge>
                       ))}
                     </div>
@@ -337,18 +342,6 @@ export default function AnnouncementViewPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-muted-foreground">Featured:</span>
-                    <Badge variant={announcement.is_featured ? "default" : "outline"}>
-                      {announcement.is_featured ? "Yes" : "No"}
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-muted-foreground">Views:</span>
-                    <span className="font-medium">{announcement.view_count}</span>
-                  </div>
-                  
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-muted-foreground">Created:</span>
                     <span className="font-medium">{formatDate(announcement.created_at)}</span>

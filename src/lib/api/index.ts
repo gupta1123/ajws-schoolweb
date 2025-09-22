@@ -41,3 +41,17 @@ export type {
 } from './chat-threads';
 // Rename ChatParticipant from chat-threads to avoid conflict
 export type { ChatParticipant as ThreadChatParticipant } from './chat-threads';
+export { principalMessagingServices } from './principal-messaging';
+export type {
+  PrincipalClassDivision,
+  PrincipalClassDivisionsResponse,
+  PrincipalTeacher,
+  PrincipalTeachersWithAssignmentsResponse,
+  PrincipalDivisionTeacher,
+  PrincipalDivisionMessage,
+  PrincipalDivisionMessagesResponse,
+  PrincipalDivisionThread,
+  PrincipalDivisionParent,
+  PrincipalDivisionStudent,
+  PrincipalDivisionParentsResponse
+} from './principal-messaging';

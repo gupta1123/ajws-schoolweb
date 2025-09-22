@@ -57,16 +57,22 @@ export const convertApiEventToUI = (apiEvent: CalendarEvent): UICalendarEvent =>
 
   // Build class information
   let classInfo = '';
-  if (apiEvent.class_info) {
+  if (apiEvent.event_type === 'school_wide') {
+    // For school-wide events, use class_division_name or class_info.message
+    classInfo = apiEvent.class_division_name || apiEvent.class_info?.message || 'All Classes';
+  } else if (apiEvent.class_info && apiEvent.class_info.class_level && apiEvent.class_info.division) {
+    // For class-specific events, use class_level and division
     classInfo = `${apiEvent.class_info.class_level} - Section ${apiEvent.class_info.division}`;
+  } else if (apiEvent.class_division_name) {
+    // Fallback to class_division_name if available
+    classInfo = apiEvent.class_division_name;
   }
 
   // All events require approval by default
   const requiresApproval = true;
   
-  // Check if the event is approved (created by admin/principal or explicitly approved)
-  const approved = apiEvent.creator_role === 'admin' || 
-                  apiEvent.creator_role === 'principal';
+  // Check if the event is approved based on status field
+  const approved = apiEvent.status === 'approved';
 
   return {
     id: apiEvent.id,

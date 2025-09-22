@@ -382,13 +382,13 @@ export default function ProfilePage() {
 
       {/* Confirmation Modal for Account Deletion */}
       <ConfirmationModal
-        open={showDeleteConfirmation}
-        onOpenChange={setShowDeleteConfirmation}
+        isOpen={showDeleteConfirmation}
+        onClose={() => setShowDeleteConfirmation(false)}
         title={t('profilePage.confirm.deleteTitle', 'Delete Account')}
         description={t('profilePage.confirm.deleteDesc', 'Are you sure you want to delete your account? This action cannot be undone. All your data will be permanently removed.')}
         confirmText={t('profilePage.security.deleteAccount', 'Delete Account')}
         cancelText={t('actions.cancel', 'Cancel')}
-        confirmVariant="destructive"
+        variant="destructive"
         onConfirm={handleDeleteAccount}
       />
 

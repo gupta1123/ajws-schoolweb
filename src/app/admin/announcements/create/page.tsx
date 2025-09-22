@@ -33,7 +33,6 @@ const targetRoles = [
   { value: 'teacher' },
   { value: 'parent' },
   { value: 'student' },
-  { value: 'admin' },
 ] as const;
 
 export default function AdminCreateAnnouncementPage() {
@@ -398,7 +397,6 @@ export default function AdminCreateAnnouncementPage() {
                       {role.value === 'teacher' && t('announcements.roles.teacher', 'Teachers')}
                       {role.value === 'parent' && t('announcements.roles.parent', 'Parents')}
                       {role.value === 'student' && t('announcements.roles.student', 'Students')}
-                      {role.value === 'admin' && t('announcements.roles.admin', 'Administrators')}
                     </Button>
                   ))}
                 </div>

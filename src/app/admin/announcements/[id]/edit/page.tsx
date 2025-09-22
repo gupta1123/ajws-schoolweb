@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, BookOpen, AlertCircle, Calendar, Users, Star, Edit } from 'lucide-react';
+import { ArrowLeft, BookOpen, AlertCircle, Calendar, Users, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -31,7 +31,6 @@ const targetRoles = [
   { value: 'teacher', label: 'Teachers' },
   { value: 'parent', label: 'Parents' },
   { value: 'student', label: 'Students' },
-  { value: 'admin', label: 'Administrators' },
 ];
 
 export default function AdminEditAnnouncementPage() {
@@ -55,7 +54,6 @@ export default function AdminEditAnnouncementPage() {
     publish_time: '09:00',
     expires_date: '',
     expires_time: '17:00',
-    is_featured: false,
   });
 
   const fetchAnnouncement = useCallback(async (id: string) => {
@@ -105,7 +103,6 @@ export default function AdminEditAnnouncementPage() {
         publish_time: publishDate.toTimeString().slice(0, 5),
         expires_date: expiresDate.toISOString().split('T')[0],
         expires_time: expiresDate.toTimeString().slice(0, 5),
-        is_featured: announcement.is_featured,
       });
     }
   }, [announcement]);
@@ -144,7 +141,6 @@ export default function AdminEditAnnouncementPage() {
         target_classes: formData.target_classes,
         publish_at: new Date(`${formData.publish_date}T${formData.publish_time}`).toISOString(),
         expires_at: new Date(`${formData.expires_date}T${formData.expires_time}`).toISOString(),
-        is_featured: formData.is_featured,
       };
 
       const response = await api.editAnnouncement(announcement.id, payload);
@@ -453,28 +449,6 @@ export default function AdminEditAnnouncementPage() {
             </CardContent>
           </Card>
 
-          {/* Options */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Options</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="featured"
-                  checked={formData.is_featured}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_featured: checked }))}
-                />
-                <Label htmlFor="featured" className="flex items-center gap-2">
-                  <Star className="w-4 h-4" />
-                  Mark as featured
-                </Label>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Featured announcements will be highlighted and appear at the top of the list.
-              </p>
-            </CardContent>
-          </Card>
 
           {/* Actions */}
           <Card>

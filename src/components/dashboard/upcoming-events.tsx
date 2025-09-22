@@ -241,9 +241,14 @@ export function UpcomingEvents() {
                     </div>
                     <div>
                       <h4 className="font-medium text-sm">{event.title}</h4>
-                      {event.class_info && (
+                      {(event.class_info || event.event_type === 'school_wide') && (
                         <p className="text-xs text-muted-foreground">
-                          {event.class_info.class_level} - {event.class_info.division}
+                          {event.event_type === 'school_wide'
+                            ? (event.class_division_name || event.class_info?.message || 'All Classes')
+                            : event.class_info 
+                              ? `${event.class_info.class_level} - ${event.class_info.division}`
+                              : 'N/A'
+                          }
                         </p>
                       )}
                     </div>

@@ -64,10 +64,11 @@ export function EventCreationWizard({
   onCancel, 
   isLoading 
 }: EventCreationWizardProps) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { t } = useI18n();
   const [classDivisions, setClassDivisions] = useState<ClassDivision[]>([]);
   const [loadingClassDivisions, setLoadingClassDivisions] = useState(false);
+  
   
 
   
@@ -122,7 +123,9 @@ export function EventCreationWizard({
   // Fetch class divisions on component mount
   useEffect(() => {
     const fetchClassDivisions = async () => {
-      if (!token) return;
+      if (!token) {
+        return;
+      }
       
       try {
         setLoadingClassDivisions(true);
@@ -231,6 +234,7 @@ export function EventCreationWizard({
     acc[grade].push(division);
     return acc;
   }, {} as Record<string, ClassDivision[]>);
+
 
   // Check if all divisions of a grade are selected
   const isGradeFullySelected = (grade: string) => {

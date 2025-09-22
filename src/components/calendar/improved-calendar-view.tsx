@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -70,15 +70,17 @@ interface ImprovedCalendarViewProps {
   events: CalendarEvent[];
   onViewEvent: (eventId: string) => void;
   onAddEvent: (date: string) => void;
+  onMonthChange?: (date: Date) => void;
 }
 
 type ViewMode = 'monthly' | 'weekly' | 'daily';
 
-export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: ImprovedCalendarViewProps) {
+export function ImprovedCalendarView({ events, onViewEvent, onAddEvent, onMonthChange }: ImprovedCalendarViewProps) {
   const { colorScheme } = useTheme();
   const { t, lang } = useI18n();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('monthly');
+
   
   // Generate calendar days for monthly view
   const getDaysInMonth = (year: number, month: number) => {
@@ -136,6 +138,8 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
       newDate.setMonth(newDate.getMonth() + 1);
     }
     setCurrentDate(newDate);
+    // Notify parent component about month change
+    onMonthChange?.(newDate);
   };
   
   const navigateWeek = (direction: 'prev' | 'next') => {
@@ -146,6 +150,16 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
       newDate.setDate(newDate.getDate() + 7);
     }
     setCurrentDate(newDate);
+    
+    // Check if month changed and notify parent
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+    const newMonth = newDate.getMonth();
+    const newYear = newDate.getFullYear();
+    
+    if (currentMonth !== newMonth || currentYear !== newYear) {
+      onMonthChange?.(newDate);
+    }
   };
   
   const navigateDay = (direction: 'prev' | 'next') => {
@@ -156,10 +170,30 @@ export function ImprovedCalendarView({ events, onViewEvent, onAddEvent }: Improv
       newDate.setDate(newDate.getDate() + 1);
     }
     setCurrentDate(newDate);
+    
+    // Check if month changed and notify parent
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+    const newMonth = newDate.getMonth();
+    const newYear = newDate.getFullYear();
+    
+    if (currentMonth !== newMonth || currentYear !== newYear) {
+      onMonthChange?.(newDate);
+    }
   };
   
   const goToToday = () => {
-    setCurrentDate(new Date());
+    const today = new Date();
+    setCurrentDate(today);
+    // Notify parent component about month change if it's different
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+    const todayMonth = today.getMonth();
+    const todayYear = today.getFullYear();
+    
+    if (currentMonth !== todayMonth || currentYear !== todayYear) {
+      onMonthChange?.(today);
+    }
   };
   
   // Get theme color classes

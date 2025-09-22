@@ -5,11 +5,7 @@
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { 
-  Search, 
-  Filter,
   Users
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -32,8 +28,6 @@ export default function ClassesPage() {
   const { t } = useI18n();
   const [classes, setClasses] = useState<TeacherClass[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('name');
 
   useEffect(() => {
     const fetchTeacherClasses = async () => {
@@ -110,20 +104,6 @@ export default function ClassesPage() {
     );
   }
 
-  // Filter and sort classes
-  const filteredAndSortedClasses = classes
-    .filter(cls => 
-      cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cls.division.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => {
-      if (sortBy === 'name') {
-        return a.name.localeCompare(b.name);
-      } else if (sortBy === 'students') {
-        return b.studentCount - a.studentCount;
-      }
-      return 0;
-    });
 
   if (loading) {
     return (
@@ -145,52 +125,20 @@ export default function ClassesPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            {/* Filters and Search */}
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder={t('classes.searchPlaceholder', 'Search classes...')}
-                      className="pl-10"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <select 
-                      className="border rounded-md px-3 py-2 text-sm"
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
-                    >
-                      <option value="name">{t('classes.sort.name', 'Sort by Name')}</option>
-                      <option value="students">{t('classes.sort.students', 'Sort by Students')}</option>
-                    </select>
-                    <Button variant="outline" size="icon">
-                      <Filter className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Class Cards Grid */}
-            {filteredAndSortedClasses.length === 0 ? (
+            {classes.length === 0 ? (
               <Card>
                 <CardContent className="text-center py-12">
                   <Users className="mx-auto h-12 w-12 text-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-gray-900">{t('classes.emptyTitle', 'No classes found')}</h3>
                   <p className="mt-1 text-sm text-gray-500">
-                    {searchTerm 
-                      ? t('classes.noSearchMatch', 'No classes match your search.') 
-                      : t('classes.noAssigned', "You don't have any classes assigned to you yet.")}
+                    {t('classes.noAssigned', "You don't have any classes assigned to you yet.")}
                   </p>
                 </CardContent>
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredAndSortedClasses.map((classItem) => (
+                {classes.map((classItem) => (
                   <ClassCard
                     key={classItem.assignmentId}
                     name={classItem.name}
@@ -203,8 +151,6 @@ export default function ClassesPage() {
               </div>
             )}
           </div>
-          
-
         </div>
       </div>
     </ProtectedRoute>

@@ -11,7 +11,7 @@ import {
   SheetContent,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { Menu, BookOpen, Home, Users, Clipboard, FileText, User, School, Calendar, Cake, CheckSquare } from 'lucide-react';
+import { Menu, BookOpen, Home, Users, Clipboard, FileText, User, School, Calendar, Cake, CheckSquare, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
 
@@ -86,6 +86,44 @@ const adminNavItems = [
   },
 ];
 
+const principalNavItems = [
+  {
+    title: 'Dashboard',
+    href: '/dashboard',
+    icon: Home,
+  },
+  {
+    title: 'Students',
+    href: '/students',
+    icon: Users,
+  },
+  {
+    title: 'Staff',
+    href: '/staff',
+    icon: User,
+  },
+  {
+    title: 'Academic Structure',
+    href: '/academic',
+    icon: School,
+  },
+  {
+    title: 'Messaging',
+    href: '/admin/messaging',
+    icon: MessageCircle,
+  },
+  {
+    title: 'Calendar',
+    href: '/calendar',
+    icon: Calendar,
+  },
+  {
+    title: 'Birthdays',
+    href: '/birthdays',
+    icon: Cake,
+  },
+];
+
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -99,7 +137,8 @@ export function MobileNav() {
 
   // Determine which navigation items to show based on user role
   const navItems = user?.role === 'teacher' ? teacherNavItems : 
-                  (user?.role === 'admin' || user?.role === 'principal') ? adminNavItems : [];
+                  user?.role === 'admin' ? adminNavItems :
+                  user?.role === 'principal' ? principalNavItems : [];
 
   return (
     <div className="md:hidden flex items-center">

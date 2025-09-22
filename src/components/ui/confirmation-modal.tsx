@@ -1,90 +1,89 @@
-// src/components/ui/confirmation-modal.tsx
-
 'use client';
 
-import * as React from 'react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 
 interface ConfirmationModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
   title: string;
   description: string;
   confirmText?: string;
   cancelText?: string;
-  confirmVariant?: 'default' | 'destructive';
+  variant?: 'default' | 'destructive';
   isLoading?: boolean;
-  onConfirm: () => void;
-  onCancel?: () => void;
 }
 
-function ConfirmationModal({
-  open,
-  onOpenChange,
+export function ConfirmationModal({
+  isOpen,
+  onClose,
+  onConfirm,
   title,
   description,
   confirmText = 'Confirm',
   cancelText = 'Cancel',
-  confirmVariant = 'default',
+  variant = 'default',
   isLoading = false,
-  onConfirm,
-  onCancel,
 }: ConfirmationModalProps) {
   const handleConfirm = () => {
-    if (!isLoading) {
-      onConfirm();
-    }
-  };
-
-  const handleCancel = () => {
-    if (onCancel) {
-      onCancel();
-    }
-    onOpenChange(false);
+    onConfirm();
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={handleCancel} disabled={isLoading}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-full ${
+              variant === 'destructive' 
+                ? 'bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400' 
+                : 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400'
+            }`}>
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-left">{title}</DialogTitle>
+              <DialogDescription className="text-left mt-1">
+                {description}
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+        <DialogFooter className="flex gap-2 sm:gap-0">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={isLoading}
+            className="flex-1 sm:flex-none"
+          >
             {cancelText}
-          </AlertDialogCancel>
-          <AlertDialogAction asChild>
-            <Button
-              variant={confirmVariant}
-              onClick={handleConfirm}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Please wait
-                </>
-              ) : (
-                confirmText
-              )}
-            </Button>
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          </Button>
+          <Button
+            variant={variant === 'destructive' ? 'destructive' : 'default'}
+            onClick={handleConfirm}
+            disabled={isLoading}
+            className="flex-1 sm:flex-none"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              confirmText
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
-
-export { ConfirmationModal };

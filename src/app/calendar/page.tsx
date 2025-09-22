@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ImprovedCalendarView } from '@/components/calendar/improved-calendar-view';
 import { PendingEventsTable } from '@/components/calendar/pending-events-table';
 import { EventDetailModal } from '@/components/calendar/event-detail-modal';
+import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import { useCalendarEvents } from '@/hooks/use-calendar-events';
 import { convertApiEventToUI, UICalendarEvent } from '@/lib/utils/calendar-utils';
 import { calendarServices, CalendarEvent } from '@/lib/api/calendar';
@@ -25,6 +26,16 @@ export default function CalendarPage() {
   const [selectedEvent, setSelectedEvent] = useState<UICalendarEvent | null>(null);
   const [pendingEvents, setPendingEvents] = useState<CalendarEvent[]>([]);
   const [pendingEventsLoading, setPendingEventsLoading] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    isOpen: boolean;
+    eventId: string | null;
+    eventTitle: string;
+  }>({
+    isOpen: false,
+    eventId: null,
+    eventTitle: '',
+  });
+  const [deleting, setDeleting] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -225,48 +236,59 @@ export default function CalendarPage() {
     window.location.href = `/calendar/${eventId}/edit`;
   };
 
-  const handleDeleteEvent = async (eventId: string) => {
+  const handleDeleteEvent = (eventId: string) => {
+    // Check if auth is still loading
+    if (authLoading) {
+      toast({
+        title: "Please wait",
+        description: "Authentication is still loading. Please try again in a moment.",
+        variant: "error",
+      });
+      return;
+    }
+
+    // Check if user is authenticated
+    if (!user || !token) {
+      toast({
+        title: t('calendar.page.authError', 'Authentication Error'),
+        description: t('calendar.page.loginPrompt', 'Please log in to perform this action'),
+        variant: "error",
+      });
+      return;
+    }
+
+    // Check if user has permission to delete events
+    if (user.role !== 'admin' && user.role !== 'principal') {
+      toast({
+        title: t('calendar.page.accessDenied', 'Access Denied'),
+        description: t('calendar.page.deleteOnlyAdmins', 'Only admins and principals can delete events'),
+        variant: "error",
+      });
+      return;
+    }
+
+    // Find the event to get its title
+    const event = uiEvents.find(e => e.id === eventId);
+    const eventTitle = event?.title || 'this event';
+
+    // Show confirmation modal
+    setDeleteConfirmation({
+      isOpen: true,
+      eventId,
+      eventTitle,
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmation.eventId || !token) return;
+
     try {
-      // Check if auth is still loading
-      if (authLoading) {
-        toast({
-          title: "Please wait",
-          description: "Authentication is still loading. Please try again in a moment.",
-          variant: "error",
-        });
-        return;
-      }
-
-      // Check if user is authenticated
-      if (!user || !token) {
-        toast({
-          title: t('calendar.page.authError', 'Authentication Error'),
-          description: t('calendar.page.loginPrompt', 'Please log in to perform this action'),
-          variant: "error",
-        });
-        return;
-      }
-
-      // Check if user has permission to delete events
-      if (user.role !== 'admin' && user.role !== 'principal') {
-        toast({
-          title: t('calendar.page.accessDenied', 'Access Denied'),
-          description: t('calendar.page.deleteOnlyAdmins', 'Only admins and principals can delete events'),
-          variant: "error",
-        });
-        return;
-      }
-
-      // Show confirmation dialog
-      if (!confirm(t('calendar.page.confirmDelete', 'Are you sure you want to delete this event? This action cannot be undone.'))) {
-        return;
-      }
-
+      setDeleting(true);
       console.log('Deleting event with token:', token ? 'Token exists' : 'No token');
-      console.log('Event ID:', eventId);
+      console.log('Event ID:', deleteConfirmation.eventId);
 
       // Call the delete API
-      const response = await calendarServices.deleteEvent(token, eventId);
+      const response = await calendarServices.deleteEvent(token, deleteConfirmation.eventId);
       
       if (response && typeof response === 'object' && 'status' in response && response.status === 'success') {
         toast({
@@ -275,10 +297,15 @@ export default function CalendarPage() {
         });
         
         // Refresh the events list
-        // await fetchEvents(); // This line was removed as per the new_code
+        await fetchEventsByRole();
         
-        // Close the modal
+        // Close the modal and confirmation
         setSelectedEvent(null);
+        setDeleteConfirmation({
+          isOpen: false,
+          eventId: null,
+          eventTitle: '',
+        });
       } else {
         throw new Error('Failed to delete event');
       }
@@ -289,7 +316,17 @@ export default function CalendarPage() {
         description: error instanceof Error ? error.message : t('calendar.page.deleteFailed', 'Failed to delete event'),
         variant: "error",
       });
+    } finally {
+      setDeleting(false);
     }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirmation({
+      isOpen: false,
+      eventId: null,
+      eventTitle: '',
+    });
   };
 
   const handleApproveEvent = (eventId: string) => {
@@ -308,6 +345,33 @@ export default function CalendarPage() {
     // Navigate to the pending event detail page
     window.location.href = `/calendar/pending/${event.id}`;
   };
+
+  const handleMonthChange = useCallback(async (newDate: Date) => {
+    if (!token || !user) return;
+
+    try {
+      // Get the date range for the new month
+      const year = newDate.getFullYear();
+      const month = newDate.getMonth();
+      const startOfMonth = new Date(year, month, 1);
+      const endOfMonth = new Date(year, month + 1, 0);
+
+      const startDate = startOfMonth.toISOString().split('T')[0];
+      const endDate = endOfMonth.toISOString().split('T')[0];
+
+      console.log('Month changed, fetching events for:', { startDate, endDate, month: month + 1, year });
+
+      // Fetch events for the new month
+      await fetchEventsByDateRange(startDate, endDate);
+    } catch (error) {
+      console.error('Error fetching events for new month:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load events for the selected month",
+        variant: "error",
+      });
+    }
+  }, [token, user, fetchEventsByDateRange, toast]);
 
 
 
@@ -372,6 +436,7 @@ export default function CalendarPage() {
                   events={uiEvents}
                   onViewEvent={handleViewEvent}
                   onAddEvent={handleAddEvent}
+                  onMonthChange={handleMonthChange}
                 />
               </TabsContent>
               {user?.role === 'principal' && (
@@ -401,6 +466,19 @@ export default function CalendarPage() {
           userRole={user?.role === 'parent' ? 'student' : (user?.role || 'admin')}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={deleteConfirmation.isOpen}
+        onClose={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        title="Delete Event"
+        description={`Are you sure you want to delete "${deleteConfirmation.eventTitle}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={deleting}
+      />
     </ProtectedRoute>
   );
 }

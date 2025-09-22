@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import { useRouter } from 'next/navigation';
 import { Edit, Trash2, Loader2, Calendar as CalendarIcon, Clock, MapPin, User, BookOpen } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
@@ -20,6 +21,7 @@ export default function EventDetailsPage({ params }: { params: Promise<{ id: str
   const [deleting, setDeleting] = useState(false);
   const [event, setEvent] = useState<CalendarEvent | null>(null);
   const [eventId, setEventId] = useState<string>('');
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
   // Extract event ID from params
   useEffect(() => {
@@ -68,7 +70,7 @@ export default function EventDetailsPage({ params }: { params: Promise<{ id: str
     }
   }, [fetchEvent, token, eventId]);
 
-  const handleDeleteEvent = async () => {
+  const handleDeleteEvent = () => {
     if (!token) {
       toast({
         title: "Authentication Error",
@@ -88,10 +90,12 @@ export default function EventDetailsPage({ params }: { params: Promise<{ id: str
       return;
     }
 
-    // Show confirmation dialog
-    if (!confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
-      return;
-    }
+    // Show confirmation modal
+    setShowDeleteConfirmation(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!token) return;
 
     try {
       setDeleting(true);
@@ -121,11 +125,15 @@ export default function EventDetailsPage({ params }: { params: Promise<{ id: str
         title: "Error",
         description: errorMessage,
         variant: "error",
-       
       });
     } finally {
       setDeleting(false);
+      setShowDeleteConfirmation(false);
     }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteConfirmation(false);
   };
 
   const getEventTypeColor = (type: string) => {
@@ -306,7 +314,7 @@ export default function EventDetailsPage({ params }: { params: Promise<{ id: str
                     <span>{event.start_time} - {event.end_time}</span>
                   </div>
                   
-                  {(event.class_division_id || event.is_multi_class) && (
+                  {(event.class_division_id || event.is_multi_class || event.event_type === 'school_wide') && (
                     <div className="flex items-center gap-2 text-sm">
                       <BookOpen className="h-4 w-4 text-muted-foreground" />
                       <span>
@@ -317,6 +325,8 @@ export default function EventDetailsPage({ params }: { params: Promise<{ id: str
                                ? `${event.class_divisions.length} classes`
                                : 'Multiple classes'
                             )
+                          : event.event_type === 'school_wide'
+                          ? (event.class_division_name || event.class_info?.message || 'All Classes')
                           : (event.class_info?.class_level && event.class_info?.division
                              ? `${event.class_info.class_level} ${event.class_info.division}`
                              : event.class_division_name || event.class_division_id
@@ -364,6 +374,19 @@ export default function EventDetailsPage({ params }: { params: Promise<{ id: str
           </Card>
         </main>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirmation}
+        onClose={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        title="Delete Event"
+        description={`Are you sure you want to delete "${event?.title || 'this event'}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={deleting}
+      />
     </ProtectedRoute>
   );
 }

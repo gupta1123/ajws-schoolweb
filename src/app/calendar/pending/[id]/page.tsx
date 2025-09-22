@@ -319,13 +319,18 @@ function PendingEventDetailContent({ params }: { params: Promise<{ id: string }>
               </div>
 
               {/* Class Information */}
-              {event.class_info && (
+              {(event.class_info || event.event_type === 'school_wide') && (
                 <div className="flex items-center gap-3">
                   <BookOpen className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <p className="font-medium">Class</p>
                     <p className="text-sm text-muted-foreground">
-                      {typeof event.class_info.class_level === 'object' && event.class_info.class_level && 'name' in event.class_info.class_level ? (event.class_info.class_level as { name: string }).name : String(event.class_info.class_level || 'N/A')} - Section {event.class_info.division}
+                      {event.event_type === 'school_wide'
+                        ? (event.class_division_name || event.class_info?.message || 'All Classes')
+                        : event.class_info 
+                          ? `${typeof event.class_info.class_level === 'object' && event.class_info.class_level && 'name' in event.class_info.class_level ? (event.class_info.class_level as { name: string }).name : String(event.class_info.class_level || 'N/A')} - Section ${event.class_info.division}`
+                          : 'N/A'
+                      }
                     </p>
                   </div>
                 </div>

@@ -85,8 +85,8 @@ export function EventDetailModal({
   const canEdit = userRole === 'admin' || userRole === 'principal' || 
     (userRole === 'teacher' && event.teacher); // Simplified check
   
-  // Determine if user can approve (only admins/principals)
-  const canApprove = (userRole === 'admin' || userRole === 'principal') && 
+  // Determine if user can approve (only principals for pending events, not for approved events)
+  const canApprove = userRole === 'principal' && 
     event.requiresApproval && !event.approved;
   
   const config = event.requiresApproval && !event.approved 

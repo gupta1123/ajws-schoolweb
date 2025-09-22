@@ -44,6 +44,11 @@ export interface Announcement {
   view_count: number;
   created_at: string;
   updated_at: string;
+  target_class_names?: string[];
+  target_classes_detailed?: Array<{
+    id: string;
+    name: string;
+  }>;
   creator: {
     id: string;
     role: string;

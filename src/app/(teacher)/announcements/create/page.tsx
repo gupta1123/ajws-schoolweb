@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, BookOpen, AlertCircle, Calendar, Users, Star } from 'lucide-react';
+import { ArrowLeft, Save, BookOpen, AlertCircle, Calendar, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,7 +30,6 @@ const targetRoles = [
   { value: 'teacher' },
   { value: 'parent' },
   { value: 'student' },
-  { value: 'admin' },
 ] as const;
 
 export default function CreateAnnouncementPage() {
@@ -52,7 +51,6 @@ export default function CreateAnnouncementPage() {
     publish_time: '09:00',
     expires_date: '',
     expires_time: '17:00',
-    is_featured: false,
   });
 
   const handleCreateAnnouncement = async () => {
@@ -314,7 +312,6 @@ export default function CreateAnnouncementPage() {
                       {role.value === 'teacher' && t('announcements.roles.teacher', 'Teachers')}
                       {role.value === 'parent' && t('announcements.roles.parent', 'Parents')}
                       {role.value === 'student' && t('announcements.roles.student', 'Students')}
-                      {role.value === 'admin' && t('announcements.roles.admin', 'Administrators')}
                     </Button>
                   ))}
                 </div>
@@ -351,28 +348,6 @@ export default function CreateAnnouncementPage() {
             </CardContent>
           </Card>
 
-          {/* Options */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('announcements.create.options', 'Options')}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="featured"
-                  checked={formData.is_featured}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_featured: checked }))}
-                />
-                <Label htmlFor="featured" className="flex items-center gap-2">
-                  <Star className="w-4 h-4" />
-                  {t('announcements.create.markFeatured', 'Mark as featured')}
-                </Label>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {t('announcements.create.featuredHelp', 'Featured announcements will be highlighted and appear at the top of the list.')}
-              </p>
-            </CardContent>
-          </Card>
 
           {/* Actions */}
           <Card>
