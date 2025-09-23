@@ -13,6 +13,8 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { SearchableSubjectDropdown } from '@/components/ui/searchable-subject-dropdown';
+import { SearchableTeacherDropdown } from '@/components/ui/searchable-teacher-dropdown';
 import { AlertCircle, CheckCircle, User, BookOpen, X, GraduationCap } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import type { Subject } from '@/types/academic';
@@ -289,49 +291,27 @@ export function SubjectTeacherAssignment({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Select Teacher
-            </Label>
-            <Select value={selectedTeacherId} onValueChange={setSelectedTeacherId}>
-              <SelectTrigger className="h-11">
-                <SelectValue placeholder="Choose a teacher..." />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(teachersByDepartment).map(([department, deptTeachers]) => (
-                  <div key={department}>
-                    <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      {department}
-                    </div>
-                    {deptTeachers.map((teacher) => (
-                      <SelectItem 
-                        key={teacher.teacher_id} 
-                        value={teacher.teacher_id}
-                      >
-                        {teacher.full_name}
-                      </SelectItem>
-                    ))}
-                  </div>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableTeacherDropdown
+              teachers={teachers}
+              value={selectedTeacherId}
+              onValueChange={setSelectedTeacherId}
+              label="Select Teacher"
+              placeholder="Choose a teacher..."
+              showPhone={false}
+              showDepartment={true}
+              emptyMessage="No teachers found"
+            />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Select Subject
-            </Label>
-            <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-              <SelectTrigger className="h-11">
-                <SelectValue placeholder="Choose a subject..." />
-              </SelectTrigger>
-              <SelectContent>
-                {(availableSubjects || []).map(subject => (
-                  <SelectItem key={subject.id} value={subject.name}>
-                    {subject.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSubjectDropdown
+              subjects={availableSubjects || []}
+              value={selectedSubject}
+              onValueChange={setSelectedSubject}
+              label="Select Subject"
+              placeholder="Choose a subject..."
+              showCode={false}
+            />
           </div>
         </div>
 

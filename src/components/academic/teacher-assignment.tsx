@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle, BookOpen, X } from 'lucide-react';
+import { SearchableTeacherDropdown } from '@/components/ui/searchable-teacher-dropdown';
 
 interface Teacher {
   teacher_id: string;
@@ -77,9 +78,7 @@ export function TeacherAssignment({
     setError(null);
 
     try {
-      // If "unassign" was selected, pass empty string to remove assignment
-      const teacherIdToSave = selectedTeacherId === 'unassign' ? '' : selectedTeacherId;
-      await onSave(division.id, teacherIdToSave);
+      await onSave(division.id, selectedTeacherId);
       setSuccess(true);
       // Reset success after 2 seconds
       setTimeout(() => {
@@ -174,30 +173,16 @@ export function TeacherAssignment({
       <div className="p-5 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
           <div>
-            <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2 block">
-              Select Teacher
-            </Label>
-            <Select
+            <SearchableTeacherDropdown
+              teachers={teachers}
               value={selectedTeacherId || undefined}
               onValueChange={setSelectedTeacherId}
-            >
-              <SelectTrigger className="h-10 text-base">
-                <SelectValue placeholder="Choose teacher" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unassign" className="text-orange-600">
-                  <div className="flex items-center gap-2">
-                    <X className="h-4 w-4" />
-                    <span>Unassign</span>
-                  </div>
-                </SelectItem>
-                {teachers.map((teacher) => (
-                  <SelectItem key={teacher.teacher_id} value={teacher.teacher_id} className="text-base">
-                    {teacher.full_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              label="Select Teacher"
+              placeholder="Choose teacher"
+              showPhone={false}
+              showDepartment={true}
+              emptyMessage="No teachers found"
+            />
           </div>
 
           <Button

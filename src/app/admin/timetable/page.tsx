@@ -19,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { SearchableSubjectDropdown } from '@/components/ui/searchable-subject-dropdown';
+import { SearchableClassDropdown } from '@/components/ui/searchable-class-dropdown';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -123,10 +125,8 @@ export default function TimetablePage() {
     period_number: 1,
     day_of_week: 1,
     subject: '',
-    teacher_id: '',
-    notes: ''
+    teacher_id: ''
   });
-  const [customSubject, setCustomSubject] = useState('');
 
   // Define all hooks before any conditional logic
   const loadConfigs = useCallback(async () => {
@@ -431,10 +431,8 @@ export default function TimetablePage() {
           period_number: 1,
           day_of_week: 1,
           subject: '',
-          teacher_id: '',
-          notes: ''
+          teacher_id: ''
         }));
-        setCustomSubject('');
         if (selectedClass) {
           await loadTimetableData(selectedClass);
         }
@@ -837,7 +835,8 @@ export default function TimetablePage() {
 
             {selectedConfig && (
               <div className="flex gap-2">
-                <Select
+                <SearchableClassDropdown
+                  classes={classDivisions}
                   value={selectedClass}
                   onValueChange={(value) => {
                     setSelectedClass(value);
@@ -845,18 +844,10 @@ export default function TimetablePage() {
                       loadTimetableData(value);
                     }
                   }}
-                >
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder={t('timetable.selectClass', 'Select Class')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {classDivisions.map((division) => (
-                      <SelectItem key={division.id} value={division.id}>
-                        {division.class_level.name} - Section {division.division}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder={t('timetable.selectClass', 'Select Class')}
+                  showAcademicYear={false}
+                  className="w-48"
+                />
 
                 <Dialog open={showEntryDialog} onOpenChange={(open) => {
                   setShowEntryDialog(open);
@@ -958,50 +949,24 @@ export default function TimetablePage() {
 
                       <div>
                         <Label>Subject</Label>
-                        <Select
-                          value={customSubject ? 'custom' : entryForm.subject}
-                          onValueChange={(value) => {
-                            if (value === 'custom') {
-                              setCustomSubject('');
-                              setEntryForm(prev => ({ ...prev, subject: '' }));
-                            } else {
-                              setCustomSubject('');
+                        <div className="space-y-2">
+                          <SearchableSubjectDropdown
+                            subjects={classDivisionSubjects}
+                            value={entryForm.subject}
+                            onValueChange={(value) => {
                               setEntryForm(prev => ({ ...prev, subject: value }));
-                            }
-                          }}
-                        >
-                          <SelectTrigger>
-                          <SelectValue placeholder={t('timetable.selectSubject')} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {classDivisionSubjects.map((subject) => (
-                              <SelectItem key={subject.id} value={subject.name}>
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{subject.name}</span>
-                                  <span className="text-xs text-muted-foreground">{subject.code}</span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                            {/* Allow manual entry if no subjects are assigned or always allow custom */}
-                            <SelectItem value="custom">{t('timetable.enterCustomSubject')}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {(customSubject || (!entryForm.subject && classDivisionSubjects.length === 0)) && (
-                          <Input
-                            className="mt-2"
-                            placeholder={t('timetable.enterCustomSubjectName')}
-                            value={customSubject}
-                            onChange={(e) => {
-                              setCustomSubject(e.target.value);
-                              setEntryForm(prev => ({ ...prev, subject: e.target.value }));
                             }}
+                            placeholder={t('timetable.selectSubject')}
+                            showCode={true}
+                            emptyMessage="No subjects assigned to this class"
                           />
-                        )}
-                        {classDivisionSubjects.length === 0 && !customSubject && (
-                          <p className="text-sm text-muted-foreground mt-2">
-                            {t('timetable.noSubjectsAssigned')}
-                          </p>
-                        )}
+                          
+                          {classDivisionSubjects.length === 0 && (
+                            <p className="text-sm text-muted-foreground">
+                              {t('timetable.noSubjectsAssigned')}
+                            </p>
+                          )}
+                        </div>
                       </div>
 
                       <div>
@@ -1042,14 +1007,6 @@ export default function TimetablePage() {
                         )}
                       </div>
 
-                      <div>
-                        <Label>{t('timetable.notesOptional')}</Label>
-                        <Textarea
-                          value={entryForm.notes}
-                          onChange={(e) => setEntryForm(prev => ({ ...prev, notes: e.target.value }))}
-                          placeholder={t('timetable.additionalNotes')}
-                        />
-                      </div>
 
                       <div className="flex justify-end gap-2">
                         <Button variant="outline" onClick={() => setShowEntryDialog(false)}>
@@ -1270,8 +1227,7 @@ export default function TimetablePage() {
                     period_number: entry.period_number,
                     day_of_week: entry.day_of_week,
                     subject: entry.subject,
-                    teacher_id: entry.teacher_id,
-                    notes: entry.notes || ''
+                    teacher_id: entry.teacher_id
                   });
                   setShowEntryDialog(true);
                 }}

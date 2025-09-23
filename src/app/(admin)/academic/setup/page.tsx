@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Edit, Trash2, Loader2 } from 'lucide-react';
 import { TeacherSelector } from '@/components/teachers/teacher-selector';
 import { TeacherAssignment } from '@/components/academic/teacher-assignment';
+import { SearchableSubjectDropdown } from '@/components/ui/searchable-subject-dropdown';
 import { academicServices } from '@/lib/api/academic';
 import type { ClassLevel } from '@/types/academic';
 import { useToast } from '@/hooks/use-toast';
@@ -1469,32 +1470,19 @@ export default function AcademicSystemSetupPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="subject">{t('academicSetup.cols.subject', 'Subject')}</Label>
-              <Select 
-                value={selectedSubject} 
+              <SearchableSubjectDropdown
+                subjects={subjects}
+                value={selectedSubject}
                 onValueChange={setSelectedSubject}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t('academicSetup.placeholders.selectSubject', 'Select a subject')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjects
-                    // Filter out subjects that are already assigned to this division
-                    .filter(subject => {
-                      // Find the selected division
-                      const selectedDivision = divisions.find(d => d.id === selectedClassDivision);
-                      // Check if this subject is already assigned to the division
-                      return !selectedDivision?.subjects?.some((assignedSubject: { id: string; name: string; code: string }) => 
-                        assignedSubject.name === subject.name || assignedSubject.id === subject.id
-                      );
-                    })
-                    .map((subject) => (
-                      <SelectItem key={subject.id} value={subject.id}>
-                        {subject.name} ({subject.code})
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+                label={t('academicSetup.cols.subject', 'Subject')}
+                placeholder={t('academicSetup.placeholders.selectSubject', 'Select a subject')}
+                filterAssigned={true}
+                assignedSubjects={selectedClassDivision ? 
+                  divisions.find(d => d.id === selectedClassDivision)?.subjects?.map(s => s.id) || [] 
+                  : []
+                }
+                showCode={true}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="subjectTeacher">{t('academicSetup.assignments.subjectTeacherOptional', 'Subject Teacher (Optional)')}</Label>

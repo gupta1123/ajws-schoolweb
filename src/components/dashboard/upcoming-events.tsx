@@ -27,10 +27,10 @@ export function UpcomingEvents() {
         setLoading(true);
         setError(null);
         
-        // Get current date and next 30 days for date range
+        // Get current date and next 7 days for date range (same as calendar page logic)
         const today = new Date();
         const endDate = new Date();
-        endDate.setDate(today.getDate() + 30);
+        endDate.setDate(today.getDate() + 7);
         
         const startDateStr = today.toISOString().split('T')[0];
         const endDateStr = endDate.toISOString().split('T')[0];
@@ -39,51 +39,45 @@ export function UpcomingEvents() {
         
         try {
           if (user?.role === 'teacher') {
-            // For teachers, get events for their classes with date range filter
+            // For teachers, use same API call as calendar page
             console.log('Fetching teacher events...');
-            response = await calendarServices.getTeacherEvents(
+            response = await calendarServices.getEventsByDateRange(
               token,
               startDateStr,
               endDateStr,
-              'academic'
+              { use_ist: true }
             );
             console.log('Teacher events response:', response);
           } else if (user?.role === 'parent') {
-            // For parents, get events for their children's classes with date range
+            // For parents, use same API call as calendar page
             console.log('Fetching parent events...');
             response = await calendarServices.getParentEvents(
               token,
               {
                 start_date: startDateStr,
                 end_date: endDateStr,
-                event_category: 'meeting'
+                use_ist: true
               }
             );
             console.log('Parent events response:', response);
           } else if (user?.role === 'admin' || user?.role === 'principal') {
-            // For admin/principal, get all events with date range and IST
+            // For admin/principal, use same API call as calendar page
             console.log('Fetching admin events...');
-            response = await calendarServices.getEvents(
+            response = await calendarServices.getEventsByDateRange(
               token,
-              {
-                start_date: startDateStr,
-                end_date: endDateStr,
-                event_category: 'meeting',
-                use_ist: true
-              }
+              startDateStr,
+              endDateStr,
+              { use_ist: true }
             );
             console.log('Admin events response:', response);
           } else {
-            // Default fallback for other roles
+            // Default fallback - use same API call as calendar page
             console.log('Fetching default events...');
-            response = await calendarServices.getEvents(
+            response = await calendarServices.getEventsByDateRange(
               token,
-              {
-                start_date: startDateStr,
-                end_date: endDateStr,
-                event_category: 'academic',
-                use_ist: true
-              }
+              startDateStr,
+              endDateStr,
+              { use_ist: true }
             );
             console.log('Default events response:', response);
           }
@@ -100,8 +94,26 @@ export function UpcomingEvents() {
         }
 
         if (response.status === 'success' && response.data.events) {
+          // Apply same filtering logic as calendar page
+          let filteredEvents = response.data.events;
+          
+          // Filter events based on user role (same as calendar page)
+          if (user?.role === 'admin' || user?.role === 'principal') {
+            // Admins and principals see all approved events
+            filteredEvents = filteredEvents.filter(event => event.status === 'approved');
+          } else if (user?.role === 'teacher') {
+            // Teachers see approved events + their own pending events
+            filteredEvents = filteredEvents.filter(event => 
+              event.status === 'approved' || 
+              (event.status === 'pending' && event.created_by === user.id)
+            );
+          } else {
+            // Other users (parents, students) see only approved events
+            filteredEvents = filteredEvents.filter(event => event.status === 'approved');
+          }
+          
           // Sort events by event date (recent to future)
-          const sortedEvents = response.data.events
+          const sortedEvents = filteredEvents
             .sort((a: CalendarEvent, b: CalendarEvent) => 
               new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
             )
@@ -241,16 +253,6 @@ export function UpcomingEvents() {
                     </div>
                     <div>
                       <h4 className="font-medium text-sm">{event.title}</h4>
-                      {(event.class_info || event.event_type === 'school_wide') && (
-                        <p className="text-xs text-muted-foreground">
-                          {event.event_type === 'school_wide'
-                            ? (event.class_division_name || event.class_info?.message || 'All Classes')
-                            : event.class_info 
-                              ? `${event.class_info.class_level} - ${event.class_info.division}`
-                              : 'N/A'
-                          }
-                        </p>
-                      )}
                     </div>
                   </div>
                   <div className={`px-2 py-1 rounded-full text-xs font-medium ${getEventColor(event.event_category)}`}>
@@ -266,10 +268,12 @@ export function UpcomingEvents() {
                     </span>
                   </div>
                   
-                  {event.start_time && event.end_time && (
+                  {(event.start_time || event.end_time) && (
                     <div className="flex items-center gap-1">
                       <MapPin className="h-3 w-3" />
-                      <span>{event.start_time} - {event.end_time}</span>
+                      <span>
+                        {event.start_time || 'N/A'} - {event.end_time || 'N/A'}
+                      </span>
                     </div>
                   )}
                   

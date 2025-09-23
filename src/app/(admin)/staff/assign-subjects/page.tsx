@@ -13,6 +13,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { SearchableSubjectDropdown } from '@/components/ui/searchable-subject-dropdown';
+import { SearchableTeacherDropdown } from '@/components/ui/searchable-teacher-dropdown';
 import { useStaff } from '@/hooks/use-staff';
 
 import { teachersServices, SimpleTeacher } from '@/lib/api/teachers';
@@ -291,34 +293,16 @@ export default function AssignSubjectsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="teacher-select">{t('staff.assign.teacherLabel', 'Teacher *')}</Label>
-                <Select
+                <SearchableTeacherDropdown
+                  teachers={teachers}
                   value={selectedTeacherId}
                   onValueChange={setSelectedTeacherId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('academicSetup.placeholders.selectTeacher', 'Select a teacher')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {teachers.map((teacher) => (
-                      <SelectItem key={teacher.id} value={teacher.id}>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-6 w-6">
-                            <AvatarFallback className="text-xs">
-                              {teacher.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <span className="font-medium">{teacher.full_name}</span>
-                            <span className="text-muted-foreground text-xs ml-2">
-                              {teacher.phone_number}
-                            </span>
-                          </div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  label={t('staff.assign.teacherLabel', 'Teacher *')}
+                  placeholder={t('academicSetup.placeholders.selectTeacher', 'Select a teacher')}
+                  showPhone={true}
+                  showDepartment={false}
+                  emptyMessage="No teachers found"
+                />
               </div>
 
               {/* Selected Teacher Info */}
