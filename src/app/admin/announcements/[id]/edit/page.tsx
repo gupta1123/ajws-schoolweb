@@ -50,10 +50,8 @@ export default function AdminEditAnnouncementPage() {
     priority: 'medium',
     target_roles: [] as string[],
     target_classes: [] as string[],
-    publish_date: '',
-    publish_time: '09:00',
-    expires_date: '',
-    expires_time: '17:00',
+    announcement_date: '',
+    announcement_time: '09:00',
   });
 
   const fetchAnnouncement = useCallback(async (id: string) => {
@@ -99,10 +97,8 @@ export default function AdminEditAnnouncementPage() {
         priority: announcement.priority,
         target_roles: announcement.target_roles,
         target_classes: announcement.target_classes,
-        publish_date: publishDate.toISOString().split('T')[0],
-        publish_time: publishDate.toTimeString().slice(0, 5),
-        expires_date: expiresDate.toISOString().split('T')[0],
-        expires_time: expiresDate.toTimeString().slice(0, 5),
+        announcement_date: publishDate.toISOString().split('T')[0],
+        announcement_time: publishDate.toTimeString().slice(0, 5),
       });
     }
   }, [announcement]);
@@ -110,7 +106,7 @@ export default function AdminEditAnnouncementPage() {
   const handleEditAnnouncement = async () => {
     if (!announcement) return;
 
-    if (!formData.title.trim() || !formData.content.trim() || !formData.publish_date || !formData.publish_time || !formData.expires_date || !formData.expires_time) {
+    if (!formData.title.trim() || !formData.content.trim() || !formData.announcement_date || !formData.announcement_time) {
       toast({
         title: 'Validation Error',
         description: 'Please fill in all required fields',
@@ -139,8 +135,8 @@ export default function AdminEditAnnouncementPage() {
         priority: formData.priority as 'low' | 'medium' | 'high',
         target_roles: formData.target_roles,
         target_classes: formData.target_classes,
-        publish_at: new Date(`${formData.publish_date}T${formData.publish_time}`).toISOString(),
-        expires_at: new Date(`${formData.expires_date}T${formData.expires_time}`).toISOString(),
+        publish_at: new Date(`${formData.announcement_date}T${formData.announcement_time}`).toISOString(),
+        expires_at: new Date(`${formData.announcement_date}T${formData.announcement_time}`).toISOString(),
       };
 
       const response = await api.editAnnouncement(announcement.id, payload);
@@ -321,44 +317,22 @@ export default function AdminEditAnnouncementPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="publish_date">Publish Date *</Label>
+                  <Label htmlFor="announcement_date">Announcement Date *</Label>
                   <Input
-                    id="publish_date"
+                    id="announcement_date"
                     type="date"
-                    value={formData.publish_date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, publish_date: e.target.value }))}
+                    value={formData.announcement_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, announcement_date: e.target.value }))}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="publish_time">Publish Time *</Label>
+                  <Label htmlFor="announcement_time">Announcement Time *</Label>
                   <Input
-                    id="publish_time"
+                    id="announcement_time"
                     type="time"
-                    value={formData.publish_time}
-                    onChange={(e) => setFormData(prev => ({ ...prev, publish_time: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="expires_date">Expiry Date *</Label>
-                  <Input
-                    id="expires_date"
-                    type="date"
-                    value={formData.expires_date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, expires_date: e.target.value }))}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="expires_time">Expiry Time *</Label>
-                  <Input
-                    id="expires_time"
-                    type="time"
-                    value={formData.expires_time}
-                    onChange={(e) => setFormData(prev => ({ ...prev, expires_time: e.target.value }))}
+                    value={formData.announcement_time}
+                    onChange={(e) => setFormData(prev => ({ ...prev, announcement_time: e.target.value }))}
                   />
                 </div>
               </div>

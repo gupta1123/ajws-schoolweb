@@ -47,14 +47,12 @@ export default function CreateAnnouncementPage() {
     priority: 'medium',
     target_roles: [] as string[],
     target_classes: [] as string[],
-    publish_date: '',
-    publish_time: '09:00',
-    expires_date: '',
-    expires_time: '17:00',
+    announcement_date: '',
+    announcement_time: '09:00',
   });
 
   const handleCreateAnnouncement = async () => {
-    if (!formData.title.trim() || !formData.content.trim() || !formData.publish_date || !formData.publish_time || !formData.expires_date || !formData.expires_time) {
+    if (!formData.title.trim() || !formData.content.trim() || !formData.announcement_date || !formData.announcement_time) {
       toast({
         title: t('announcements.create.validation', 'Validation Error'),
         description: t('announcements.create.fillAll', 'Please fill in all required fields'),
@@ -76,8 +74,8 @@ export default function CreateAnnouncementPage() {
       setLoading(true);
       const payload = {
         ...formData,
-        publish_at: new Date(`${formData.publish_date}T${formData.publish_time}`).toISOString(),
-        expires_at: new Date(`${formData.expires_date}T${formData.expires_time}`).toISOString(),
+        publish_at: new Date(`${formData.announcement_date}T${formData.announcement_time}`).toISOString(),
+        expires_at: new Date(`${formData.announcement_date}T${formData.announcement_time}`).toISOString(),
       };
 
       const response = await fetch('https://ajws-school-ba8ae5e3f955.herokuapp.com/api/announcements', {
@@ -242,44 +240,22 @@ export default function CreateAnnouncementPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="publish_date">{t('announcements.create.publishDate', 'Publish Date *')}</Label>
+                  <Label htmlFor="announcement_date">{t('announcements.create.announcementDate', 'Announcement Date *')}</Label>
                   <Input
-                    id="publish_date"
+                    id="announcement_date"
                     type="date"
-                    value={formData.publish_date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, publish_date: e.target.value }))}
+                    value={formData.announcement_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, announcement_date: e.target.value }))}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="publish_time">{t('announcements.create.publishTime', 'Publish Time *')}</Label>
+                  <Label htmlFor="announcement_time">{t('announcements.create.announcementTime', 'Announcement Time *')}</Label>
                   <Input
-                    id="publish_time"
+                    id="announcement_time"
                     type="time"
-                    value={formData.publish_time}
-                    onChange={(e) => setFormData(prev => ({ ...prev, publish_time: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="expires_date">{t('announcements.create.expiresDate', 'Expiry Date *')}</Label>
-                  <Input
-                    id="expires_date"
-                    type="date"
-                    value={formData.expires_date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, expires_date: e.target.value }))}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="expires_time">{t('announcements.create.expiresTime', 'Expiry Time *')}</Label>
-                  <Input
-                    id="expires_time"
-                    type="time"
-                    value={formData.expires_time}
-                    onChange={(e) => setFormData(prev => ({ ...prev, expires_time: e.target.value }))}
+                    value={formData.announcement_time}
+                    onChange={(e) => setFormData(prev => ({ ...prev, announcement_time: e.target.value }))}
                   />
                 </div>
               </div>
