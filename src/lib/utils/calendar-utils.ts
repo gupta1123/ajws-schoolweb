@@ -58,14 +58,26 @@ export const convertApiEventToUI = (apiEvent: CalendarEvent): UICalendarEvent =>
   // Build class information
   let classInfo = '';
   if (apiEvent.event_type === 'school_wide') {
-    // For school-wide events, use class_division_name or class_info.message
-    classInfo = apiEvent.class_division_name || apiEvent.class_info?.message || 'All Classes';
-  } else if (apiEvent.class_info && apiEvent.class_info.class_level && apiEvent.class_info.division) {
-    // For class-specific events, use class_level and division
-    classInfo = `${apiEvent.class_info.class_level} - Section ${apiEvent.class_info.division}`;
-  } else if (apiEvent.class_division_name) {
-    // Fallback to class_division_name if available
-    classInfo = apiEvent.class_division_name;
+    // For school-wide events, show "All Classes"
+    classInfo = 'All Classes';
+  } else if (apiEvent.event_type === 'class_specific') {
+    // For class-specific events, prioritize the new fields from API response
+    if (apiEvent.class_division_names && apiEvent.class_division_names.length > 0) {
+      // Use class_division_names for multi-class events
+      classInfo = apiEvent.class_division_names.join(', ');
+    } else if (apiEvent.class_info?.class_names && apiEvent.class_info.class_names.length > 0) {
+      // Use class_info.class_names as fallback
+      classInfo = apiEvent.class_info.class_names.join(', ');
+    } else if (apiEvent.class_division_name) {
+      // Use class_division_name for single class events
+      classInfo = apiEvent.class_division_name;
+    } else if (apiEvent.class_info && apiEvent.class_info.class_level && apiEvent.class_info.division) {
+      // Fallback to constructing from class_level and division
+      classInfo = `${apiEvent.class_info.class_level} ${apiEvent.class_info.division}`;
+    } else if (apiEvent.is_multi_class) {
+      // For multi-class events without specific names
+      classInfo = 'Multiple Classes';
+    }
   }
 
   // All events require approval by default

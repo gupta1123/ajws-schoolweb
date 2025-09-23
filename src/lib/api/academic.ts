@@ -305,6 +305,19 @@ export const academicServices = {
     return response as { status: string; data: { assignment: TeacherAssignment } };
   },
 
+  // Reassign class teacher to a different teacher (using the reassign endpoint)
+  reassignClassTeacher: async (
+    classDivisionId: string,
+    assignmentId: string,
+    newTeacherId: string,
+    token: string
+  ): Promise<{ status: string; data: { assignment: TeacherAssignment } }> => {
+    const response = await apiClient.put(`/api/academic/class-divisions/${classDivisionId}/assignments/${assignmentId}/reassign`, {
+      teacher_id: newTeacherId
+    }, token);
+    return response as { status: string; data: { assignment: TeacherAssignment } };
+  },
+
   removeTeacherFromClass: async (classDivisionId: string, teacherId: string, assignmentType: string | undefined, token: string): Promise<{ status: string; message: string }> => {
     const queryParams = assignmentType ? `?assignment_type=${assignmentType}` : '';
     const response = await apiClient.delete(`/api/academic/class-divisions/${classDivisionId}/remove-teacher/${teacherId}${queryParams}`, token);

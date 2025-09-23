@@ -32,6 +32,14 @@ export interface CalendarEvent {
     type?: string;
     class_count?: number;
     class_ids?: string[];
+    class_names?: string[];
+    class_details?: Array<{
+      id: string;
+      name: string;
+      class_level: string;
+      division: string;
+      academic_year: string;
+    }>;
     message?: string;
   };
   status?: 'pending' | 'approved' | 'rejected';

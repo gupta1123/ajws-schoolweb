@@ -273,16 +273,78 @@ export default function AcademicSystemSetupPage() {
     setAssigningTeacher(division.id);
   };
 
+  const handleReassignClassTeacher = async (division: Division) => {
+    if (!token || !division.teacherId) return;
+    
+    try {
+      // First, fetch class details to get the actual assignment ID
+      console.log('Fetching class details for class teacher reassignment:', {
+        classDivisionId: division.id,
+        currentTeacherId: division.teacherId
+      });
+      
+      const classDetailsResponse = await academicServices.getClassDivisionDetails(division.id, token);
+      
+      if (classDetailsResponse.status === 'success') {
+        // Find the class teacher assignment
+        const classTeacherAssignment = classDetailsResponse.data.teachers.find(
+          teacher => teacher.assignment_type === 'class_teacher'
+        );
+        
+        if (classTeacherAssignment) {
+          console.log('Found class teacher assignment for reassignment:', {
+            assignmentId: classTeacherAssignment.assignment_id,
+            classDivisionId: division.id,
+            currentTeacherId: division.teacherId
+          });
+          
+          // Open the teacher selector for reassignment
+          setAssigningTeacher(division.id);
+          setReassigningClassTeacher({
+            divisionId: division.id,
+            assignmentId: classTeacherAssignment.assignment_id,
+            currentTeacherId: division.teacherId
+          });
+        } else {
+          throw new Error('No class teacher assignment found');
+        }
+      } else {
+        throw new Error('Failed to fetch class division details');
+      }
+    } catch (error) {
+      console.error('Error preparing class teacher reassignment:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to prepare class teacher reassignment. Please try again.',
+        variant: 'error',
+      });
+    }
+  };
+
   const handleSaveTeacherAssignment = async (divisionId: string, teacherId: string) => {
     if (!teacherId) return;
     
     try {
-      const response = await academicServices.assignTeacherToClass(divisionId, {
-        class_division_id: divisionId,
-        teacher_id: teacherId,
-        assignment_type: 'class_teacher',
-        is_primary: true
-      }, token!);
+      let response;
+      
+      // Check if this is a reassignment
+      if (reassigningClassTeacher && reassigningClassTeacher.divisionId === divisionId) {
+        // This is a reassignment
+        response = await academicServices.reassignClassTeacher(
+          divisionId,
+          reassigningClassTeacher.assignmentId,
+          teacherId,
+          token!
+        );
+      } else {
+        // This is a new assignment
+        response = await academicServices.assignTeacherToClass(divisionId, {
+          class_division_id: divisionId,
+          teacher_id: teacherId,
+          assignment_type: 'class_teacher',
+          is_primary: true
+        }, token!);
+      }
 
       if (response.status === 'success') {
         // Find the assigned teacher details
@@ -302,9 +364,12 @@ export default function AcademicSystemSetupPage() {
         );
         
         setAssigningTeacher(null);
+        setReassigningClassTeacher(null);
+        
+        const actionText = reassigningClassTeacher ? 'reassigned' : 'assigned';
         toast({
           title: 'Success',
-          description: 'Class teacher assigned successfully!',
+          description: `Class teacher ${actionText} successfully!`,
         });
       }
     } catch (error) {
@@ -319,6 +384,7 @@ export default function AcademicSystemSetupPage() {
 
   const handleCancelTeacherAssignment = () => {
     setAssigningTeacher(null);
+    setReassigningClassTeacher(null);
   };
 
   // const handleDeleteDivision = (id: string) => {
@@ -924,6 +990,11 @@ export default function AcademicSystemSetupPage() {
 
   // Teacher assignment state
   const [assigningTeacher, setAssigningTeacher] = useState<string | null>(null);
+  const [reassigningClassTeacher, setReassigningClassTeacher] = useState<{
+    divisionId: string;
+    assignmentId: string;
+    currentTeacherId: string;
+  } | null>(null);
 
   // Filtered divisions based on grade filter
   const filteredDivisions = gradeFilter === 'all' 
@@ -1094,9 +1165,15 @@ export default function AcademicSystemSetupPage() {
                             </TableCell>
                             <TableCell>{division.studentCount || 0}</TableCell>
                             <TableCell className="text-right">
-                              <Button variant="outline" size="sm" onClick={() => handleAssignClassTeacher(division)}>
-                                Assign Class Teacher
-                              </Button>
+                              {division.teacherName ? (
+                                <Button variant="outline" size="sm" onClick={() => handleReassignClassTeacher(division)}>
+                                  Edit
+                                </Button>
+                              ) : (
+                                <Button variant="outline" size="sm" onClick={() => handleAssignClassTeacher(division)}>
+                                  Assign Class Teacher
+                                </Button>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))

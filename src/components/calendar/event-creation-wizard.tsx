@@ -86,7 +86,11 @@ export function EventCreationWizard({
         endTime: event.end_time ? event.end_time.substring(0, 5) : '10:00',
         isFullDay: !event.start_time && !event.end_time,
         eventType: (event.event_type as 'school_wide' | 'class_specific' | 'teacher_specific') || 'school_wide',
-        classDivisionIds: event.class_division_id ? [event.class_division_id] : [],
+        classDivisionIds: event.class_division_ids && event.class_division_ids.length > 0 
+          ? event.class_division_ids 
+          : event.class_division_id 
+            ? [event.class_division_id] 
+            : [],
         eventCategory: (event.event_category as 'general' | 'academic' | 'sports' | 'cultural' | 'holiday' | 'exam' | 'meeting' | 'other') || 'general'
       };
     } else {
@@ -570,8 +574,21 @@ export function EventCreationWizard({
                       {formData.eventType === 'class_specific' && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">{t('calendar.form.summary.classes', 'Classes:')}</span>
-                          <span className="font-medium">
-                            {formData.classDivisionIds.length} {t('calendar.form.summary.selected', 'selected')}
+                          <span className="font-medium text-right max-w-[60%]">
+                            {formData.classDivisionIds.length > 0 ? (
+                              <div className="space-y-1">
+                                {formData.classDivisionIds.map(classId => {
+                                  const classDivision = classDivisions.find(d => d.id === classId);
+                                  return classDivision ? (
+                                    <div key={classId} className="text-xs">
+                                      {classDivision.class_level?.name} {classDivision.division}
+                                    </div>
+                                  ) : null;
+                                })}
+                              </div>
+                            ) : (
+                              t('calendar.form.summary.noClasses', 'No classes selected')
+                            )}
                           </span>
                         </div>
                       )}

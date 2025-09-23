@@ -314,22 +314,27 @@ export default function EventDetailsPage({ params }: { params: Promise<{ id: str
                     <span>{event.start_time} - {event.end_time}</span>
                   </div>
                   
-                  {(event.class_division_id || event.is_multi_class || event.event_type === 'school_wide') && (
+                  {(event.event_type === 'class_specific' || event.event_type === 'school_wide' || event.is_multi_class) && (
                     <div className="flex items-center gap-2 text-sm">
                       <BookOpen className="h-4 w-4 text-muted-foreground" />
                       <span>
-                        Class: {event.is_multi_class
+                        {event.event_type === 'school_wide' ? 'Scope: ' : 'Class: '}
+                        {event.event_type === 'school_wide'
+                          ? 'All Classes'
+                          : event.is_multi_class
                           ? (event.class_division_names?.length
                              ? event.class_division_names.join(', ')
+                             : event.class_info?.class_names?.length
+                             ? event.class_info.class_names.join(', ')
                              : (event.class_divisions && event.class_divisions.length > 0)
                                ? `${event.class_divisions.length} classes`
                                : 'Multiple classes'
                             )
-                          : event.event_type === 'school_wide'
-                          ? (event.class_division_name || event.class_info?.message || 'All Classes')
-                          : (event.class_info?.class_level && event.class_info?.division
-                             ? `${event.class_info.class_level} ${event.class_info.division}`
-                             : event.class_division_name || event.class_division_id
+                          : (event.class_division_name || 
+                             event.class_info?.class_names?.[0] ||
+                             (event.class_info?.class_level && event.class_info?.division
+                              ? `${event.class_info.class_level} ${event.class_info.division}`
+                              : event.class_division_id || 'Unknown class')
                             )
                         }
                       </span>
