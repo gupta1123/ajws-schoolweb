@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SearchableSubjectDropdown } from '@/components/ui/searchable-subject-dropdown';
 import { SearchableClassDropdown } from '@/components/ui/searchable-class-dropdown';
+import { SearchableTeacherDropdown } from '@/components/ui/searchable-teacher-dropdown';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -39,6 +40,22 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/context';
+
+// Error response interfaces
+interface TimetableErrorResponse {
+  status: 'error';
+  message: string;
+  error_code?: string;
+  details?: string;
+  suggestion?: string;
+  constraint_violated?: string;
+  conflict_data?: {
+    existing_subject?: string;
+    class_division_id?: string;
+    period_number?: number;
+    day_of_week?: number;
+  };
+}
 
 // Only allow admins and principals to access this page
 function AccessDenied() {
@@ -76,14 +93,19 @@ export default function TimetablePage() {
     title: string;
     message: string;
     suggestion?: string;
-    constraint?: string;
+    constraint?: string | {
+      existing_subject?: string;
+      class_division_id?: string;
+      period_number?: number;
+      day_of_week?: number;
+    };
   } | null>(null);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
   const modalCloseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-close modal when teacher conflict error occurs
   useEffect(() => {
-    if (entryError && entryError.type === 'teacher_conflict' && showEntryDialog) {
+    if (entryError && (entryError.type === 'teacher_conflict' || entryError.type === 'class_conflict') && showEntryDialog) {
       // Clear any existing timeout
       if (modalCloseTimeoutRef.current) {
         clearTimeout(modalCloseTimeoutRef.current);
@@ -92,13 +114,13 @@ export default function TimetablePage() {
       // Show error alert
       setShowErrorAlert(true);
 
-      // Auto-close modal after 3 seconds
+      // Auto-close modal after 5 seconds (increased for better UX)
       modalCloseTimeoutRef.current = setTimeout(() => {
-        console.log('Auto-closing modal due to teacher conflict');
+        console.log(`Auto-closing modal due to ${entryError.type}`);
         setShowEntryDialog(false);
         setShowErrorAlert(false);
         setEntryError(null);
-      }, 3000);
+      }, 5000);
     }
 
     // Cleanup timeout on unmount
@@ -392,6 +414,9 @@ export default function TimetablePage() {
       setLoading(true);
       const response = await timetableApi.createEntry(entryForm, token);
 
+      // Debug: Log the response to understand its structure
+      console.log('Timetable create entry response:', response);
+
       // Check if response indicates teacher conflict (might be in response.data instead of throwing error)
       if (response.status === 'error' &&
           (response.error_code === 'TEACHER_CONFLICT_DB' ||
@@ -412,6 +437,42 @@ export default function TimetablePage() {
 
         toast({
           title: t('timetable.teacherConflict', 'Teacher Schedule Conflict'),
+          description: `${errorDetails}\n\n💡 ${errorSuggestion}`,
+          variant: "error",
+          duration: 8000,
+        });
+
+        return; // Exit early, don't process as success
+      }
+
+      // Check if response indicates class conflict
+      if (response.status === 'error' &&
+          ((response as TimetableErrorResponse).error_code === 'CLASS_CONFLICT' ||
+           response.message?.includes('Class schedule conflict'))) {
+
+        // Extract error details from the response
+        const errorResponse = response as TimetableErrorResponse;
+        const errorDetails = typeof errorResponse.details === 'string' 
+          ? errorResponse.details 
+          : typeof response.message === 'string' 
+            ? response.message 
+            : 'This class already has a subject assigned for this period and day.';
+        const errorSuggestion = typeof errorResponse.suggestion === 'string' 
+          ? errorResponse.suggestion 
+          : 'Please choose a different period or day, or update the existing entry.';
+
+        // Set error state - useEffect will handle auto-closing
+        setEntryError({
+          type: 'class_conflict',
+          title: t('timetable.classConflict', 'Class Schedule Conflict'),
+          message: errorDetails,
+          suggestion: errorSuggestion,
+          constraint: errorResponse.conflict_data
+        });
+
+        // Show toast notification
+        toast({
+          title: t('timetable.classConflict', 'Class Schedule Conflict'),
           description: `${errorDetails}\n\n💡 ${errorSuggestion}`,
           variant: "error",
           duration: 8000,
@@ -441,7 +502,7 @@ export default function TimetablePage() {
       console.error('Error creating timetable entry:', error);
 
       // Check if it's a teacher conflict error in the caught error
-      const errorObj = error as { error_code?: string; message?: string; details?: string; suggestion?: string; constraint_violated?: string }; // Type assertion for error object
+      const errorObj = error as TimetableErrorResponse;
       if (errorObj?.error_code === 'TEACHER_CONFLICT_DB' ||
           (error instanceof Error && error.message?.includes('Teacher schedule conflict'))) {
 
@@ -460,6 +521,29 @@ export default function TimetablePage() {
 
         toast({
           title: t('timetable.teacherConflict', 'Teacher Schedule Conflict'),
+          description: `${errorDetails}\n\n💡 ${errorSuggestion}`,
+          variant: "error",
+          duration: 8000,
+        });
+
+      } else if (errorObj?.error_code === 'CLASS_CONFLICT' ||
+                 (error instanceof Error && error.message?.includes('Class schedule conflict'))) {
+
+        // Set error state - useEffect will handle auto-closing
+        setEntryError({
+          type: 'class_conflict',
+          title: t('timetable.classConflict', 'Class Schedule Conflict'),
+          message: typeof errorObj?.details === 'string' ? errorObj.details : 'This class already has a subject assigned for this period and day.',
+          suggestion: typeof errorObj?.suggestion === 'string' ? errorObj.suggestion : 'Please choose a different period or day, or update the existing entry.',
+          constraint: errorObj?.conflict_data
+        });
+
+        // Show toast notification
+        const errorDetails = typeof errorObj?.details === 'string' ? errorObj.details : "This class already has a subject assigned for this period and day";
+        const errorSuggestion = typeof errorObj?.suggestion === 'string' ? errorObj.suggestion : "Please choose a different period or day, or update the existing entry.";
+
+        toast({
+          title: t('timetable.classConflict', 'Class Schedule Conflict'),
           description: `${errorDetails}\n\n💡 ${errorSuggestion}`,
           variant: "error",
           duration: 8000,
@@ -896,13 +980,13 @@ export default function TimetablePage() {
                         <AlertDescription className="text-red-800">
                           <div className="space-y-3">
                             <div className="font-semibold text-base">{entryError.title}</div>
-                            <div className="text-sm leading-relaxed">{entryError.message}</div>
+                            <div className="text-sm leading-relaxed">{String(entryError.message)}</div>
                             {entryError.suggestion && (
                               <div className="bg-red-100 p-3 rounded-md border border-red-200">
                                 <div className="text-sm font-medium text-red-800 mb-1">
                                   💡 Suggested Solution:
                                 </div>
-                                <div className="text-sm text-red-700">{entryError.suggestion}</div>
+                                <div className="text-sm text-red-700">{String(entryError.suggestion)}</div>
                               </div>
                             )}
                           </div>
@@ -971,40 +1055,25 @@ export default function TimetablePage() {
 
                       <div>
                         <Label>{t('timetable.teacher')}</Label>
-                        <Select
+                        <SearchableTeacherDropdown
+                          teachers={classDivisionTeachers
+                            .filter(teacher => teacher.is_active)
+                            .map(teacher => ({
+                              teacher_id: teacher.teacher_id,
+                              full_name: teacher.teacher_info.full_name,
+                              phone_number: teacher.teacher_info.phone_number,
+                              email: teacher.teacher_info.email,
+                              department: teacher.teacher_info.department || '',
+                              designation: '',
+                              is_active: teacher.is_active
+                            }))}
                           value={entryForm.teacher_id}
                           onValueChange={(value) => setEntryForm(prev => ({ ...prev, teacher_id: value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={t('timetable.selectTeacher')} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {classDivisionTeachers
-                              .filter(teacher => teacher.is_active)
-                              .map((teacher, index) => (
-                                <SelectItem key={teacher.assignment_id || `teacher-select-${teacher.teacher_id}-${index}`} value={teacher.teacher_id}>
-                                  <div className="flex flex-col">
-                                    <span className="font-medium">{teacher.teacher_info.full_name}</span>
-                                    {teacher.assignment_type === 'subject_teacher' && teacher.subject && (
-                                      <span className="text-xs text-muted-foreground">
-                                        {t('timetable.subject')}: {teacher.subject}
-                                      </span>
-                                    )}
-                                    {teacher.assignment_type === 'class_teacher' && (
-                                      <span className="text-xs text-muted-foreground">
-                                        {t('timetable.classTeacher')}
-                                      </span>
-                                    )}
-                                  </div>
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                        {classDivisionTeachers.length === 0 && selectedClass && (
-                          <p className="text-sm text-muted-foreground mt-2">
-                          {t('timetable.noTeachersAssigned')}
-                          </p>
-                        )}
+                          placeholder={t('timetable.selectTeacher')}
+                          showPhone={false}
+                          showDepartment={true}
+                          emptyMessage={t('timetable.noTeachersAssigned')}
+                        />
                       </div>
 
 

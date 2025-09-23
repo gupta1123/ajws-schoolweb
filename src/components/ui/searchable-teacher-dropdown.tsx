@@ -191,11 +191,11 @@ export function SearchableTeacherDropdown({
                 </div>
               ) : (
                 <div className="p-1">
-                  {filteredTeachers.map((teacher) => {
+                  {filteredTeachers.map((teacher, index) => {
                     const teacherId = teacher.id || teacher.teacher_id || '';
                     return (
                     <div
-                      key={teacherId}
+                      key={`${teacherId}-${index}`}
                       onClick={() => handleSelect(teacherId)}
                       className={cn(
                         "flex items-start gap-3 px-4 py-3 rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors",
