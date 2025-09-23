@@ -48,7 +48,9 @@ export function SearchableTeacherDropdown({
 }: SearchableTeacherDropdownProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   // Filter teachers based on search
   const filteredTeachers = useMemo(() => {
@@ -75,6 +77,25 @@ export function SearchableTeacherDropdown({
     onValueChange(teacherId === value ? '' : teacherId);
     setOpen(false);
     setSearchValue('');
+  };
+
+  // Calculate dropdown position
+  const calculateDropdownPosition = () => {
+    if (!buttonRef.current) return;
+    
+    const buttonRect = buttonRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const dropdownHeight = 300; // Approximate height
+    
+    // Check if there's enough space below
+    const spaceBelow = viewportHeight - buttonRect.bottom;
+    const spaceAbove = buttonRect.top;
+    
+    if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
+      setDropdownPosition('top');
+    } else {
+      setDropdownPosition('bottom');
+    }
   };
 
   const handleClear = () => {
@@ -105,16 +126,20 @@ export function SearchableTeacherDropdown({
       
       <div className="relative">
         <Button
+          ref={buttonRef}
           type="button"
           variant="outline"
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "w-full justify-between h-10 border-border bg-background text-foreground hover:bg-accent hover:text-accent-foreground",
+            "w-full justify-between h-12 border-border bg-background text-foreground hover:bg-accent hover:text-accent-foreground text-base",
             !selectedTeacher && "text-muted-foreground"
           )}
           disabled={disabled}
-          onClick={() => setOpen(!open)}
+          onClick={() => {
+            calculateDropdownPosition();
+            setOpen(!open);
+          }}
         >
           <div className="flex items-center gap-2 flex-1 min-w-0">
             {selectedTeacher ? (
@@ -126,7 +151,7 @@ export function SearchableTeacherDropdown({
             ) : (
               <User className="h-4 w-4 shrink-0" />
             )}
-            <span className="truncate">
+            <span className="truncate text-base">
               {selectedTeacher ? selectedTeacher.full_name : placeholder}
             </span>
           </div>
@@ -145,18 +170,21 @@ export function SearchableTeacherDropdown({
         </Button>
         
         {open && (
-          <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-md">
-            <div className="p-2 border-b border-border">
+          <div className={cn(
+            "absolute z-50 w-full min-w-[400px] bg-popover border border-border rounded-lg shadow-xl",
+            dropdownPosition === 'top' ? "bottom-full mb-1" : "top-full mt-1"
+          )}>
+            <div className="p-3 border-b border-border">
               <Input
                 placeholder="Search teachers..."
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                className="h-8 bg-background text-foreground border-border focus:ring-ring"
+                className="h-10 bg-background text-foreground border-border focus:ring-ring text-base"
                 autoFocus
               />
             </div>
             
-            <div className="max-h-60 overflow-y-auto">
+            <div className="max-h-72 overflow-y-auto">
               {filteredTeachers.length === 0 ? (
                 <div className="p-4 text-center text-sm text-muted-foreground">
                   {emptyMessage}
@@ -170,31 +198,35 @@ export function SearchableTeacherDropdown({
                       key={teacherId}
                       onClick={() => handleSelect(teacherId)}
                       className={cn(
-                        "flex items-center gap-3 px-2 py-2 rounded-sm cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors",
+                        "flex items-start gap-3 px-4 py-3 rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors",
                         value === teacherId && "bg-accent text-accent-foreground"
                       )}
                     >
                       <Check
                         className={cn(
-                          "h-4 w-4 shrink-0",
+                          "h-5 w-5 shrink-0 mt-0.5",
                           value === teacherId ? "opacity-100" : "opacity-0"
                         )}
                       />
-                      <Avatar className="h-6 w-6 shrink-0">
-                        <AvatarFallback className="text-xs">
+                      <Avatar className="h-10 w-10 shrink-0">
+                        <AvatarFallback className="text-sm font-medium">
                           {teacher.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="flex flex-col flex-1 min-w-0">
-                        <span className="font-medium truncate">{teacher.full_name}</span>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          {showPhone && teacher.phone_number && (
-                            <span className="truncate">{teacher.phone_number}</span>
-                          )}
-                          {showDepartment && teacher.department && (
-                            <span className="truncate">{teacher.department}</span>
-                          )}
-                        </div>
+                      <div className="flex flex-col flex-1 min-w-0 space-y-1">
+                        <span className="font-medium text-base leading-tight break-words">{teacher.full_name}</span>
+                        {(showPhone && teacher.phone_number) || (showDepartment && teacher.department) ? (
+                          <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                            {showPhone && teacher.phone_number && (
+                              <span className="text-xs">{teacher.phone_number}</span>
+                            )}
+                            {showDepartment && teacher.department && (
+                              <span className="text-xs font-medium bg-muted px-2 py-0.5 rounded-full inline-block w-fit">
+                                {teacher.department}
+                              </span>
+                            )}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                     );

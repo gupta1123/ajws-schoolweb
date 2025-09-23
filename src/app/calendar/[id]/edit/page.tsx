@@ -108,9 +108,29 @@ function EditEventContent({ params }: { params: Promise<{ id: string }> }) {
       console.log('Update data being sent:', updateData);
       console.log('Original form data:', data);
 
-      // Add class division if class specific
-      if (data.eventType === 'class_specific' && data.classDivisionIds.length > 0) {
-        updateData.class_division_id = data.classDivisionIds[0]; // Assuming single class for now
+      // Add class division information if class specific
+      if (data.eventType === 'class_specific') {
+        if (data.classDivisionIds.length > 0) {
+          // Use class_division_ids for multiple classes (preferred)
+          updateData.class_division_ids = data.classDivisionIds;
+          // Also set is_multi_class based on the number of classes
+          updateData.is_multi_class = data.classDivisionIds.length > 1;
+          
+          // For backward compatibility, also set class_division_id if only one class
+          if (data.classDivisionIds.length === 1) {
+            updateData.class_division_id = data.classDivisionIds[0];
+          }
+        } else {
+          // If no classes selected, clear the class information
+          updateData.class_division_ids = [];
+          updateData.class_division_id = undefined;
+          updateData.is_multi_class = false;
+        }
+      } else {
+        // For non-class-specific events, clear class information
+        updateData.class_division_ids = [];
+        updateData.class_division_id = undefined;
+        updateData.is_multi_class = false;
       }
 
       const response = await calendarServices.updateEvent(token, eventId, updateData);

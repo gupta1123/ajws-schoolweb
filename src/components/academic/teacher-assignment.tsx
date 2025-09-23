@@ -128,10 +128,10 @@ export function TeacherAssignment({
       )}
       
       {/* Simple Header */}
-      <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+      <div className="flex items-center justify-between p-4 bg-primary/10 dark:bg-primary/20 rounded-lg border border-primary/20 dark:border-primary/30">
         <div className="flex items-center gap-3">
-          <BookOpen className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <BookOpen className="h-6 w-6 text-primary" />
+          <h3 className="text-lg font-semibold text-foreground">
             {division.division} Section - Class Teacher
           </h3>
         </div>
@@ -170,8 +170,8 @@ export function TeacherAssignment({
       )}
       
       {/* Simple Assignment Form */}
-      <div className="p-5 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+      <div className="p-6 bg-muted/30 dark:bg-muted/20 rounded-lg border border-border">
+        <div className="space-y-4">
           <div>
             <SearchableTeacherDropdown
               teachers={teachers}
@@ -185,17 +185,19 @@ export function TeacherAssignment({
             />
           </div>
 
-          <Button
-            onClick={handleSave}
-            disabled={isLoading}
-            className="h-10 bg-blue-600 hover:bg-blue-700 text-white text-base font-medium"
-          >
-            {isLoading ? 'Saving...' : 'Save Assignment'}
-          </Button>
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSave}
+              disabled={isLoading}
+              className="h-12 bg-primary hover:bg-primary/90 text-primary-foreground text-base font-medium px-8"
+            >
+              {isLoading ? 'Saving...' : 'Save Assignment'}
+            </Button>
+          </div>
         </div>
       </div>
       
-      <div className="flex justify-end pt-5 border-t border-gray-200 dark:border-gray-700">
+      <div className="flex justify-end pt-5 border-t border-border">
         <Button
           variant="outline"
           onClick={handleCancel}

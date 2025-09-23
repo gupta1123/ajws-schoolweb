@@ -1639,9 +1639,9 @@ export default function AcademicSystemSetupPage() {
       </Dialog>
       {/* Teacher Assignment Dialog */}
       <Dialog open={!!assigningTeacher} onOpenChange={(open) => !open && handleCancelTeacherAssignment()}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-3xl bg-background border-border">
           <DialogHeader>
-            <DialogTitle>Assign Class Teacher</DialogTitle>
+            <DialogTitle className="text-xl font-semibold text-foreground">Assign Class Teacher</DialogTitle>
           </DialogHeader>
           {assigningTeacher && divisions.find(d => d.id === assigningTeacher) ? (
             <TeacherAssignment

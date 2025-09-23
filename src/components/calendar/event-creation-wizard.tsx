@@ -20,7 +20,9 @@ import {
   Hash,
   FileText,
   Edit3,
-  User
+  User,
+  Search,
+  X
 } from 'lucide-react';
 import { 
   Select, 
@@ -68,6 +70,7 @@ export function EventCreationWizard({
   const { t } = useI18n();
   const [classDivisions, setClassDivisions] = useState<ClassDivision[]>([]);
   const [loadingClassDivisions, setLoadingClassDivisions] = useState(false);
+  const [classSearchTerm, setClassSearchTerm] = useState('');
   
   
 
@@ -159,10 +162,19 @@ export function EventCreationWizard({
   };
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [name]: value
+      };
+      
+      // If event type changes away from class_specific, clear class selections
+      if (name === 'eventType' && value !== 'class_specific') {
+        newData.classDivisionIds = [];
+      }
+      
+      return newData;
+    });
   };
 
   const handleClassDivisionChange = (divisionId: string) => {
@@ -220,6 +232,26 @@ export function EventCreationWizard({
     }
   };
 
+  // Select all filtered divisions
+  const handleSelectAllFilteredDivisions = () => {
+    const filteredIds = filteredClassDivisions.map(d => d.id);
+    const allFilteredSelected = filteredIds.every(id => formData.classDivisionIds.includes(id));
+    
+    if (allFilteredSelected) {
+      // Deselect all filtered
+      setFormData(prev => ({
+        ...prev,
+        classDivisionIds: prev.classDivisionIds.filter(id => !filteredIds.includes(id))
+      }));
+    } else {
+      // Select all filtered
+      setFormData(prev => ({
+        ...prev,
+        classDivisionIds: [...new Set([...prev.classDivisionIds, ...filteredIds])]
+      }));
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Set requiresApproval to true by default for all events
@@ -229,8 +261,22 @@ export function EventCreationWizard({
     });
   };
 
-  // Group class divisions by grade level
-  const groupedClassDivisions = classDivisions.reduce((acc, division) => {
+  // Filter class divisions based on search term
+  const filteredClassDivisions = classDivisions.filter(division => {
+    if (!classSearchTerm.trim()) return true;
+    
+    const searchLower = classSearchTerm.toLowerCase();
+    const gradeName = division.class_level?.name?.toLowerCase() || '';
+    const divisionName = division.division?.toLowerCase() || '';
+    const fullName = `${gradeName} ${divisionName}`.toLowerCase();
+    
+    return gradeName.includes(searchLower) || 
+           divisionName.includes(searchLower) || 
+           fullName.includes(searchLower);
+  });
+
+  // Group filtered class divisions by grade level
+  const groupedClassDivisions = filteredClassDivisions.reduce((acc, division) => {
     const grade = division.class_level?.name || 'Unknown';
     if (!acc[grade]) {
       acc[grade] = [];
@@ -242,9 +288,9 @@ export function EventCreationWizard({
 
   // Check if all divisions of a grade are selected
   const isGradeFullySelected = (grade: string) => {
-    const gradeDivisions = classDivisions.filter(d => d.class_level?.name === grade);
+    const gradeDivisions = filteredClassDivisions.filter(d => d.class_level?.name === grade);
     const allGradeDivisionIds = gradeDivisions.map(d => d.id);
-    return allGradeDivisionIds.every(id => formData.classDivisionIds.includes(id));
+    return allGradeDivisionIds.length > 0 && allGradeDivisionIds.every(id => formData.classDivisionIds.includes(id));
   };
 
   // Format time for display
@@ -331,11 +377,42 @@ export function EventCreationWizard({
                         type="button" 
                         variant="outline" 
                         size="sm"
-                        onClick={handleSelectAllDivisions}
+                        onClick={classSearchTerm ? handleSelectAllFilteredDivisions : handleSelectAllDivisions}
                         className="h-9 px-3"
                       >
-                        {formData.classDivisionIds.length === classDivisions.length ? t('calendar.form.actions.deselectAll', 'Deselect All') : t('calendar.form.actions.selectAll', 'Select All')}
+                        {classSearchTerm ? (
+                          filteredClassDivisions.every(d => formData.classDivisionIds.includes(d.id)) 
+                            ? t('calendar.form.actions.deselectFiltered', 'Deselect Filtered') 
+                            : t('calendar.form.actions.selectFiltered', 'Select Filtered')
+                        ) : (
+                          formData.classDivisionIds.length === classDivisions.length 
+                            ? t('calendar.form.actions.deselectAll', 'Deselect All') 
+                            : t('calendar.form.actions.selectAll', 'Select All')
+                        )}
                       </Button>
+                    </div>
+                    
+                    {/* Search Bar */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        placeholder={t('calendar.form.placeholders.searchClasses', 'Search classes...')}
+                        value={classSearchTerm}
+                        onChange={(e) => setClassSearchTerm(e.target.value)}
+                        className="pl-10 pr-10 h-10"
+                      />
+                      {classSearchTerm && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setClassSearchTerm('')}
+                          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                     
                     {loadingClassDivisions ? (
@@ -345,6 +422,22 @@ export function EventCreationWizard({
                     ) : classDivisions.length === 0 ? (
                       <div className="text-center p-6 text-muted-foreground border rounded-lg">
                         {t('calendar.form.noClasses', 'No classes found.')}
+                      </div>
+                    ) : filteredClassDivisions.length === 0 ? (
+                      <div className="text-center p-6 text-muted-foreground border rounded-lg">
+                        <div className="flex flex-col items-center gap-2">
+                          <Search className="h-8 w-8 text-muted-foreground" />
+                          <p>{t('calendar.form.noSearchResults', 'No classes match your search.')}</p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setClassSearchTerm('')}
+                            className="mt-2"
+                          >
+                            {t('calendar.form.clearSearch', 'Clear Search')}
+                          </Button>
+                        </div>
                       </div>
                     ) : (
                       <div className="space-y-4 max-h-96 overflow-y-auto p-1 rounded-lg border bg-muted/30 dark:bg-muted/10">
