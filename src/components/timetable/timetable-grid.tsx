@@ -80,7 +80,7 @@ export function TimetableGrid({
       >
         <div className="space-y-2">
           <div className="font-medium text-sm">
-            {entry.subject}
+            {entry.subject_info?.display_name || entry.subject_info?.name || entry.subject}
           </div>
 
           <div className="flex items-center gap-1 text-xs text-muted-foreground">

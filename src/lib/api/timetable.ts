@@ -43,6 +43,12 @@ export interface TimetableEntry {
     role: string;
     full_name: string;
   };
+  subject_info?: {
+    id: string;
+    name: string;
+    code: string;
+    display_name: string;
+  };
   class_division?: {
     id: string;
     division: string;
