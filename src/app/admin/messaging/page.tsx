@@ -90,6 +90,13 @@ export default function PrincipalMessagingPage() {
               <Filter className="mr-2 h-4 w-4" />
               {t('principalMessaging.filterByDivision')}
             </Button>
+            <Button 
+              variant="outline"
+              onClick={() => router.push('/admin/messaging/approvals')}
+            >
+              <MessageCircle className="mr-2 h-4 w-4" />
+              Approvals
+            </Button>
           </div>
         </div>
       </div>

@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Send, Users, MessageCircle } from 'lucide-react';
 import { useWebSocketChat } from '@/hooks/use-websocket-chat';
 import { messagingAPI, Message, formatMessageTimeShort } from '@/lib/api/messaging';
+import { EditMessageModal } from '@/components/ui/edit-message-modal';
 
 interface ChatThread {
   id: string;
@@ -45,6 +46,18 @@ export function MessagePanel({ thread, currentUser, onMessageSent }: MessagePane
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Message | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Compute the latest message timestamp from the other participant (for direct messages)
+  const lastOtherMessageAt = useMemo(() => {
+    const others = messages.filter(m => m.sender_id !== currentUser.id);
+    if (others.length === 0) return null as string | null;
+    return others.reduce((latest, m) => {
+      return new Date(m.created_at) > new Date(latest) ? m.created_at : latest;
+    }, others[0].created_at);
+  }, [messages, currentUser.id]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const isSubscribedRef = useRef<string | null>(null);
   
@@ -223,7 +236,8 @@ export function MessagePanel({ thread, currentUser, onMessageSent }: MessagePane
       },
       created_at: new Date().toISOString(),
       status: 'sending',
-      message_type: 'text'
+      message_type: 'text',
+      approval_status: 'pending'
     };
 
     // Add optimistic message immediately
@@ -237,10 +251,10 @@ export function MessagePanel({ thread, currentUser, onMessageSent }: MessagePane
       if (isConnected) {
         try {
           await sendWebSocketMessage(thread.id, messageContent, 'text');
-          // Mark as sent (WebSocket doesn't return the message)
+          // Mark as sent (keeps approval_status pending until server updates arrive)
           setMessages(prev => prev.map(msg => 
             msg.id === tempId 
-              ? { ...msg, status: 'sent' }
+              ? { ...msg, status: 'sent', approval_status: 'pending' }
               : msg
           ));
           success = true;
@@ -255,10 +269,10 @@ export function MessagePanel({ thread, currentUser, onMessageSent }: MessagePane
           sentMessage = await messagingAPI.sendMessage(thread.id, messageContent, 'text');
           success = true;
           
-          // Replace optimistic message with real one from server
+          // Replace optimistic message with real one from server; default approval_status to pending if missing
           setMessages(prev => prev.map(msg => 
             msg.id === tempId 
-              ? { ...sentMessage!, status: 'sent' }
+              ? { ...sentMessage!, status: 'sent', approval_status: sentMessage!.approval_status ?? 'pending' }
               : msg
           ));
           
@@ -317,7 +331,7 @@ export function MessagePanel({ thread, currentUser, onMessageSent }: MessagePane
           await sendWebSocketMessage(thread.id, failedMessage.content, 'text');
           setMessages(prev => prev.map(msg => 
             msg.id === messageId 
-              ? { ...msg, status: 'sent' }
+              ? { ...msg, status: 'sent', approval_status: 'pending' }
               : msg
           ));
           success = true;
@@ -332,7 +346,7 @@ export function MessagePanel({ thread, currentUser, onMessageSent }: MessagePane
           sentMessage = await messagingAPI.sendMessage(thread.id, failedMessage.content, 'text');
           setMessages(prev => prev.map(msg => 
             msg.id === messageId 
-              ? { ...sentMessage!, status: 'sent' }
+              ? { ...sentMessage!, status: 'sent', approval_status: sentMessage!.approval_status ?? 'pending' }
               : msg
           ));
           onMessageSent(sentMessage);
@@ -384,15 +398,32 @@ export function MessagePanel({ thread, currentUser, onMessageSent }: MessagePane
         </div>
         <ScrollArea className="flex-1 p-4">
           <div className="space-y-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex space-x-3">
-                <Skeleton className="h-8 w-8 rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-16 w-3/4" />
+            {Array.from({ length: 6 }).map((_, i) => {
+              const isOwn = i % 2 === 1;
+              return (
+                <div
+                  key={i}
+                  className={cn(
+                    'flex items-start gap-3',
+                    isOwn && 'flex-row-reverse'
+                  )}
+                >
+                  {/* Avatar skeleton only for group chats */}
+                  {thread.thread_type === 'group' && (
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                  )}
+                  <div className={cn('max-w-xs w-fit', isOwn && 'items-end')}> 
+                    <div className={cn('rounded-lg p-2', 'bg-muted/60')}>
+                      <Skeleton className="h-4 w-40" />
+                      <div className="mt-2 flex items-center justify-end gap-2">
+                        <Skeleton className="h-3 w-10" />
+                        <Skeleton className="h-3 w-3 rounded" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </ScrollArea>
       </div>
@@ -447,16 +478,20 @@ export function MessagePanel({ thread, currentUser, onMessageSent }: MessagePane
                     isOwn && "flex-row-reverse space-x-reverse"
                   )}
                 >
-                  <div className="flex-shrink-0">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-xs font-medium text-primary">
-                        {message.sender.full_name.charAt(0).toUpperCase()}
-                      </span>
+                  {/* Avatar only for group chats */}
+                  {thread.thread_type === 'group' && (
+                    <div className="flex-shrink-0">
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-xs font-medium text-primary">
+                          {message.sender.full_name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                   
-                  <div className={cn("flex-1 max-w-xs", isOwn && "flex flex-col items-end")}>
-                    {!isOwn && (
+                  <div className={cn("max-w-[70%] flex flex-col", isOwn && "items-end")}>
+                    {/* Sender label for group chats */}
+                    {thread.thread_type === 'group' && !isOwn && (
                       <p className="text-xs text-muted-foreground mb-1">
                         {message.sender.full_name}
                       </p>
@@ -464,20 +499,72 @@ export function MessagePanel({ thread, currentUser, onMessageSent }: MessagePane
                     
                     <div
                       className={cn(
-                        "rounded-lg px-3 py-2 text-sm",
-                        isOwn 
-                          ? "bg-primary text-primary-foreground" 
-                          : "bg-muted"
+                        "inline-block w-fit rounded-lg px-3 py-2 text-sm break-words",
+                        message.approval_status === 'rejected'
+                          ? 'bg-destructive/10 text-destructive'
+                          : (isOwn && message.approval_status === 'pending')
+                            ? 'bg-yellow-50 text-yellow-900 border border-yellow-200'
+                            : (isOwn 
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted')
                       )}
                     >
-                      {message.content}
-                    </div>
-                    
-                    <div className={cn(
-                      "flex items-center space-x-1 mt-1 text-xs text-muted-foreground",
-                      isOwn && "flex-row-reverse space-x-reverse"
-                    )}>
-                      <span>{formatMessageTimeShort(message.created_at)}</span>
+                      <div>{message.content}</div>
+                      {/* Rejected reason + edit button for own pending/rejected */}
+                      {isOwn && (message.approval_status === 'rejected' || message.approval_status === 'pending') && (
+                        <div className="mt-2 flex items-center justify-between gap-2">
+                          {message.approval_status === 'rejected' && (
+                            <span className="text-[11px] text-red-600">
+                              Rejected{message.rejection_reason ? `: ${message.rejection_reason}` : ''}
+                            </span>
+                          )}
+                          {(() => {
+                            const canEdit = thread.thread_type !== 'direct' || lastOtherMessageAt === null || new Date(message.created_at) > new Date(lastOtherMessageAt);
+                            if (!canEdit) return null;
+                            return (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs ml-auto"
+                                onClick={() => { setEditTarget(message); setEditOpen(true); }}
+                              >
+                                Edit
+                              </Button>
+                            );
+                          })()}
+                        </div>
+                      )}
+                      {/* Time and tick inside bubble, aligned right */}
+                      <div className={cn(
+                        "mt-1 flex items-center gap-1 text-[10px] opacity-80",
+                        "justify-end"
+                      )}>
+                        <span>{formatMessageTimeShort(message.created_at)}</span>
+                        {isOwn && thread.thread_type !== 'group' && (
+                          (() => {
+                            const othersRead = Array.isArray(message.read_by)
+                              ? message.read_by.some(r => r.user_id !== currentUser.id)
+                              : false;
+                            if (othersRead) {
+                              return (
+                                <span className="inline-flex items-center">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" className={cn('text-blue-700 dark:text-blue-300')}>
+                                    <path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" />
+                                  </svg>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" className={cn('-ml-2 z-10 text-blue-700 dark:text-blue-300')}>
+                                    <path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" />
+                                  </svg>
+                                </span>
+                              );
+                            }
+                            return (
+                              <svg width="14" height="14" viewBox="0 0 24 24" className={cn(isOwn ? 'text-primary-foreground/50' : 'text-muted-foreground')}>
+                                <path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" />
+                              </svg>
+                            );
+                          })()
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -507,6 +594,28 @@ export function MessagePanel({ thread, currentUser, onMessageSent }: MessagePane
           </Button>
         </div>
       </div>
+
+      {/* Edit & Resend Modal */}
+      <EditMessageModal
+        isOpen={editOpen}
+        onClose={() => { setEditOpen(false); setEditTarget(null); }}
+        originalContent={editTarget?.content || ''}
+        rejectionReason={editTarget?.rejection_reason}
+        isLoading={isUpdating}
+        onConfirm={async (content) => {
+          if (!editTarget) return;
+          try {
+            setIsUpdating(true);
+            const updated = await messagingAPI.updateMessage(editTarget.id, content);
+            // Update message content locally
+            setMessages(prev => prev.map(m => m.id === editTarget.id ? { ...m, ...updated } : m));
+            setEditOpen(false);
+            setEditTarget(null);
+          } finally {
+            setIsUpdating(false);
+          }
+        }}
+      />
     </div>
   );
 }

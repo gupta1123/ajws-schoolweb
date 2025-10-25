@@ -93,18 +93,11 @@ export function ThreadList({
                         <h3 className="text-sm font-medium truncate">
                           {getThreadTitle(thread, currentUserId)}
                         </h3>
-                        <span className={cn(
-                          "text-xs px-1.5 py-0.5 rounded-full",
-                          thread.thread_type === 'direct' 
-                            ? "bg-blue-100 text-blue-700" 
-                            : "bg-green-100 text-green-700"
-                        )}>
-                          {thread.thread_type}
-                        </span>
+                        {/* Removed direct/group badge per spec */}
                       </div>
                       {thread.last_message && thread.last_message.length > 0 && (
                         <span className="text-xs text-muted-foreground ml-2">
-                          {formatMessageTime(thread.last_message[0].created_at)}
+                          {new Date(thread.last_message[0].created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                         </span>
                       )}
                     </div>

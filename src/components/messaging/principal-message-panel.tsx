@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -13,6 +13,7 @@ import { useWebSocketChat } from '@/hooks/use-websocket-chat';
 import { messagingAPI, Message, formatMessageTimeShort } from '@/lib/api/messaging';
 import { PrincipalDivisionTeacher } from '@/lib/api/principal-messaging';
 import { useI18n } from '@/lib/i18n/context';
+import { RejectionModal } from '@/components/ui/rejection-modal';
 
 interface ChatThread {
   id: string;
@@ -40,16 +41,52 @@ interface PrincipalMessagePanelProps {
   thread: ChatThread;
   currentUser: { id: string; full_name: string };
   onMessageSent: (message: { id: string; content: string; created_at: string; sender_id: string }) => void;
+  teacherPerspective?: boolean; // If true, show teacher messages on right, others on left
 }
 
-export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageSent }: PrincipalMessagePanelProps) {
+export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageSent, teacherPerspective = false }: PrincipalMessagePanelProps) {
   const { t } = useI18n();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState<Message | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const isSubscribedRef = useRef<string | null>(null);
+  
+  // Compute the latest parent message timestamp to gate approval actions
+  const lastParentMessageAt = useMemo(() => {
+    const parentMessages = messages.filter(m => m.sender?.role === 'parent');
+    if (parentMessages.length === 0) return null as string | null;
+    return parentMessages.reduce((latest, m) => {
+      return new Date(m.created_at) > new Date(latest) ? m.created_at : latest;
+    }, parentMessages[0].created_at);
+  }, [messages]);
+
+  // Ensure instant updates even if WebSocket doesn't emit to principal (e.g., not a participant)
+  useEffect(() => {
+    if (!thread?.id) return;
+    const interval = setInterval(async () => {
+      try {
+        const latest = await messagingAPI.fetchMessages(thread.id, undefined, 50, { tolerate403: true, suppressErrors: true });
+        if (Array.isArray(latest) && latest.length > 0) {
+          setMessages(prev => {
+            // If latest message id differs from prev last, refresh list
+            const prevLast = prev[prev.length - 1]?.id;
+            const latestLast = latest[latest.length - 1]?.id;
+            if (prevLast !== latestLast) {
+              return latest;
+            }
+            return prev;
+          });
+        }
+      } catch (e) {
+        // tolerate failures silently
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [thread?.id]);
   
   const {
     isConnected,
@@ -89,7 +126,7 @@ export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageS
     }
   }, []);
 
-  // Handle new messages from polling
+
   const handleNewMessages = useCallback((wsMessages: ({ id: string; content: string; sender_id: string; sender: { full_name: string }; created_at: string } | undefined)[]) => {
     const validMessages = wsMessages.filter((msg): msg is { id: string; content: string; sender_id: string; sender: { full_name: string }; created_at: string } => msg !== undefined);
     
@@ -312,15 +349,25 @@ export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageS
         <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
           {isLoading ? (
             <div className="space-y-4">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="flex gap-3">
-                  <Skeleton className="w-8 h-8 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-12 w-3/4" />
+              {[...Array(6)].map((_, i) => {
+                const isOwn = i % 2 === 0;
+                return (
+                  <div key={i} className={cn('flex items-start gap-3', isOwn && 'flex-row-reverse')}>
+                    {thread.thread_type === 'group' && (
+                      <Skeleton className="w-8 h-8 rounded-full" />
+                    )}
+                    <div className="max-w-[70%]">
+                      <div className="rounded-lg p-2 bg-muted/60">
+                        <Skeleton className="h-4 w-40" />
+                        <div className="mt-2 flex items-center justify-end gap-2">
+                          <Skeleton className="h-3 w-10" />
+                          <Skeleton className="h-3 w-3 rounded" />
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
@@ -334,46 +381,99 @@ export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageS
             </div>
           ) : (
             <div className="space-y-4">
-              {messages.map((message) => (
+              {messages.map((message) => {
+                // Determine alignment based on perspective mode
+                const isTeacher = message.sender?.role === 'teacher';
+                const isOnRight = teacherPerspective 
+                  ? isTeacher 
+                  : message.sender_id === currentUser.id;
+                
+                return (
                 <div
                   key={message.id}
                   className={cn(
                     'flex gap-3',
-                    message.sender_id === currentUser.id ? 'flex-row-reverse' : 'flex-row'
+                    isOnRight ? 'flex-row-reverse' : 'flex-row'
                   )}
                 >
-                  <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-xs font-medium">
-                    {message.sender.full_name.charAt(0).toUpperCase()}
-                  </div>
+                  {thread.thread_type === 'group' && (
+                    <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-xs font-medium">
+                      {message.sender.full_name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <div className={cn(
-                    'flex-1 max-w-[70%]',
-                    message.sender_id === currentUser.id ? 'items-end' : 'items-start'
+                    'max-w-[70%] flex flex-col',
+                    isOnRight ? 'items-end' : 'items-start'
                   )}>
+                    {/* Bubble with approval status coloring and WhatsApp-like footer */}
                     <div className={cn(
-                      'rounded-lg px-3 py-2 text-sm',
-                      message.sender_id === currentUser.id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
+                      'inline-block w-fit rounded-lg px-3 py-2 text-sm break-words',
+                      message.approval_status === 'rejected' ? 'bg-destructive/10 text-destructive' :
+                      message.approval_status === 'pending' && message.sender?.role === 'teacher' ? 'bg-yellow-50 text-yellow-900 border border-yellow-200' :
+                      isOnRight ? 'bg-primary text-primary-foreground' : 'bg-muted'
                     )}>
-                      <p>{message.content}</p>
+                      <div>{message.content}</div>
+                      {/* Footer inside bubble */}
+                      <div className="mt-1 flex items-center gap-1 text-[10px] opacity-80 justify-end">
+                        <span>{formatMessageTimeShort(message.created_at)}</span>
+                        {isOnRight && thread.thread_type !== 'group' && (
+                          (() => {
+                            const othersRead = Array.isArray(message.read_by)
+                              ? message.read_by.some(r => r.user_id !== currentUser.id)
+                              : false;
+                            if (othersRead) {
+                              return (
+                                <span className="inline-flex items-center">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" className={cn('text-blue-700 dark:text-blue-300')}>
+                                    <path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" />
+                                  </svg>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" className={cn('-ml-2 z-10 text-blue-700 dark:text-blue-300')}>
+                                    <path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" />
+                                  </svg>
+                                </span>
+                              );
+                            }
+                            return (
+                              <svg width="14" height="14" viewBox="0 0 24 24" className={cn('text-primary-foreground/50')}>
+                                <path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" />
+                              </svg>
+                            );
+                          })()
+                        )}
+                      </div>
+                      {/* Inline approval badges & actions for principal */}
+                      <div className="mt-1 flex items-center gap-2 text-xs">
+                      {message.approval_status === 'pending' && (
+                          <>
+                            <span className="px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-900">Pending approval</span>
+                            {(message.sender?.role === 'teacher' && (lastParentMessageAt === null || new Date(message.created_at) > new Date(lastParentMessageAt))) && (
+                            <Button size="sm" variant="outline" onClick={async () => {
+                              try {
+                                const updated = await messagingAPI.approveMessage(message.id);
+                                setMessages(prev => prev.map(m => m.id === message.id ? { ...m, ...updated } : m));
+                              } catch (e) {
+                                console.error(e);
+                              }
+                            }}>Approve</Button>
+                            )}
+                            {(message.sender?.role === 'teacher' && (lastParentMessageAt === null || new Date(message.created_at) > new Date(lastParentMessageAt))) && (
+                            <Button size="sm" variant="ghost" onClick={() => {
+                              setRejectTarget(message);
+                              setRejectOpen(true);
+                            }}>Reject</Button>
+                            )}
+                          </>
+                        )}
+                        {message.approval_status === 'rejected' && (
+                          <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-900">Rejected{message.rejection_reason ? `: ${message.rejection_reason}` : ''}</span>
+                        )}
+                      </div>
                     </div>
-                    <div className={cn(
-                      'flex items-center gap-1 mt-1 text-xs text-muted-foreground',
-                      message.sender_id === currentUser.id ? 'justify-end' : 'justify-start'
-                    )}>
-                      <span>{formatMessageTimeShort(message.created_at)}</span>
-                      {message.sender_id === currentUser.id && (
-                        <span className={cn(
-                          'w-1 h-1 rounded-full',
-                          message.status === 'sent' ? 'bg-green-500' :
-                          message.status === 'sending' ? 'bg-yellow-500' :
-                          message.status === 'failed' ? 'bg-red-500' : 'bg-gray-500'
-                        )} />
-                      )}
-                    </div>
+                    
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </ScrollArea>
@@ -399,6 +499,24 @@ export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageS
           </div>
         </div>
       </div>
+
+      <RejectionModal
+        isOpen={rejectOpen}
+        onClose={() => setRejectOpen(false)}
+        onConfirm={async (reason: string) => {
+          if (!rejectTarget) return;
+          try {
+            const updated = await messagingAPI.rejectMessage(rejectTarget.id, reason);
+            setMessages(prev => prev.map(m => m.id === rejectTarget.id ? { ...m, ...updated } : m));
+            setRejectOpen(false);
+            setRejectTarget(null);
+          } catch (e) {
+            console.error(e);
+          }
+        }}
+        title="Reject message"
+        description="Provide a reason for rejecting this message."
+      />
     </div>
   );
 }

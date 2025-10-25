@@ -24,15 +24,49 @@ export interface ChatThread {
 export interface Message {
   id: string;
   content: string;
+  thread_id?: string;
+  thread?: {
+    id: string;
+    title: string;
+    thread_type: 'direct' | 'group';
+    participants?: Array<{
+      user_id: string;
+      user?: {
+        id: string;
+        full_name: string;
+        role?: string;
+      };
+    }>;
+  };
   sender_id: string;
   sender: {
     id: string;
     full_name: string;
+    role?: string;
   };
   created_at: string;
   status: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
   message_type: 'text';
   attachments?: unknown[];
+  // Approval fields
+  approval_status?: 'pending' | 'approved' | 'rejected';
+  approved_by?: string | null;
+  approved_at?: string | null;
+  rejection_reason?: string | null;
+  approver?: {
+    id?: string;
+    full_name: string;
+    role?: string;
+  } | null;
+  // Read receipts (from API)
+  read_by?: Array<{
+    user_id: string;
+    user_name: string;
+    user_role: string;
+    read_at: string;
+  }>;
+  read_count?: number;
+  is_read?: boolean;
 }
 
 export interface Parent {
@@ -148,6 +182,36 @@ export const messagingAPI = {
     }
   },
 
+  // Fetch pending messages for approval (Admin/Principal)
+  async fetchPendingMessages(params?: { thread_id?: string; page?: number; limit?: number }): Promise<{
+    messages: Message[];
+    pagination?: { page: number; limit: number; total: number; total_pages: number };
+  }> {
+    try {
+      const search = new URLSearchParams();
+      if (params?.thread_id) search.set('thread_id', params.thread_id);
+      if (params?.page) search.set('page', String(params.page));
+      if (params?.limit) search.set('limit', String(params.limit));
+
+      const url = `${API_BASE_URL}/chat/messages/pending${search.toString() ? `?${search.toString()}` : ''}`;
+      const response = await fetch(url, { headers: getAuthHeaders() });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      if (data.status === 'success') {
+        return {
+          messages: (data.data?.messages || []) as Message[],
+          pagination: data.data?.pagination,
+        };
+      }
+      throw new Error(data.message || 'Failed to fetch pending messages');
+    } catch (error) {
+      console.error('Error fetching pending messages:', error);
+      throw error;
+    }
+  },
+
   // Check if thread exists
   async checkExistingThread(participants: string[], threadType: 'direct' | 'group' = 'direct'): Promise<{ exists: boolean; thread?: ChatThread }> {
     try {
@@ -171,6 +235,71 @@ export const messagingAPI = {
       throw new Error(data.message || 'Failed to check existing thread');
     } catch (error) {
       console.error('Error checking existing thread:', error);
+      throw error;
+    }
+  },
+
+  // Approve a message (Admin/Principal)
+  async approveMessage(messageId: string): Promise<Message> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/chat/messages/${messageId}/approve`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      if (data.status === 'success') {
+        return data.data as Message;
+      }
+      throw new Error(data.message || 'Failed to approve message');
+    } catch (error) {
+      console.error('Error approving message:', error);
+      throw error;
+    }
+  },
+
+  // Reject a message (Admin/Principal)
+  async rejectMessage(messageId: string, rejection_reason: string): Promise<Message> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/chat/messages/${messageId}/reject`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ rejection_reason }),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      if (data.status === 'success') {
+        return data.data as Message;
+      }
+      throw new Error(data.message || 'Failed to reject message');
+    } catch (error) {
+      console.error('Error rejecting message:', error);
+      throw error;
+    }
+  },
+
+  // Update an existing message (sender only). Only allowed for pending or rejected messages
+  async updateMessage(messageId: string, content: string): Promise<Message> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/chat/messages/${messageId}` , {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ content })
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      if (data.status === 'success') {
+        return data.data as Message;
+      }
+      throw new Error(data.message || 'Failed to update message');
+    } catch (error) {
+      console.error('Error updating message:', error);
       throw error;
     }
   },
@@ -213,7 +342,8 @@ export const messagingAPI = {
   async fetchMessages(
     threadId: string,
     afterId?: string,
-    limit: number = 50
+    limit: number = 50,
+    options?: { tolerate403?: boolean; suppressErrors?: boolean }
   ): Promise<Message[]> {
     try {
       let url = `${API_BASE_URL}/chat/messages?thread_id=${threadId}&limit=${limit}`;
@@ -226,6 +356,9 @@ export const messagingAPI = {
       });
 
       if (!response.ok) {
+        if (options?.tolerate403 && response.status === 403) {
+          return [];
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -235,7 +368,9 @@ export const messagingAPI = {
       }
       throw new Error(data.message || 'Failed to fetch messages');
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      if (!options?.suppressErrors) {
+        console.error('Error fetching messages:', error);
+      }
       throw error;
     }
   },
