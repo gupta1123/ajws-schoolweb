@@ -103,12 +103,37 @@ export const useBirthdays = () => {
     return result;
   }, []);
 
-  // Calculate stats from actual birthday data
+  // Calculate stats from actual birthday data (by calendar months)
   const calculateStatsFromData = useCallback((allBirthdays: BirthdayData[]): BirthdayStats => {
+    const now = new Date();
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const endOfThisMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+
+    const getNextOccurrence = (dateString: string) => {
+      const birthDate = new Date(dateString);
+      let occurrence = new Date(now.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+      if (occurrence < startOfToday) {
+        occurrence = new Date(now.getFullYear() + 1, birthDate.getMonth(), birthDate.getDate());
+      }
+      return occurrence;
+    };
+
     const today = allBirthdays.filter(b => b.daysUntil === 0).length;
     const thisWeek = allBirthdays.filter(b => b.daysUntil <= 7).length;
-    const thisMonth = allBirthdays.filter(b => b.daysUntil <= 30).length;
-    const nextMonth = allBirthdays.filter(b => b.daysUntil > 30 && b.daysUntil <= 60).length;
+
+    const thisMonth = allBirthdays.filter(b => {
+      const occurrence = getNextOccurrence(b.date);
+      return occurrence >= startOfToday && occurrence <= endOfThisMonth;
+    }).length;
+
+    const nextMonth = allBirthdays.filter(b => {
+      const occurrence = getNextOccurrence(b.date);
+      return occurrence >= startOfNextMonth && occurrence <= endOfNextMonth;
+    }).length;
     
     return { today, thisWeek, thisMonth, nextMonth };
   }, []);
@@ -181,10 +206,10 @@ export const useBirthdays = () => {
       
       let response;
       
-      // Set date range for current month from today onwards
+      // Set date range from today through end of next month to power KPIs
       const today = new Date();
       const startDate = new Date(today); // Start from today
-      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 2, 0); // end of next month
       
       const startDateStr = startDate.toISOString().split('T')[0];
       const endDateStr = endOfMonth.toISOString().split('T')[0];
@@ -280,28 +305,19 @@ export const useBirthdays = () => {
       case 'this-week':
         return all.filter(birthday => birthday.daysUntil <= 7);
       case 'this-month':
-        // Filter by current calendar month, excluding past birthdays
-        const today = new Date();
-        const currentMonth = today.getMonth();
-        const currentYear = today.getFullYear();
-        const currentDay = today.getDate();
-        
+        // Filter by current calendar month from today to end of month using next occurrence
+        const now = new Date();
+        const startOfToday = new Date(now);
+        startOfToday.setHours(0, 0, 0, 0);
+        const endOfThisMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
         return all.filter(birthday => {
           const birthDate = new Date(birthday.date);
-          const birthMonth = birthDate.getMonth();
-          const birthYear = birthDate.getFullYear();
-          const birthDay = birthDate.getDate();
-          
-          // Check if birthday is in current month and hasn't passed yet
-          if (birthMonth === currentMonth) {
-            // If it's the current year, check if the day hasn't passed
-            if (birthYear === currentYear) {
-              return birthDay >= currentDay;
-            }
-            // If it's a future year, always include it
-            return birthYear > currentYear;
+          const occurrence = new Date(now.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+          if (occurrence < startOfToday) {
+            return false; // already passed in current month
           }
-          return false;
+          return occurrence >= startOfToday && occurrence <= endOfThisMonth;
         });
       default:
         return all;

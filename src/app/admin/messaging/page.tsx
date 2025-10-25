@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth/context';
 import { ThreadList, MessagePanel, PrincipalNewChatModal } from '@/components/messaging';
 import { Button } from '@/components/ui/button';
-import { Plus, MessageCircle, Filter } from 'lucide-react';
+import { Plus, MessageCircle } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/context';
 import { useRouter } from 'next/navigation';
 import { messagingAPI, ChatThread } from '@/lib/api/messaging';
@@ -83,13 +83,7 @@ export default function PrincipalMessagingPage() {
               <Plus className="mr-2 h-4 w-4" />
               {t('messaging.newChat')}
             </Button>
-            <Button 
-              variant="outline"
-              onClick={() => router.push('/admin/messaging/filter')}
-            >
-              <Filter className="mr-2 h-4 w-4" />
-              {t('principalMessaging.filterByDivision')}
-            </Button>
+            {/* Removed Filter by Division button per requirements */}
             <Button 
               variant="outline"
               onClick={() => router.push('/admin/messaging/approvals')}
@@ -134,6 +128,7 @@ export default function PrincipalMessagingPage() {
             <MessagePanel
               thread={selectedThread}
               currentUser={user}
+              currentUserRole={user.role}
               onMessageSent={handleMessageSent}
             />
           ) : (

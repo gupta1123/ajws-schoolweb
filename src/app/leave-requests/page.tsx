@@ -98,9 +98,14 @@ function LeaveRequestsContent() {
   const { t } = useI18n();
   const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [classFilter, setClassFilter] = useState('all');
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [dateRange, setDateRange] = useState(() => {
+    const today = new Date();
+    const start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+    return { start, end };
+  });
   
   // Keep date range consistent and ensure both from/to are present
   const handleStartDateChange = (value: string) => {
@@ -181,7 +186,7 @@ function LeaveRequestsContent() {
 
   const cardColors = getSummaryCardColors();
 
-  // Default current month and approved for admin/principal
+  // Default current month for admin/principal; do not override selected status
   useEffect(() => {
     if (!user?.role) return;
     if (user.role === 'admin' || user.role === 'principal') {
@@ -192,10 +197,6 @@ function LeaveRequestsContent() {
         const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         const toISO = (d: Date) => d.toISOString().slice(0, 10);
         setDateRange({ start: toISO(firstDay), end: toISO(lastDay) });
-      }
-      // Set status to approved by default
-      if (statusFilter === 'all') {
-        setStatusFilter('approved');
       }
       // Make filters visible to expose date range selector
       setShowFilters(true);
@@ -533,7 +534,7 @@ function LeaveRequestsContent() {
                     <select 
                       className="border rounded-md px-3 py-2 text-sm w-full"
                       value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
+                      onChange={(e) => setStatusFilter(e.target.value as 'all' | 'pending' | 'approved' | 'rejected')}
                     >
                       <option value="all">{t('leave.filters.allStatuses')}</option>
                       <option value="pending">{t('leave.status.pending')}</option>

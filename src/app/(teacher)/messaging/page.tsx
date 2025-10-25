@@ -119,6 +119,7 @@ export default function MessagingPage() {
             <MessagePanel
               thread={selectedThread}
               currentUser={user}
+              currentUserRole={user.role}
               onMessageSent={handleMessageSent}
             />
           ) : (

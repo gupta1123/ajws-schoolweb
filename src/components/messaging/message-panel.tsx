@@ -38,10 +38,11 @@ interface ChatThread {
 interface MessagePanelProps {
   thread: ChatThread;
   currentUser: { id: string; full_name: string };
+  currentUserRole?: string; // used to gate teacher-only behaviors
   onMessageSent: (message: Message) => void;
 }
 
-export function MessagePanel({ thread, currentUser, onMessageSent }: MessagePanelProps) {
+export function MessagePanel({ thread, currentUser, currentUserRole, onMessageSent }: MessagePanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -237,7 +238,8 @@ export function MessagePanel({ thread, currentUser, onMessageSent }: MessagePane
       created_at: new Date().toISOString(),
       status: 'sending',
       message_type: 'text',
-      approval_status: 'pending'
+      // Only teachers' messages go through approval; principals' own messages should not show pending/edit
+      ...(currentUserRole === 'teacher' ? { approval_status: 'pending' as const } : {})
     };
 
     // Add optimistic message immediately
@@ -254,7 +256,11 @@ export function MessagePanel({ thread, currentUser, onMessageSent }: MessagePane
           // Mark as sent (keeps approval_status pending until server updates arrive)
           setMessages(prev => prev.map(msg => 
             msg.id === tempId 
-              ? { ...msg, status: 'sent', approval_status: 'pending' }
+              ? { 
+                  ...msg, 
+                  status: 'sent', 
+                  ...(currentUserRole === 'teacher' ? { approval_status: 'pending' as const } : {})
+                }
               : msg
           ));
           success = true;
@@ -272,7 +278,13 @@ export function MessagePanel({ thread, currentUser, onMessageSent }: MessagePane
           // Replace optimistic message with real one from server; default approval_status to pending if missing
           setMessages(prev => prev.map(msg => 
             msg.id === tempId 
-              ? { ...sentMessage!, status: 'sent', approval_status: sentMessage!.approval_status ?? 'pending' }
+              ? { 
+                  ...sentMessage!, 
+                  status: 'sent', 
+                  ...(sentMessage!.approval_status 
+                    ? { approval_status: sentMessage!.approval_status } 
+                    : (currentUserRole === 'teacher' ? { approval_status: 'pending' as const } : {}))
+                }
               : msg
           ));
           
@@ -331,7 +343,11 @@ export function MessagePanel({ thread, currentUser, onMessageSent }: MessagePane
           await sendWebSocketMessage(thread.id, failedMessage.content, 'text');
           setMessages(prev => prev.map(msg => 
             msg.id === messageId 
-              ? { ...msg, status: 'sent', approval_status: 'pending' }
+              ? { 
+                  ...msg, 
+                  status: 'sent', 
+                  ...(currentUserRole === 'teacher' ? { approval_status: 'pending' as const } : {})
+                }
               : msg
           ));
           success = true;
@@ -346,7 +362,13 @@ export function MessagePanel({ thread, currentUser, onMessageSent }: MessagePane
           sentMessage = await messagingAPI.sendMessage(thread.id, failedMessage.content, 'text');
           setMessages(prev => prev.map(msg => 
             msg.id === messageId 
-              ? { ...sentMessage!, status: 'sent', approval_status: sentMessage!.approval_status ?? 'pending' }
+              ? { 
+                  ...sentMessage!, 
+                  status: 'sent', 
+                  ...(sentMessage!.approval_status 
+                    ? { approval_status: sentMessage!.approval_status } 
+                    : (currentUserRole === 'teacher' ? { approval_status: 'pending' as const } : {}))
+                }
               : msg
           ));
           onMessageSent(sentMessage);
