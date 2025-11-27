@@ -22,18 +22,6 @@ export default function LoginPage() {
   const router = useRouter();
   const { t } = useI18n();
 
-  // Predefined credentials for different user roles
-  const userCredentials = {
-    teacher: { phone: '9158834913', password: 'Temp@1234' },
-    admin: { phone: '1234567890', password: 'Shilpa@123' },
-    principal: { phone: '1234567891', password: 'password123' }
-  };
-
-  const handleUserSelect = (userType: keyof typeof userCredentials) => {
-    setPhoneNumber(userCredentials[userType].phone);
-    setPassword(userCredentials[userType].password);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -65,38 +53,6 @@ export default function LoginPage() {
             <AlertDescription>{error === 'Login failed' ? t('auth.loginFailed', error) : error}</AlertDescription>
           </Alert>
         )}
-        
-        {/* User Role Selection */}
-        <div className="mb-4">
-          <Label htmlFor="user-role">{t('auth.quickLogin')}</Label>
-          <div className="grid grid-cols-3 gap-2 mt-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => handleUserSelect('teacher')}
-              className="text-xs"
-            >
-              {t('common.teacher')}
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => handleUserSelect('admin')}
-              className="text-xs"
-            >
-              {t('common.admin')}
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => handleUserSelect('principal')}
-              className="text-xs"
-            >
-              {t('common.principal')}
-            </Button>
-          </div>
-        </div>
-        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="phone_number">{t('auth.phoneNumber')}</Label>
