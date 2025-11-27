@@ -286,8 +286,8 @@ export default function CreateAnnouncementPage() {
                       className="h-8"
                     >
                       {role.value === 'teacher' && t('announcements.roles.teacher', 'Teachers')}
-                      {role.value === 'parent' && t('announcements.roles.parent', 'Parents')}
-                      {role.value === 'student' && t('announcements.roles.student', 'Students')}
+                      {role.value === 'parent' && t('announcements.roles.parent', 'All Parents')}
+                      {role.value === 'student' && t('announcements.roles.student', 'Specific Class Parents')}
                     </Button>
                   ))}
                 </div>

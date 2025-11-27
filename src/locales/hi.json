@@ -656,7 +656,7 @@
     }
   },
   "announcements": {
-    "roles": { "teacher": "शिक्षक", "parent": "अभिभावक", "student": "छात्र", "admin": "प्रशासक" },
+    "roles": { "teacher": "शिक्षक", "parent": "सभी अभिभावक", "student": "विशिष्ट कक्षा के अभिभावक", "admin": "प्रशासक" },
     "common": { "pending": "लंबित", "approved": "स्वीकृत", "rejected": "अस्वीकृत", "total": "कुल" },
     "list": {
       "title": "घोषणाएँ",

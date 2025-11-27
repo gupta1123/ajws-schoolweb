@@ -29,8 +29,8 @@ const priorities = [
 
 const targetRoles = [
   { value: 'teacher', label: 'Teachers' },
-  { value: 'parent', label: 'Parents' },
-  { value: 'student', label: 'Students' },
+  { value: 'parent', label: 'All Parents' },
+  { value: 'student', label: 'Specific Class Parents' },
 ];
 
 export default function AdminEditAnnouncementPage() {

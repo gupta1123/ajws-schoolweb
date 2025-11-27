@@ -656,7 +656,7 @@
     }
   },
   "announcements": {
-    "roles": { "teacher": "शिक्षक", "parent": "पालक", "student": "विद्यार्थी", "admin": "प्रशासक" },
+    "roles": { "teacher": "शिक्षक", "parent": "सर्व पालक", "student": "विशिष्ट वर्गातील पालक", "admin": "प्रशासक" },
     "common": { "pending": "प्रलंबित", "approved": "मंजूर", "rejected": "नाकारणे", "total": "एकूण" },
     "list": {
       "title": "जाहिराती",

@@ -441,7 +441,7 @@
     }
   },
   "announcements": {
-    "roles": { "teacher": "Teachers", "parent": "Parents", "student": "Students", "admin": "Administrators" },
+    "roles": { "teacher": "Teachers", "parent": "All Parents", "student": "Specific Class Parents", "admin": "Administrators" },
     "common": { "pending": "Pending", "approved": "Approved", "rejected": "Rejected", "total": "Total" },
     "list": {
       "title": "Announcements",
