@@ -404,24 +404,14 @@ function LeaveRequestsContent() {
         )}
 
         {/* Action Bar with Status Indicators */}
-        <div className="flex justify-between items-center">
+        {urgentCount > 0 && (
           <div className="flex items-center gap-2">
-            {urgentCount > 0 && (
-              <div className="flex items-center gap-1 bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm">
-                <AlertTriangle className="h-4 w-4" />
-                {urgentCount} {t('leave.urgent')}
-              </div>
-            )}
-            {pendingCount > 0 && (
-              <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">
-                {pendingCount} {t('leave.kpi.pending')}
-              </div>
-            )}
+            <div className="flex items-center gap-1 bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm">
+              <AlertTriangle className="h-4 w-4" />
+              {urgentCount} {t('leave.urgent')}
+            </div>
           </div>
-          <div className="text-sm text-muted-foreground">
-            {t('leave.loggedInAs')} <span className="font-medium">{user?.role}</span>
-          </div>
-        </div>
+        )}
 
         {/* Summary Cards - Simple KPIs */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

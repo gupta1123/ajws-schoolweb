@@ -15,29 +15,48 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Search, Plus, Loader2 } from 'lucide-react';
+import { Search, Plus, Loader2, GraduationCap, UserCheck } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { studentServices, Student } from '@/lib/api/students';
 import { classDivisionsServices, ClassDivision as ApiClassDivision } from '@/lib/api/class-divisions';
 import { useI18n } from '@/lib/i18n/context';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { MetricCard } from '@/components/dashboard/metric-card';
+import { useSchoolStats } from '@/hooks/use-school-stats';
 
 export default function StudentsPage() {
   const { user, token } = useAuth();
   const { t } = useI18n();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const canAccess = user?.role === 'admin' || user?.role === 'principal';
+  const {
+    totalStaff,
+    loading: staffStatsLoading,
+    error: staffStatsError
+  } = useSchoolStats({
+    enabled: canAccess,
+    fetchStudents: false
+  });
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Initialize filters from URL params
   const [filters, setFilters] = useState({
-    search: '',
-    class_division_id: '',
-    page: 1,
+    search: searchParams.get('search') || '',
+    class_division_id: searchParams.get('class_division_id') || '',
+    page: parseInt(searchParams.get('page') || '1', 10),
     limit: 20
   });
   const [pagination, setPagination] = useState<{ page: number; limit: number; total: number; total_pages: number } | null>(null);
   const [classDivisionsList, setClassDivisionsList] = useState<ApiClassDivision[]>([]);
   const [selectedAcademicYearId, setSelectedAcademicYearId] = useState<string | undefined>(undefined);
+  const studentTotalCount = pagination?.total ?? (students.length > 0 ? students.length : null);
+  const isStudentTotalLoading = loading && studentTotalCount === null;
 
   // Debounced search to reduce API calls
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -126,6 +145,32 @@ export default function StudentsPage() {
     };
   }, []);
 
+  // Sync filters with URL params when they change (e.g., when navigating back)
+  useEffect(() => {
+    const urlClassId = searchParams.get('class_division_id') || '';
+    const urlSearch = searchParams.get('search') || '';
+    const urlPage = parseInt(searchParams.get('page') || '1', 10);
+    
+    if (urlClassId !== filters.class_division_id || urlSearch !== filters.search || urlPage !== filters.page) {
+      setFilters({
+        search: urlSearch,
+        class_division_id: urlClassId,
+        page: urlPage,
+        limit: 20
+      });
+      
+      // Set academic year ID if class_division_id is in URL
+      if (urlClassId && classDivisionsList.length > 0) {
+        const selectedDivision = classDivisionsList.find(d => d.id === urlClassId);
+        if (selectedDivision?.academic_year_id) {
+          setSelectedAcademicYearId(selectedDivision.academic_year_id);
+        }
+      } else if (!urlClassId) {
+        setSelectedAcademicYearId(undefined);
+      }
+    }
+  }, [searchParams, classDivisionsList]);
+
   // Fetch class divisions list for filter
   useEffect(() => {
     const loadClassDivisions = async () => {
@@ -134,18 +179,37 @@ export default function StudentsPage() {
         const response = await classDivisionsServices.getClassDivisions(token);
         if (response.status === 'success') {
           setClassDivisionsList(response.data.class_divisions);
+          // Set academic year ID if class_division_id is in URL
+          const urlClassId = searchParams.get('class_division_id') || '';
+          if (urlClassId) {
+            const selectedDivision = response.data.class_divisions.find(d => d.id === urlClassId);
+            if (selectedDivision?.academic_year_id) {
+              setSelectedAcademicYearId(selectedDivision.academic_year_id);
+            }
+          }
         }
       } catch (err) {
         console.warn('Failed to load class divisions', err);
       }
     };
     loadClassDivisions();
-  }, [token]);
+  }, [token, searchParams]);
 
   // Handle search input change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLoading(true);
-    setFilters(prev => ({ ...prev, search: e.target.value, page: 1 }));
+    const newFilters = { ...filters, search: e.target.value, page: 1 };
+    setFilters(newFilters);
+    
+    // Update URL params for search
+    const params = new URLSearchParams(searchParams.toString());
+    if (e.target.value) {
+      params.set('search', e.target.value);
+    } else {
+      params.delete('search');
+    }
+    params.set('page', '1');
+    router.push(`/students?${params.toString()}`, { scroll: false });
   };
 
   // Handle filter changes
@@ -156,16 +220,35 @@ export default function StudentsPage() {
       const ayId = value ? classDivisionsList.find(d => d.id === value)?.academic_year_id : undefined;
       setSelectedAcademicYearId(ayId);
     }
-    setFilters(prev => ({ ...prev, [filterType]: value, page: 1 }));
+    
+    const newFilters = { ...filters, [filterType]: value, page: 1 };
+    setFilters(newFilters);
+    
+    // Update URL params to persist filter state
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) {
+      params.set(filterType, value);
+    } else {
+      params.delete(filterType);
+    }
+    // Reset page to 1 when filter changes
+    params.set('page', '1');
+    router.push(`/students?${params.toString()}`, { scroll: false });
   };
 
   // Handle pagination
   const handlePageChange = (newPage: number) => {
-    setFilters(prev => ({ ...prev, page: newPage }));
+    const newFilters = { ...filters, page: newPage };
+    setFilters(newFilters);
+    
+    // Update URL params for pagination
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', newPage.toString());
+    router.push(`/students?${params.toString()}`, { scroll: false });
   };
 
   // Only allow admins and principals to access this page
-  if (user?.role !== 'admin' && user?.role !== 'principal') {
+  if (!canAccess) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
@@ -192,6 +275,30 @@ export default function StudentsPage() {
   return (
     <ProtectedRoute>
       <div className="space-y-6">
+        {canAccess && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <MetricCard
+                label={t('common.totalStudents', 'Total Students')}
+                value={studentTotalCount}
+                icon={<GraduationCap className="h-5 w-5" />}
+                loading={isStudentTotalLoading}
+              />
+              <MetricCard
+                label={t('common.totalStaff', 'Total Staff')}
+                value={totalStaff}
+                icon={<UserCheck className="h-5 w-5" />}
+                loading={staffStatsLoading}
+              />
+            </div>
+            {staffStatsError && !staffStatsLoading && (
+              <Alert variant="destructive">
+                <AlertDescription>{staffStatsError}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+        )}
+
         {/* Action Bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -302,12 +409,12 @@ export default function StudentsPage() {
                           </TableCell>
                           <TableCell className="text-right">
                             <Button variant="outline" size="sm" className="mr-2" asChild>
-                              <Link href={`/students/${student.id}`}>
+                              <Link href={`/students/${student.id}${filters.class_division_id ? `?class_division_id=${filters.class_division_id}` : ''}`}>
                                 {t('actions.view', 'View')}
                               </Link>
                             </Button>
                             <Button variant="outline" size="sm" asChild>
-                              <Link href={`/students/${student.id}/edit`}>
+                              <Link href={`/students/${student.id}/edit${filters.class_division_id ? `?class_division_id=${filters.class_division_id}` : ''}`}>
                                 {t('actions.edit', 'Edit')}
                               </Link>
                             </Button>

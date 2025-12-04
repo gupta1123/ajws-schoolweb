@@ -16,7 +16,7 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { Calendar, Phone, Mail, User, Plus, Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect, useCallback } from 'react';
@@ -30,6 +30,7 @@ import { LeaveRequest } from '@/types/leave-requests';
 export default function StudentDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { user, token } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showParentLinking, setShowParentLinking] = useState(false);
   const [showCreateParent, setShowCreateParent] = useState(false);
   const [studentData, setStudentData] = useState<Student | null>(null);
@@ -232,7 +233,10 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
             <div className="text-center">
               <h2 className="text-2xl font-bold mb-2">Error</h2>
               <p className="text-gray-600">{error || 'Student not found'}</p>
-              <Button onClick={() => router.back()} className="mt-4">
+              <Button onClick={() => {
+                const classDivisionId = searchParams.get('class_division_id');
+                router.push(classDivisionId ? `/students?class_division_id=${classDivisionId}` : '/students');
+              }} className="mt-4">
                 Go Back
               </Button>
             </div>
@@ -249,7 +253,10 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
           <div className="mb-6">
             <Button 
               variant="ghost" 
-              onClick={() => router.back()}
+              onClick={() => {
+                const classDivisionId = searchParams.get('class_division_id');
+                router.push(classDivisionId ? `/students?class_division_id=${classDivisionId}` : '/students');
+              }}
               className="mb-4"
             >
               ← Back to Students

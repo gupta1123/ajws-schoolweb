@@ -54,6 +54,8 @@ export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageS
   const [rejectTarget, setRejectTarget] = useState<Message | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const isSubscribedRef = useRef<string | null>(null);
+  const isAtBottomRef = useRef<boolean>(true);
+  const scrollPositionRef = useRef<number>(0);
   
   // Compute the latest parent message timestamp to gate approval actions
   const lastParentMessageAt = useMemo(() => {
@@ -72,11 +74,20 @@ export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageS
         const latest = await messagingAPI.fetchMessages(thread.id, undefined, 50, { tolerate403: true, suppressErrors: true });
         if (Array.isArray(latest) && latest.length > 0) {
           setMessages(prev => {
-            // If latest message id differs from prev last, refresh list
+            // If latest message id differs from prev last, merge new messages instead of replacing
             const prevLast = prev[prev.length - 1]?.id;
             const latestLast = latest[latest.length - 1]?.id;
             if (prevLast !== latestLast) {
-              return latest;
+              // Merge new messages with existing ones, avoiding duplicates
+              const existingIds = new Set(prev.map(msg => msg.id));
+              const newMessages = latest.filter(msg => !existingIds.has(msg.id));
+              
+              if (newMessages.length > 0) {
+                // Only update if there are actually new messages
+                return [...prev, ...newMessages].sort((a, b) => 
+                  new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                );
+              }
             }
             return prev;
           });
@@ -187,16 +198,41 @@ export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageS
   useEffect(() => {
     if (thread) {
       fetchMessages();
+      // Reset scroll position tracking when thread changes
+      isAtBottomRef.current = true;
     }
   }, [thread]);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Track scroll position to determine if user is at bottom
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollElement) {
+    const scrollElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    if (!scrollElement) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = scrollElement;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100; // 100px threshold
+      isAtBottomRef.current = isNearBottom;
+      scrollPositionRef.current = scrollTop;
+    };
+
+    scrollElement.addEventListener('scroll', handleScroll);
+    return () => scrollElement.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Auto-scroll to bottom only if user is already at bottom (or near it)
+  useEffect(() => {
+    const scrollElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    if (!scrollElement) return;
+
+    // Only auto-scroll if user is at bottom (within 100px threshold)
+    if (isAtBottomRef.current) {
+      // Use requestAnimationFrame to ensure DOM is updated
+      requestAnimationFrame(() => {
         scrollElement.scrollTop = scrollElement.scrollHeight;
-      }
+      });
+    } else {
+      // Preserve scroll position when user is scrolling up
+      scrollElement.scrollTop = scrollPositionRef.current;
     }
   }, [messages]);
 
@@ -207,6 +243,8 @@ export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageS
       setIsLoading(true);
       const fetchedMessages = await messagingAPI.fetchMessages(thread.id);
       setMessages(fetchedMessages);
+      // Reset to bottom when initially loading messages
+      isAtBottomRef.current = true;
     } catch (error) {
       console.error('Error fetching messages:', error);
     } finally {

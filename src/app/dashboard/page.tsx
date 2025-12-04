@@ -8,6 +8,7 @@ import { WelcomeBanner } from '@/components/dashboard/welcome-banner';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { ErrorBoundary, ApiErrorFallback } from '@/components/ui/error-boundary';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import Link from 'next/link';
 import { Suspense, useMemo } from 'react';
 import dynamic from 'next/dynamic';
@@ -15,9 +16,12 @@ import {
   UserCheck,
   User,
   GraduationCap,
-  Building2
+  Building2,
+  Key
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/context';
+import { MetricCard } from '@/components/dashboard/metric-card';
+import { useSchoolStats } from '@/hooks/use-school-stats';
 
 // Lazy load heavy components to improve initial load performance
 const ClassOverviewCard = dynamic(() => import('@/components/dashboard/class-overview-card').then(mod => mod.ClassOverviewCard), {
@@ -37,6 +41,13 @@ const UpcomingBirthdays = dynamic(() => import('@/components/dashboard/upcoming-
 const DashboardPage = () => {
   const { user } = useAuth();
   const { t } = useI18n();
+  const canViewAdminDashboard = user?.role === 'admin' || user?.role === 'principal';
+  const {
+    totalStudents,
+    totalStaff,
+    loading: statsLoading,
+    error: statsError
+  } = useSchoolStats({ enabled: canViewAdminDashboard });
 
   // Memoize admin cards to prevent re-creation on every render
   const adminQuickAccessCards = useMemo(() => [
@@ -54,6 +65,11 @@ const DashboardPage = () => {
       title: t('dashboard.cards.academic'),
       icon: <Building2 className="h-5 w-5" />,
       href: '/academic/setup'
+    },
+    {
+      title: t('dashboard.cards.passwords', 'Passwords'),
+      icon: <Key className="h-5 w-5" />,
+      href: '/passwords'
     }
   ], [t]);
 
@@ -82,9 +98,31 @@ const DashboardPage = () => {
               </div>
             </div>
           </div>
-        ) : user?.role === 'admin' || user?.role === 'principal' ? (
+        ) : canViewAdminDashboard ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <MetricCard
+                    label={t('common.totalStudents', 'Total Students')}
+                    value={totalStudents}
+                    icon={<GraduationCap className="h-5 w-5" />}
+                    loading={statsLoading}
+                  />
+                  <MetricCard
+                    label={t('common.totalStaff', 'Total Staff')}
+                    value={totalStaff}
+                    icon={<UserCheck className="h-5 w-5" />}
+                    loading={statsLoading}
+                  />
+                </div>
+                {statsError && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{statsError}</AlertDescription>
+                  </Alert>
+                )}
+              </div>
+
               {/* Quick Actions */}
               <div>
                 <h2 className="text-xl font-semibold mb-4">{t('dashboard.quickActions')}</h2>

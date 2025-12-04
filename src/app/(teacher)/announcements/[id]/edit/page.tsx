@@ -65,6 +65,38 @@ export default function EditAnnouncementPage() {
       return;
     }
 
+    // Validate that announcement date is not in the past
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const announcementDate = new Date(formData.announcement_date);
+    announcementDate.setHours(0, 0, 0, 0);
+    
+    if (announcementDate < today) {
+      toast({
+        title: 'Validation Error',
+        description: 'Cannot create announcements for past dates',
+        variant: 'error',
+      });
+      return;
+    }
+
+    // If date is today, validate that time is not in the past
+    if (announcementDate.getTime() === today.getTime()) {
+      const [hours, minutes] = formData.announcement_time.split(':').map(Number);
+      const announcementDateTime = new Date();
+      announcementDateTime.setHours(hours, minutes, 0, 0);
+      const now = new Date();
+      
+      if (announcementDateTime < now) {
+        toast({
+          title: 'Validation Error',
+          description: 'Cannot create announcements for past times',
+          variant: 'error',
+        });
+        return;
+      }
+    }
+
     if (formData.target_roles.length === 0) {
       toast({
         title: 'Validation Error',
@@ -118,12 +150,34 @@ export default function EditAnnouncementPage() {
   };
 
   const handleRoleToggle = (role: string) => {
-    setFormData(prev => ({
-      ...prev,
-      target_roles: prev.target_roles.includes(role)
-        ? prev.target_roles.filter(r => r !== role)
-        : [...prev.target_roles, role]
-    }));
+    setFormData(prev => {
+      // If toggling parent or student, make them mutually exclusive
+      if (role === 'parent' || role === 'student') {
+        const isCurrentlySelected = prev.target_roles.includes(role);
+        if (isCurrentlySelected) {
+          // Deselecting - just remove it
+          return {
+            ...prev,
+            target_roles: prev.target_roles.filter(r => r !== role),
+            target_classes: role === 'student' ? [] : prev.target_classes
+          };
+        } else {
+          // Selecting - remove the other one and add this one
+          return {
+            ...prev,
+            target_roles: [...prev.target_roles.filter(r => r !== 'parent' && r !== 'student'), role],
+            target_classes: role === 'student' ? prev.target_classes : []
+          };
+        }
+      }
+      // For other roles (teacher), toggle normally
+      return {
+        ...prev,
+        target_roles: prev.target_roles.includes(role)
+          ? prev.target_roles.filter(r => r !== role)
+          : [...prev.target_roles, role]
+      };
+    });
   };
 
   const getTypeIcon = (type: string) => {
@@ -265,6 +319,7 @@ export default function EditAnnouncementPage() {
                     id="announcement_date"
                     type="date"
                     value={formData.announcement_date}
+                    min={new Date().toISOString().split('T')[0]}
                     onChange={(e) => setFormData(prev => ({ ...prev, announcement_date: e.target.value }))}
                   />
                 </div>
@@ -297,17 +352,21 @@ export default function EditAnnouncementPage() {
               <div className="space-y-3">
                 <Label>Target Roles *</Label>
                 <div className="flex flex-wrap gap-2">
-                  {targetRoles.map((role) => (
-                    <Button
-                      key={role.value}
-                      variant={formData.target_roles.includes(role.value) ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => handleRoleToggle(role.value)}
-                      className="h-8"
-                    >
-                      {role.label}
-                    </Button>
-                  ))}
+                  {targetRoles.map((role) => {
+                    const isSelected = formData.target_roles.includes(role.value);
+                    
+                    return (
+                      <Button
+                        key={role.value}
+                        variant={isSelected ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleRoleToggle(role.value)}
+                        className="h-8"
+                      >
+                        {role.label}
+                      </Button>
+                    );
+                  })}
                 </div>
                 <p className="text-sm text-muted-foreground">
                   Selected: {formData.target_roles.length} role(s)

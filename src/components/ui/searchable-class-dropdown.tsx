@@ -51,12 +51,9 @@ export function SearchableClassDropdown({
   // Filter classes based on search
   const filteredClasses = useMemo(() => {
     const filtered = classes.filter(classDiv => {
-      // Filter by search term - search in class level name, division, and academic year
+      // Filter by search term - search only by grade (class level name)
       const searchLower = searchValue.toLowerCase();
-      const matchesSearch = 
-        classDiv.class_level.name.toLowerCase().includes(searchLower) ||
-        classDiv.division.toLowerCase().includes(searchLower) ||
-        (showAcademicYear && classDiv.academic_year.year_name.toLowerCase().includes(searchLower));
+      const matchesSearch = classDiv.class_level.name.toLowerCase().includes(searchLower);
       
       return matchesSearch;
     });
@@ -82,6 +79,7 @@ export function SearchableClassDropdown({
   const handleClear = () => {
     onValueChange('');
     setSearchValue('');
+    setOpen(false);
   };
 
   // Close dropdown when clicking outside
@@ -130,10 +128,15 @@ export function SearchableClassDropdown({
           <div className="flex items-center gap-1">
             {selectedClass && (
               <X 
-                className="h-4 w-4 shrink-0 opacity-50 hover:opacity-100" 
+                className="h-4 w-4 shrink-0 opacity-50 hover:opacity-100 cursor-pointer" 
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   handleClear();
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
                 }}
               />
             )}
@@ -145,7 +148,7 @@ export function SearchableClassDropdown({
           <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-md">
             <div className="p-2 border-b border-border">
               <Input
-                placeholder="Search classes..."
+                placeholder="Search by grade..."
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
                 className="h-8 bg-background text-foreground border-border focus:ring-ring"

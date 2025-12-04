@@ -61,6 +61,8 @@ export function MessagePanel({ thread, currentUser, currentUserRole, onMessageSe
   }, [messages, currentUser.id]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const isSubscribedRef = useRef<string | null>(null);
+  const isAtBottomRef = useRef<boolean>(true);
+  const scrollPositionRef = useRef<number>(0);
   
   const {
     isConnected,
@@ -174,6 +176,9 @@ export function MessagePanel({ thread, currentUser, currentUserRole, onMessageSe
       // Always start polling as a backup, regardless of WebSocket status
       console.log('🔄 Starting polling for thread:', thread.id);
       startPolling(thread.id, handleNewMessages);
+      
+      // Reset scroll position tracking when thread changes
+      isAtBottomRef.current = true;
     }
 
     return () => {
@@ -199,10 +204,36 @@ export function MessagePanel({ thread, currentUser, currentUserRole, onMessageSe
     }
   }, [isConnected, connectionStatus, thread?.id, startPolling, stopPolling, handleNewMessages]);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Track scroll position to determine if user is at bottom
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    const scrollElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+    if (!scrollElement) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = scrollElement;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100; // 100px threshold
+      isAtBottomRef.current = isNearBottom;
+      scrollPositionRef.current = scrollTop;
+    };
+
+    scrollElement.addEventListener('scroll', handleScroll);
+    return () => scrollElement.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Auto-scroll to bottom only if user is already at bottom (or near it)
+  useEffect(() => {
+    const scrollElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+    if (!scrollElement) return;
+
+    // Only auto-scroll if user is at bottom (within 100px threshold)
+    if (isAtBottomRef.current) {
+      // Use requestAnimationFrame to ensure DOM is updated
+      requestAnimationFrame(() => {
+        scrollElement.scrollTop = scrollElement.scrollHeight;
+      });
+    } else {
+      // Preserve scroll position when user is scrolling up
+      scrollElement.scrollTop = scrollPositionRef.current;
     }
   }, [messages]);
 
@@ -211,6 +242,8 @@ export function MessagePanel({ thread, currentUser, currentUserRole, onMessageSe
       setIsLoading(true);
       const messages = await messagingAPI.fetchMessages(thread.id, undefined, 50);
       setMessages(messages);
+      // Reset to bottom when initially loading messages
+      isAtBottomRef.current = true;
     } catch (error) {
       console.error('Error fetching messages:', error);
     } finally {

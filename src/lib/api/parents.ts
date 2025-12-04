@@ -107,12 +107,14 @@ export const parentServices = {
       page?: number;
       limit?: number;
       search?: string;
+      class_division_id?: string;
     }
   ): Promise<ApiResponseWithCache<ParentListResponse> | ApiErrorResponse | Blob> => {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.search) queryParams.append('search', params.search);
+    if (params?.class_division_id) queryParams.append('class_division_id', params.class_division_id);
 
     const url = `/api/parent-student/parents${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return apiClient.get(url, token);

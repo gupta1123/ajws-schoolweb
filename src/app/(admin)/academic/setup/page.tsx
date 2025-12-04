@@ -1058,7 +1058,7 @@ export default function AcademicSystemSetupPage() {
 
         {/* Classes & Divisions Tab */}
         <TabsContent value="divisions">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-6">
             {/* Left Panel - Class Levels */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">

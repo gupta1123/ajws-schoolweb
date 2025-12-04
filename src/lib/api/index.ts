@@ -55,3 +55,9 @@ export type {
   PrincipalDivisionStudent,
   PrincipalDivisionParentsResponse
 } from './principal-messaging';
+export { passwordServices } from './passwords';
+export type {
+  ResetPasswordRequest,
+  BulkResetPasswordRequest,
+  BulkResetPasswordResponse
+} from './passwords';
