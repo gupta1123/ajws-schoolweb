@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Send, Users, MessageCircle, Phone, Mail } from 'lucide-react';
+import { Send, MessageCircle, Mail, ArrowRight } from 'lucide-react';
 import { useWebSocketChat } from '@/hooks/use-websocket-chat';
 import { messagingAPI, Message, formatMessageTimeShort } from '@/lib/api/messaging';
 import { PrincipalDivisionTeacher } from '@/lib/api/principal-messaging';
@@ -24,6 +24,7 @@ interface ChatThread {
     user: {
       id: string;
       full_name: string;
+      role?: string;
     };
   }>;
   last_message?: Array<{
@@ -42,9 +43,10 @@ interface PrincipalMessagePanelProps {
   currentUser: { id: string; full_name: string };
   onMessageSent: (message: { id: string; content: string; created_at: string; sender_id: string }) => void;
   teacherPerspective?: boolean; // If true, show teacher messages on right, others on left
+  canSend?: boolean; // Disable compose for approvals-only
 }
 
-export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageSent, teacherPerspective = false }: PrincipalMessagePanelProps) {
+export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageSent, teacherPerspective = false, canSend = true }: PrincipalMessagePanelProps) {
   const { t } = useI18n();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -253,7 +255,7 @@ export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageS
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || isSending) return;
+    if (!canSend || !newMessage.trim() || isSending) return;
 
     const messageContent = newMessage.trim();
     setNewMessage('');
@@ -344,35 +346,93 @@ export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageS
     }
   };
 
-  const getTeacherRole = (teacher: PrincipalDivisionTeacher) => {
-    if (teacher.is_primary) return t('principalMessaging.classTeacher');
-    return teacher.subject ? `${teacher.subject} ${t('principalMessaging.teacher')}` : t('principalMessaging.subjectTeacher');
-  };
+  const participantChips = useMemo(() => {
+    const seen = new Set<string>();
+    const roleDot = (role?: string) => {
+      if (role === 'teacher') return 'bg-blue-500';
+      if (role === 'parent') return 'bg-emerald-500';
+      if (role === 'admin') return 'bg-slate-500';
+      return 'bg-muted-foreground/60';
+    };
+    const roleLabel = (role?: string) => {
+      if (role === 'teacher') return 'Teacher';
+      if (role === 'parent') return 'Parent';
+      if (role === 'admin') return 'Admin';
+      return 'Member';
+    };
+    return (thread.participants ?? [])
+      .filter(p => {
+        if (!p.user?.id) return false;
+        // Hide principal from the participant chips for cleaner context
+        if (p.user.role === 'principal') return false;
+        if (seen.has(p.user.id)) return false;
+        seen.add(p.user.id);
+        return true;
+      })
+      .map(p => {
+        const baseLabel = roleLabel(p.user.role);
+        let label = baseLabel;
+        if (p.user.role === 'teacher' && p.user.full_name === teacher.full_name) {
+          if (teacher.subject) {
+            label = `${teacher.subject} Teacher`;
+          } else if (teacher.is_primary) {
+            label = 'Class Teacher';
+          }
+        }
+        return {
+          name: p.user.full_name,
+          role: p.user.role,
+          dotClass: roleDot(p.user.role),
+          label,
+        };
+      });
+  }, [thread.participants, teacher.full_name, teacher.is_primary, teacher.subject]);
 
   return (
     <div className="flex flex-col h-full">
-      {/* Teacher Info Header */}
+      {/* Conversation context + Teacher Info Header */}
       <div className="p-4 border-b bg-card">
+        {/* Conversation participants (who is talking to whom) */}
+        {participantChips.length > 0 && (
+          <div className="p-3 rounded-lg bg-muted/50 border border-border/60 mb-3">
+            <p className="text-xs font-medium text-muted-foreground mb-2">Conversation</p>
+            {(() => {
+              const teacherCard = participantChips.find(c => c.role === 'teacher');
+              const parentCard = participantChips.find(c => c.role === 'parent');
+              const others = participantChips.filter(c => c.role !== 'teacher' && c.role !== 'parent');
+
+              const renderCard = (chip: typeof participantChips[number]) => (
+                <div
+                  key={`${chip.label}-${chip.name}`}
+                  className="flex flex-col px-3 py-2 rounded-md border bg-background shadow-sm min-w-[180px] max-w-[240px]"
+                >
+                  <div className="text-sm font-semibold truncate">{chip.name}</div>
+                  <div className="text-[11px] text-muted-foreground">{chip.label}</div>
+                </div>
+              );
+
+              return (
+                <div className="flex flex-wrap items-center gap-3">
+                  {teacherCard && renderCard(teacherCard)}
+                  {teacherCard && parentCard && (
+                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  {parentCard && renderCard(parentCard)}
+                  {others.map(renderCard)}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-              <Users className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold">{teacher.full_name}</h3>
-              <p className="text-sm text-muted-foreground">
-                {getTeacherRole(teacher)}
-              </p>
-            </div>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold">{teacher.full_name}</h3>
           </div>
         </div>
         
         {/* Contact Info */}
         <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Phone className="h-3 w-3" />
-            <span>{teacher.phone_number}</span>
-          </div>
           {teacher.email && (
             <div className="flex items-center gap-1">
               <Mail className="h-3 w-3" />
@@ -380,6 +440,7 @@ export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageS
             </div>
           )}
         </div>
+
       </div>
 
       {/* Messages Area */}
@@ -516,26 +577,28 @@ export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageS
           )}
         </ScrollArea>
 
-        {/* Message Input */}
-        <div className="p-4 border-t bg-card">
-          <div className="flex gap-2">
-            <Input
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={t('principalMessaging.messagePlaceholder').replace('{name}', teacher.full_name)}
-              disabled={isSending}
-              className="flex-1"
-            />
-            <Button
-              onClick={handleSendMessage}
-              disabled={!newMessage.trim() || isSending}
-              size="icon"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
+        {/* Message Input (hidden when sending is disabled) */}
+        {canSend && (
+          <div className="p-4 border-t bg-card">
+            <div className="flex gap-2">
+              <Input
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder={t('principalMessaging.messagePlaceholder').replace('{name}', teacher.full_name)}
+                disabled={isSending}
+                className="flex-1"
+              />
+              <Button
+                onClick={handleSendMessage}
+                disabled={!newMessage.trim() || isSending}
+                size="icon"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <RejectionModal

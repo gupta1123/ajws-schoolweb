@@ -406,10 +406,10 @@ function LeaveRequestsContent() {
         {/* Action Bar with Status Indicators */}
         {urgentCount > 0 && (
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm">
-              <AlertTriangle className="h-4 w-4" />
-              {urgentCount} {t('leave.urgent')}
-            </div>
+              <div className="flex items-center gap-1 bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm">
+                <AlertTriangle className="h-4 w-4" />
+                {urgentCount} {t('leave.urgent')}
+              </div>
           </div>
         )}
 

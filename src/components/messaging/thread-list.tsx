@@ -8,6 +8,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { MessageCircle, Users } from 'lucide-react';
 import { ChatThread, formatMessageTime, getThreadTitle, getLastMessagePreview } from '@/lib/api/messaging';
 
+const getAudience = (thread: ChatThread, currentUserId: string): 'teacher' | 'parent' | null => {
+  if (thread.thread_type === 'group') return null;
+  const otherParticipant = (thread.participants ?? []).find(p => p.user_id !== currentUserId);
+  const role = otherParticipant?.user?.role;
+  if (role === 'teacher') return 'teacher';
+  if (role === 'parent') return 'parent';
+  return null;
+};
 
 interface ThreadListProps {
   threads: ChatThread[];
@@ -93,7 +101,21 @@ export function ThreadList({
                         <h3 className="text-sm font-medium truncate">
                           {getThreadTitle(thread, currentUserId)}
                         </h3>
-                        {/* Removed direct/group badge per spec */}
+                          {(() => {
+                            const audience = getAudience(thread, currentUserId);
+                            if (!audience) return null;
+                            const isParent = audience === 'parent';
+                            return (
+                              <span
+                                className={cn(
+                                  'inline-flex items-center rounded-full px-2 text-[10px] font-semibold',
+                                  isParent ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                                )}
+                              >
+                                {isParent ? 'Parent' : 'Teacher'}
+                              </span>
+                            );
+                          })()}
                       </div>
                       {thread.last_message && thread.last_message.length > 0 && (
                         <span className="text-xs text-muted-foreground ml-2">

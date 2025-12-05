@@ -258,36 +258,28 @@ export function BulkPasswordReset({ onBack }: BulkPasswordResetProps) {
     setResetProgress({ total: userIds.length, completed: 0, failed: 0 });
 
     try {
-      let successCount = 0;
-      let failedCount = 0;
-      const errors: Array<{ user_id: string; error: string }> = [];
-
-      // Reset passwords individually for each user
+      // Prepare the user passwords map with only selected users
+      const passwordsToReset = new Map<string, string>();
       for (const userId of userIds) {
-        const userPassword = userPasswords.get(userId);
-        if (!userPassword) continue;
-
-        try {
-          const success = await passwordServices.resetPassword(token, userId, userPassword);
-          if (success) {
-            successCount++;
-            setResetProgress(prev => prev ? { ...prev, completed: prev.completed + 1 } : null);
-          } else {
-            failedCount++;
-            errors.push({ user_id: userId, error: 'Failed to reset password' });
-            setResetProgress(prev => prev ? { ...prev, failed: prev.failed + 1 } : null);
-          }
-        } catch (err: unknown) {
-          failedCount++;
-          const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-          errors.push({ user_id: userId, error: errorMessage });
-          setResetProgress(prev => prev ? { ...prev, failed: prev.failed + 1 } : null);
+        const password = userPasswords.get(userId);
+        if (password) {
+          passwordsToReset.set(userId, password);
         }
       }
 
-      if (failedCount === 0) {
+      // Call bulk reset API
+      const result = await passwordServices.bulkResetPassword(token, passwordsToReset);
+
+      // Update progress based on result
+      setResetProgress({
+        total: result.totalCount,
+        completed: result.successCount,
+        failed: result.failedCount
+      });
+
+      if (result.success) {
         setSuccess(
-          t('passwords.success.bulkResetSuccess', 'Successfully reset passwords for {count} users').replace('{count}', successCount.toString())
+          t('passwords.success.bulkResetSuccess', 'Successfully reset passwords for {count} users').replace('{count}', result.successCount.toString())
         );
         setSelectedUserIds(new Set());
         setUserPasswords(new Map());
@@ -297,11 +289,12 @@ export function BulkPasswordReset({ onBack }: BulkPasswordResetProps) {
           setResetProgress(null);
         }, 5000);
       } else {
-        setError(
-          t('passwords.errors.bulkResetPartial', 'Reset completed with {failed} failures out of {total}')
-            .replace('{failed}', failedCount.toString())
-            .replace('{total}', userIds.length.toString())
-        );
+        const errorMsg = result.failedCount > 0
+          ? t('passwords.errors.bulkResetPartial', 'Reset completed with {failed} failures out of {total}')
+              .replace('{failed}', result.failedCount.toString())
+              .replace('{total}', result.totalCount.toString())
+          : t('passwords.errors.bulkResetFailed', 'Failed to reset passwords');
+        setError(errorMsg);
         setResetProgress(null);
       }
     } catch (err: unknown) {

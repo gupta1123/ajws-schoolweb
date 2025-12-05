@@ -172,10 +172,10 @@ export default function EditAnnouncementPage() {
       }
       // For other roles (teacher), toggle normally
       return {
-        ...prev,
-        target_roles: prev.target_roles.includes(role)
-          ? prev.target_roles.filter(r => r !== role)
-          : [...prev.target_roles, role]
+      ...prev,
+      target_roles: prev.target_roles.includes(role)
+        ? prev.target_roles.filter(r => r !== role)
+        : [...prev.target_roles, role]
       };
     });
   };
@@ -356,15 +356,15 @@ export default function EditAnnouncementPage() {
                     const isSelected = formData.target_roles.includes(role.value);
                     
                     return (
-                      <Button
-                        key={role.value}
+                    <Button
+                      key={role.value}
                         variant={isSelected ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleRoleToggle(role.value)}
-                        className="h-8"
-                      >
-                        {role.label}
-                      </Button>
+                      size="sm"
+                      onClick={() => handleRoleToggle(role.value)}
+                      className="h-8"
+                    >
+                      {role.label}
+                    </Button>
                     );
                   })}
                 </div>

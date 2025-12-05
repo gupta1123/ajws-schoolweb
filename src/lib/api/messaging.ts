@@ -9,6 +9,7 @@ export interface ChatThread {
     user: {
       id: string;
       full_name: string;
+      role?: string;
     };
   }>;
   last_message?: Array<{
