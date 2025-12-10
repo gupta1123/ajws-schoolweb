@@ -1,17 +1,19 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAuth } from '@/lib/auth/context';
 import { messagingAPI, Message, ChatThread } from '@/lib/api/messaging';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, RefreshCw, MessageCircle, ArrowLeft } from 'lucide-react';
+import { Search, RefreshCw, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PrincipalMessagePanel } from '@/components/messaging/principal-message-panel';
 import { useRouter } from 'next/navigation';
 import { useWebSocketChat } from '@/hooks/use-websocket-chat';
+import { principalMessagingServices, type PrincipalClassDivision, type PrincipalDivisionParentsResponse } from '@/lib/api/principal-messaging';
 
 interface ThreadWithPending extends ChatThread {
   pendingCount: number;
@@ -34,8 +36,16 @@ const cleanTitle = (title: string | undefined): string => {
     .trim();
 };
 
+interface ParentStudentContext {
+  parentId: string;
+  parentName: string;
+  studentName: string;
+  classLabel: string;
+}
+
 export default function MessagingApprovalsPage() {
   const router = useRouter();
+  const { token } = useAuth();
   const { subscribeToThread, unsubscribeFromThread, startPolling, stopPolling } = useWebSocketChat();
   const [pending, setPending] = useState<Message[]>([]);
   const [threads, setThreads] = useState<ThreadWithPending[]>([]);
@@ -45,6 +55,9 @@ export default function MessagingApprovalsPage() {
   const [currentUser] = useState({ id: '', full_name: 'Principal' });
 
   const [audienceFilter, setAudienceFilter] = useState<'all' | 'parent' | 'teacher'>('all');
+  const [classDivisions, setClassDivisions] = useState<PrincipalClassDivision[] | null>(null);
+  const [parentContextByThread, setParentContextByThread] = useState<Record<string, ParentStudentContext | null>>({});
+  const [parentContextLoadingByThread, setParentContextLoadingByThread] = useState<Record<string, boolean>>({});
 
   const filteredThreads = useMemo(() => {
     const byQuery = (q: string, list: ThreadWithPending[]) =>
@@ -126,6 +139,89 @@ export default function MessagingApprovalsPage() {
     }
   }, [selectedThread]);
 
+  // Load class divisions once for parent-student mapping
+  useEffect(() => {
+    const loadDivisions = async () => {
+      if (!token || classDivisions) return;
+      try {
+        const response = await principalMessagingServices.getClassDivisions(token);
+        setClassDivisions(response.data.class_divisions);
+      } catch (error) {
+        console.error('Error fetching class divisions for approvals context:', error);
+      }
+    };
+    loadDivisions();
+  }, [token, classDivisions]);
+
+  // For selected parent DM thread, derive "parent of X - Class Y" context
+  useEffect(() => {
+    const loadParentContextForSelected = async () => {
+      if (!selectedThread || !token) return;
+      // Only for direct parent DMs
+      if (selectedThread.thread_type !== 'direct' || selectedThread.targetAudience !== 'parent') return;
+      if (parentContextByThread[selectedThread.id] !== undefined) return;
+
+      const parentParticipant = (selectedThread.participants ?? []).find(
+        (p) => p.user?.role === 'parent'
+      );
+      if (!parentParticipant) {
+        setParentContextByThread((prev) => ({ ...prev, [selectedThread.id]: null }));
+        return;
+      }
+
+      try {
+        setParentContextLoadingByThread(prev => ({ ...prev, [selectedThread.id]: true }));
+        // Ensure class divisions are loaded
+        let divisions = classDivisions;
+        if (!divisions) {
+          const divResponse = await principalMessagingServices.getClassDivisions(token);
+          divisions = divResponse.data.class_divisions;
+          setClassDivisions(divisions);
+        }
+        if (!divisions || divisions.length === 0) {
+          setParentContextByThread((prev) => ({ ...prev, [selectedThread.id]: null }));
+          return;
+        }
+
+        // Search across divisions until we find this parent
+        let foundContext: ParentStudentContext | null = null;
+        for (const division of divisions) {
+          const parentsResponse = await principalMessagingServices.getDivisionParents(division.id, token);
+          const data = parentsResponse.data as PrincipalDivisionParentsResponse['data'];
+
+          for (const student of data.students) {
+            const matchParent = student.parents.find((p) => p.id === parentParticipant.user_id);
+            if (matchParent) {
+              // Build class label in the format "grad 3 A"
+              const rawLevel = division.class_level.name || '';
+              const cleanedLevel = rawLevel.replace(/grade\s*/i, '').trim() || rawLevel;
+              const classLabel = `grad ${cleanedLevel} ${division.division}`;
+
+              foundContext = {
+                parentId: matchParent.id,
+                parentName: matchParent.name,
+                studentName: student.student.name,
+                classLabel,
+              };
+              break;
+            }
+          }
+
+          if (foundContext) break;
+        }
+
+        setParentContextByThread((prev) => ({ ...prev, [selectedThread.id]: foundContext }));
+      } catch (error) {
+        console.error('Error resolving parent student/class context:', error);
+        setParentContextByThread((prev) => ({ ...prev, [selectedThread.id]: null }));
+      } finally {
+        setParentContextLoadingByThread(prev => ({ ...prev, [selectedThread.id]: false }));
+      }
+    };
+
+    loadParentContextForSelected();
+  }, [selectedThread, token, classDivisions, parentContextByThread]);
+
   useEffect(() => {
     loadPending();
   }, [loadPending]);
@@ -154,16 +250,30 @@ export default function MessagingApprovalsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="px-2" onClick={() => router.push('/admin/messaging')}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Back
+      {/* Header with Tabs & Actions */}
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between border-b border-border pb-1">
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-none border-b-2 border-transparent"
+              onClick={() => router.push('/admin/messaging')}
+            >
+              DM
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              className="rounded-none border-b-2 border-primary"
+            >
+              Approvals
+            </Button>
+          </div>
+          <Button variant="outline" size="sm" onClick={loadPending}>
+            <RefreshCw className="h-4 w-4 mr-2" /> Refresh
           </Button>
-          <h1 className="text-xl font-semibold">Message Approvals</h1>
         </div>
-        <Button variant="outline" size="sm" onClick={loadPending}>
-          <RefreshCw className="h-4 w-4 mr-2" /> Refresh
-        </Button>
       </div>
 
       <div className="grid grid-cols-12 gap-4 h-[calc(100vh-220px)] min-h-0">
@@ -304,6 +414,8 @@ export default function MessagingApprovalsPage() {
                   onMessageSent={handleMessageSent}
                   teacherPerspective={true}
                   canSend={false}
+                  parentContext={parentContextByThread[selectedThread.id] || undefined}
+                  parentContextLoading={!!parentContextLoadingByThread[selectedThread.id]}
                 />
               </CardContent>
             </Card>

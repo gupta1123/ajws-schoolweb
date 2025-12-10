@@ -37,6 +37,13 @@ interface ChatThread {
   updated_at: string;
 }
 
+interface ParentContext {
+  parentId: string;
+  parentName: string;
+  studentName: string;
+  classLabel: string;
+}
+
 interface PrincipalMessagePanelProps {
   teacher: PrincipalDivisionTeacher;
   thread: ChatThread;
@@ -44,9 +51,11 @@ interface PrincipalMessagePanelProps {
   onMessageSent: (message: { id: string; content: string; created_at: string; sender_id: string }) => void;
   teacherPerspective?: boolean; // If true, show teacher messages on right, others on left
   canSend?: boolean; // Disable compose for approvals-only
+  parentContext?: ParentContext; // For approvals: show whose parent and class
+  parentContextLoading?: boolean; // While looking up student & class
 }
 
-export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageSent, teacherPerspective = false, canSend = true }: PrincipalMessagePanelProps) {
+export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageSent, teacherPerspective = false, canSend = true, parentContext, parentContextLoading }: PrincipalMessagePanelProps) {
   const { t } = useI18n();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -401,15 +410,36 @@ export function PrincipalMessagePanel({ teacher, thread, currentUser, onMessageS
               const parentCard = participantChips.find(c => c.role === 'parent');
               const others = participantChips.filter(c => c.role !== 'teacher' && c.role !== 'parent');
 
-              const renderCard = (chip: typeof participantChips[number]) => (
-                <div
-                  key={`${chip.label}-${chip.name}`}
-                  className="flex flex-col px-3 py-2 rounded-md border bg-background shadow-sm min-w-[180px] max-w-[240px]"
-                >
-                  <div className="text-sm font-semibold truncate">{chip.name}</div>
-                  <div className="text-[11px] text-muted-foreground">{chip.label}</div>
-                </div>
-              );
+              const renderCard = (chip: typeof participantChips[number]) => {
+                const isParent = chip.role === 'parent';
+                let subtext = chip.label;
+
+                // For parent chip:
+                // - show loading while we resolve
+                // - then show "parent of {Student} ({Class})", e.g. "parent of Abc (grad 3 A)"
+                if (isParent) {
+                  if (parentContextLoading) {
+                    subtext = 'Checking student & class...';
+                  } else if (parentContext) {
+                    subtext = `parent of ${parentContext.studentName} (${parentContext.classLabel})`;
+                  }
+                }
+
+                return (
+                  <div
+                    key={`${chip.label}-${chip.name}`}
+                    className="flex flex-col px-3 py-2 rounded-md border bg-background shadow-sm min-w-[180px] max-w-[260px]"
+                  >
+                    <div className="text-sm font-semibold truncate">{chip.name}</div>
+                    <div
+                      className="text-[11px] text-muted-foreground truncate"
+                      title={subtext}
+                    >
+                      {subtext}
+                    </div>
+                  </div>
+                );
+              };
 
               return (
                 <div className="flex flex-wrap items-center gap-3">
