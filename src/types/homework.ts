@@ -34,6 +34,18 @@ export interface Attachment {
   };
 }
 
+export type HomeworkTargetType = 'class' | 'students';
+
+export interface HomeworkStudentTarget {
+  id: string;
+  student_id: string;
+  student?: {
+    id: string;
+    full_name: string;
+    admission_number: string;
+  };
+}
+
 export interface Homework {
   id: string;
   class_division_id: string;
@@ -41,7 +53,10 @@ export interface Homework {
   subject: string;
   title: string;
   description: string;
-  due_date: string;
+  due_date: string | null;
+  target_type?: HomeworkTargetType;
+  target_student_ids?: string[];
+  student_targets?: HomeworkStudentTarget[];
   created_at: string;
   teacher: Teacher;
   class_division: ClassDivision;

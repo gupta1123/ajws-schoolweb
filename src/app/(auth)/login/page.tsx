@@ -29,7 +29,9 @@ export default function LoginPage() {
     
     try {
       await login(phone_number, password);
-      router.push('/dashboard'); // Redirect to dashboard after login
+      const storedUser = localStorage.getItem('user');
+      const role = storedUser ? JSON.parse(storedUser)?.role : null;
+      router.push(role === 'attendance_staff' ? '/attendance' : '/dashboard');
     } catch (err) {
       // Error is handled by the auth context
       console.error('Login failed:', err);

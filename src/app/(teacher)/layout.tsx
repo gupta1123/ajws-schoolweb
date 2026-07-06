@@ -4,6 +4,7 @@
 
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
+import { usePathname } from 'next/navigation';
 
 export default function TeacherLayout({
   children,
@@ -11,6 +12,30 @@ export default function TeacherLayout({
   children: React.ReactNode;
 }) {
   const { user } = useAuth();
+  const pathname = usePathname();
+  const isAttendanceRoute = pathname === '/attendance' || pathname.startsWith('/attendance/');
+  const isHomeworkRoute = pathname === '/homework' || pathname.startsWith('/homework/');
+
+  // Attendance staff can only access the attendance routes inside this group.
+  if (user?.role === 'attendance_staff' && isAttendanceRoute) {
+    return (
+      <ProtectedRoute>
+        {children}
+      </ProtectedRoute>
+    );
+  }
+
+  if (
+    user &&
+    isHomeworkRoute &&
+    (user.role === 'teacher' || user.role === 'admin' || user.role === 'principal')
+  ) {
+    return (
+      <ProtectedRoute>
+        {children}
+      </ProtectedRoute>
+    );
+  }
 
   // Only allow teachers to access teacher routes
   if (user && user.role !== 'teacher') {

@@ -11,7 +11,7 @@ import {
   SheetContent,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { Menu, BookOpen, Home, Users, Clipboard, FileText, User, School, Calendar, Cake, CheckSquare, MessageCircle } from 'lucide-react';
+import { Menu, BookOpen, Home, Users, Clipboard, FileText, User, School, Calendar, Cake, CheckSquare, MessageCircle, Utensils } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
 
@@ -75,6 +75,11 @@ const adminNavItems = [
     icon: School,
   },
   {
+    title: 'Homework',
+    href: '/homework',
+    icon: Clipboard,
+  },
+  {
     title: 'Calendar',
     href: '/calendar',
     icon: Calendar,
@@ -83,6 +88,11 @@ const adminNavItems = [
     title: 'Birthdays',
     href: '/birthdays',
     icon: Cake,
+  },
+  {
+    title: 'Food Menu',
+    href: '/admin/food-menu',
+    icon: Utensils,
   },
 ];
 
@@ -108,6 +118,11 @@ const principalNavItems = [
     icon: School,
   },
   {
+    title: 'Homework',
+    href: '/homework',
+    icon: Clipboard,
+  },
+  {
     title: 'Messaging',
     href: '/admin/messaging',
     icon: MessageCircle,
@@ -121,6 +136,19 @@ const principalNavItems = [
     title: 'Birthdays',
     href: '/birthdays',
     icon: Cake,
+  },
+  {
+    title: 'Food Menu',
+    href: '/admin/food-menu',
+    icon: Utensils,
+  },
+];
+
+const attendanceStaffNavItems = [
+  {
+    title: 'Attendance',
+    href: '/attendance',
+    icon: CheckSquare,
   },
 ];
 
@@ -138,7 +166,14 @@ export function MobileNav() {
   // Determine which navigation items to show based on user role
   const navItems = user?.role === 'teacher' ? teacherNavItems : 
                   user?.role === 'admin' ? adminNavItems :
-                  user?.role === 'principal' ? principalNavItems : [];
+                  user?.role === 'principal' ? principalNavItems :
+                  user?.role === 'attendance_staff' ? attendanceStaffNavItems : [];
+
+  const portalTitle = user?.role === 'teacher'
+    ? 'Teacher Portal'
+    : user?.role === 'attendance_staff'
+      ? 'Attendance Portal'
+      : 'Admin Portal';
 
   return (
     <div className="md:hidden flex items-center">
@@ -153,7 +188,7 @@ export function MobileNav() {
           <div className="flex h-full flex-col">
             <div className="flex h-16 items-center px-4 border-b">
               <h2 className="text-lg font-semibold">
-                {user?.role === 'teacher' ? 'Teacher Portal' : 'Admin Portal'}
+                {portalTitle}
               </h2>
             </div>
             <div className="flex-1 overflow-y-auto py-2">

@@ -1,5 +1,7 @@
 // src/types/auth.ts
 
+export type UserRole = 'parent' | 'teacher' | 'admin' | 'principal' | 'attendance_staff';
+
 export interface LoginCredentials {
   phone_number: string;
   password: string;
@@ -10,13 +12,13 @@ export interface RegisterUserData {
   password: string;
   full_name: string;
   email?: string;
-  role: 'parent' | 'teacher' | 'admin' | 'principal';
+  role: UserRole;
 }
 
 export interface User {
   id: string;
   phone_number: string;
-  role: 'parent' | 'teacher' | 'admin' | 'principal';
+  role: UserRole;
   full_name: string;
   email?: string;
   preferred_language?: string;

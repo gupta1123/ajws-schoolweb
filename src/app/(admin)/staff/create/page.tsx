@@ -32,7 +32,12 @@ export default function CreateStaffPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Available roles and departments
-  const availableRoles = ['teacher', 'principal', 'admin'];
+  const availableRoles = [
+    { value: 'teacher', label: t('common.teacher', 'Teacher') },
+    { value: 'attendance_staff', label: t('common.attendanceStaff', 'Attendance Staff') },
+    { value: 'principal', label: t('common.principal', 'Principal') },
+    { value: 'admin', label: t('common.admin', 'Admin') },
+  ];
 
   // Only allow admins and principals to access this page
   if (user?.role !== 'admin' && user?.role !== 'principal') {
@@ -74,7 +79,7 @@ export default function CreateStaffPage() {
         phone_number: formData.phoneNumber,
         role: formData.role.toLowerCase(), // API expects lowercase
         department: formData.role, // Use role as department (e.g., "Mathematics", "Science")
-        designation: 'Teacher', // Default designation
+        designation: formData.role === 'attendance_staff' ? 'Attendance Staff' : 'Teacher',
         password: formData.password,
         user_role: formData.role.toLowerCase() // API expects lowercase
       };
@@ -197,10 +202,10 @@ export default function CreateStaffPage() {
                           </SelectTrigger>
                           <SelectContent>
                             {availableRoles.map(role => (
-                              <SelectItem key={role} value={role}>
+                              <SelectItem key={role.value} value={role.value}>
                                 <div className="flex items-center gap-2">
                                   <Shield className="h-4 w-4" />
-                                  {t(`common.${role}`, role.charAt(0).toUpperCase() + role.slice(1))}
+                                  {role.label}
                                 </div>
                               </SelectItem>
                             ))}

@@ -20,7 +20,7 @@ interface HomeworkOverviewCardProps {
   subject: string;
   title: string;
   class: string;
-  dueDate: string;
+  dueDate?: string | null;
   submissionRate: number;
   avgScore: number;
   status: 'pending' | 'active' | 'completed';
@@ -74,6 +74,8 @@ export function HomeworkOverviewCard({
     }
   };
 
+  const displayDueDate = dueDate || 'No due date';
+
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
@@ -103,10 +105,10 @@ export function HomeworkOverviewCard({
         
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="flex items-center gap-2 p-2 bg-muted/30 rounded">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Calendar className="h-4 w-4 text-muted-foreground" />
             <div>
               <div className="text-xs text-muted-foreground">Due Date</div>
-              <div className="font-medium">{dueDate}</div>
+              <div className="font-medium">{displayDueDate}</div>
             </div>
           </div>
           <div className="flex items-center gap-2 p-2 bg-muted/30 rounded">

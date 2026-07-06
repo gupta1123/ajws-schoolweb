@@ -1,12 +1,14 @@
 import { apiClient, ApiResponse, ApiErrorResponse, ApiResponseWithCache } from './client';
-import { Homework } from '@/types/homework';
+import { Homework, HomeworkTargetType } from '@/types/homework';
 
 export interface CreateHomeworkData {
   class_division_id: string;
   subject: string;
   title: string;
   description: string;
-  due_date: string;
+  due_date?: string | null;
+  target_type?: HomeworkTargetType;
+  student_ids?: string[];
 }
 
 export interface HomeworkResponse {
@@ -54,6 +56,7 @@ export const homeworkServices = {
     class_division_id?: string;
     subject?: string;
     status?: string;
+    target_type?: HomeworkTargetType;
     date_from?: string;
     date_to?: string;
     page?: number | string;

@@ -7,14 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useState, useEffect, useCallback, useRef, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Loader2, Image as ImageIcon, FileText, File as FileIcon, Edit, Trash2, X, RefreshCw, Download } from 'lucide-react';
-import { homeworkServices, AttachmentsResponse } from '@/lib/api/homework';
+import { Loader2, Image as ImageIcon, FileText, File as FileIcon, Edit, Trash2, X, RefreshCw, Download, Users } from 'lucide-react';
+import { homeworkServices, AttachmentsResponse, CreateHomeworkData } from '@/lib/api/homework';
 import { academicServices } from '@/lib/api/academic';
 import { ApiResponseWithCache, ApiErrorResponse } from '@/lib/api/client';
-import { Homework, Attachment } from '@/types/homework';
+import { Homework, Attachment, HomeworkTargetType } from '@/types/homework';
 import { toast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/context';
 import { FileUploader } from '@/components/ui/file-uploader';
@@ -73,18 +74,29 @@ interface TransformedClass {
   };
 }
 
+interface ClassStudent {
+  id: string;
+  full_name: string;
+  admission_number: string;
+}
+
 type PageProps = { params: Promise<{ id: string }> };
 
 export default function EditHomeworkPage({ params }: PageProps) {
   const unwrappedParams = use(params);
-  const { user, token } = useAuth();
+  const { user, token, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
   const { t } = useI18n();
+  const canManageHomework = user?.role === 'teacher' || user?.role === 'admin' || user?.role === 'principal';
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loadingStudents, setLoadingStudents] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [homework, setHomework] = useState<Homework | null>(null);
   const [classDivisions, setClassDivisions] = useState<TransformedClass[]>([]);
+  const [targetType, setTargetType] = useState<HomeworkTargetType>('class');
+  const [classStudents, setClassStudents] = useState<ClassStudent[]>([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
 
   const [existingAttachments, setExistingAttachments] = useState<Attachment[]>([]);
   const [editingAttachment, setEditingAttachment] = useState<string | null>(null);
@@ -320,6 +332,33 @@ export default function EditHomeworkPage({ params }: PageProps) {
     due_date: ''
   });
 
+  useEffect(() => {
+    const fetchClassStudents = async () => {
+      if (!token || !formData.class_division_id || targetType !== 'students') {
+        setClassStudents([]);
+        return;
+      }
+
+      try {
+        setLoadingStudents(true);
+        const response = await academicServices.getStudentsByClass(formData.class_division_id, token);
+
+        if (response.status === 'success') {
+          setClassStudents(response.data.students || []);
+        } else {
+          setClassStudents([]);
+        }
+      } catch (err) {
+        console.error('Error fetching class students:', err);
+        setClassStudents([]);
+      } finally {
+        setLoadingStudents(false);
+      }
+    };
+
+    fetchClassStudents();
+  }, [formData.class_division_id, targetType, token]);
+
   // Fetch base data
   useEffect(() => {
     const homeworkIdFromParams = unwrappedParams.id;
@@ -331,25 +370,38 @@ export default function EditHomeworkPage({ params }: PageProps) {
         setLoading(true);
         setError(null);
 
-        // Fetch class divisions (subject teacher only)
-        const teacherResponse = await academicServices.getMyTeacherClasses(token);
-        if ((teacherResponse as TeacherClassesApiResponse)?.status === 'success' && (teacherResponse as TeacherClassesApiResponse)?.data) {
-          const subjectTeacherClasses = (teacherResponse as TeacherClassesApiResponse).data?.assigned_classes?.filter(
-            (assignment: AssignedClass) => assignment.assignment_type === 'subject_teacher'
-          ) ?? [];
+        if (user.role === 'teacher') {
+          const teacherResponse = await academicServices.getMyTeacherClasses(token);
+          if ((teacherResponse as TeacherClassesApiResponse)?.status === 'success' && (teacherResponse as TeacherClassesApiResponse)?.data) {
+            const subjectTeacherClasses = (teacherResponse as TeacherClassesApiResponse).data?.assigned_classes?.filter(
+              (assignment: AssignedClass) => assignment.assignment_type === 'subject_teacher'
+            ) ?? [];
 
-          const transformedClasses: TransformedClass[] = subjectTeacherClasses.map((assignment: AssignedClass) => ({
-            id: assignment.class_division_id,
-            division: assignment.division,
-            class_level: { name: assignment.class_level },
-            academic_year: { year_name: assignment.academic_year }
-          }));
+            const transformedClasses: TransformedClass[] = subjectTeacherClasses.map((assignment: AssignedClass) => ({
+              id: assignment.class_division_id,
+              division: assignment.division,
+              class_level: { name: assignment.class_level },
+              academic_year: { year_name: assignment.academic_year }
+            }));
 
-          // dedupe
-          const uniqueClasses = transformedClasses.filter(
-            (classItem, index, self) => index === self.findIndex(c => c.id === classItem.id)
-          );
-          setClassDivisions(uniqueClasses);
+            // dedupe
+            const uniqueClasses = transformedClasses.filter(
+              (classItem, index, self) => index === self.findIndex(c => c.id === classItem.id)
+            );
+            setClassDivisions(uniqueClasses);
+          }
+        } else if (user.role === 'admin' || user.role === 'principal') {
+          const summaryResponse = await academicServices.getClassDivisionsSummary(token);
+          if (summaryResponse.status === 'success' && summaryResponse.data) {
+            const transformedClasses: TransformedClass[] = summaryResponse.data.divisions.map(division => ({
+              id: division.id,
+              division: division.division,
+              class_level: { name: division.level.name },
+              academic_year: { year_name: division.academic_year.year_name }
+            }));
+
+            setClassDivisions(transformedClasses);
+          }
         }
 
         // Fetch specific homework data
@@ -373,6 +425,12 @@ export default function EditHomeworkPage({ params }: PageProps) {
               description: homeworkData.description ?? '',
               due_date: formattedDueDate
             });
+            setTargetType(homeworkData.target_type || 'class');
+            setSelectedStudentIds(
+              homeworkData.target_student_ids ||
+              homeworkData.student_targets?.map(target => target.student_id).filter(Boolean) ||
+              []
+            );
 
             // ✅ Fetch attachments using the ID directly (not relying on state yet)
             await fetchExistingAttachmentsById(homeworkIdFromParams);
@@ -428,13 +486,31 @@ export default function EditHomeworkPage({ params }: PageProps) {
 
 
 
-  // Only allow teachers to access this page
-  if (user?.role !== 'teacher') {
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+          <p className="mt-2 text-gray-600">{t('auth.loading', 'Loading authentication...')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !token) {
+    return (
+      <ProtectedRoute>
+        <div />
+      </ProtectedRoute>
+    );
+  }
+
+  if (!canManageHomework) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only teachers can access this page.</p>
+          <p className="text-gray-600">Only teachers, admins, and principals can access this page.</p>
         </div>
       </div>
     );
@@ -479,6 +555,42 @@ export default function EditHomeworkPage({ params }: PageProps) {
       ...prev,
       [name]: value
     }));
+
+    if (name === 'class_division_id') {
+      setSelectedStudentIds([]);
+    }
+  };
+
+  const handleTargetTypeChange = (value: HomeworkTargetType) => {
+    setTargetType(value);
+    if (value === 'class') {
+      setSelectedStudentIds([]);
+    }
+  };
+
+  const toggleStudentSelection = (studentId: string) => {
+    setSelectedStudentIds(prev =>
+      prev.includes(studentId)
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId]
+    );
+  };
+
+  const buildHomeworkPayload = (): CreateHomeworkData => {
+    const dueDate = formData.due_date ? new Date(formData.due_date) : null;
+    if (dueDate) {
+      dueDate.setHours(23, 59, 59, 999);
+    }
+
+    return {
+      class_division_id: formData.class_division_id,
+      subject: formData.subject,
+      title: formData.title,
+      description: formData.description,
+      due_date: dueDate ? dueDate.toISOString() : null,
+      target_type: targetType,
+      ...(targetType === 'students' ? { student_ids: selectedStudentIds } : {}),
+    };
   };
 
   const handleUploadFiles = async (files: File[]) => {
@@ -513,7 +625,12 @@ export default function EditHomeworkPage({ params }: PageProps) {
       setSaving(true);
       setError(null);
 
-      const response = await homeworkServices.updateHomework(homework!.id, formData, token!);
+      if (targetType === 'students' && selectedStudentIds.length === 0) {
+        setError('Select at least one student.');
+        return;
+      }
+
+      const response = await homeworkServices.updateHomework(homework!.id, buildHomeworkPayload(), token!);
       if ((response as ApiResponse)?.status === 'success') {
         router.push('/homework');
       } else {
@@ -591,6 +708,19 @@ export default function EditHomeworkPage({ params }: PageProps) {
               </div>
               
               <div className="space-y-2">
+                <Label htmlFor="target_type">Assign to</Label>
+                <select
+                  id="target_type"
+                  value={targetType}
+                  onChange={(e) => handleTargetTypeChange(e.target.value as HomeworkTargetType)}
+                  className="border rounded-md px-3 py-2 w-full"
+                >
+                  <option value="class">Entire class</option>
+                  <option value="students">Selected students</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
                 <Input
                   id="title"
@@ -623,9 +753,58 @@ export default function EditHomeworkPage({ params }: PageProps) {
                   type="date"
                   value={formData.due_date}
                   onChange={handleChange}
-                  required
                 />
               </div>
+
+              {targetType === 'students' && (
+                <div className="space-y-3 rounded-md border p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <Label>Students</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {formData.class_division_id
+                          ? 'Select one or more students from the chosen class.'
+                          : 'Select a class first to load students.'}
+                      </p>
+                    </div>
+                    {selectedStudentIds.length > 0 && (
+                      <span className="text-sm text-muted-foreground">
+                        {selectedStudentIds.length} selected
+                      </span>
+                    )}
+                  </div>
+
+                  {loadingStudents ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading students...
+                    </div>
+                  ) : classStudents.length === 0 ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Users className="h-4 w-4" />
+                      {formData.class_division_id ? 'No students found for this class.' : 'No class selected.'}
+                    </div>
+                  ) : (
+                    <div className="grid max-h-56 grid-cols-1 gap-2 overflow-y-auto md:grid-cols-2">
+                      {classStudents.map((student) => (
+                        <label
+                          key={student.id}
+                          className="flex cursor-pointer items-start gap-3 rounded-md border p-3 hover:bg-muted/50"
+                        >
+                          <Checkbox
+                            checked={selectedStudentIds.includes(student.id)}
+                            onCheckedChange={() => toggleStudentSelection(student.id)}
+                          />
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-medium">{student.full_name}</span>
+                            <span className="block text-xs text-muted-foreground">{student.admission_number}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* File Upload Section */}
               <div className="space-y-2">

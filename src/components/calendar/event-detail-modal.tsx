@@ -68,7 +68,7 @@ interface EventDetailModalProps {
   onDelete: (eventId: string) => void;
   onApprove?: (eventId: string) => void;
   onReject?: (eventId: string) => void;
-  userRole: 'admin' | 'principal' | 'teacher' | 'student';
+  userRole: 'admin' | 'principal' | 'teacher' | 'attendance_staff' | 'student';
 }
 
 export function EventDetailModal({ 

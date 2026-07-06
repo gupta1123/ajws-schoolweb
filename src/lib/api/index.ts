@@ -61,3 +61,5 @@ export type {
   BulkResetPasswordRequest,
   BulkResetPasswordResponse
 } from './passwords';
+export { foodMenuServices } from './food-menu';
+export type * from './food-menu';

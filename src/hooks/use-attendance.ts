@@ -6,6 +6,7 @@ import {
   attendanceApi,
   AttendancePayload,
   ClassAttendanceResponse,
+  StudentAttendanceRecord,
   TeacherSummaryResponse,
   StudentAttendanceDetailsResponse
 } from '@/lib/api/attendance';
@@ -64,13 +65,41 @@ export interface UseAttendanceReturn {
 }
 
 export function useAttendance(): UseAttendanceReturn {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [attendance, setAttendanceState] = useState<AttendanceState>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attendanceData, setAttendanceData] = useState<ClassAttendanceResponse | null>(null);
   const [className, setClassName] = useState<string>('');
+
+  const apiStatusToUiStatus = useCallback((status: StudentAttendanceRecord['status']): AttendanceState[string] => {
+    return status === 'full_day' ? 'present' : status;
+  }, []);
+
+  const hydrateFromAttendanceRecords = useCallback((records: StudentAttendanceRecord[]) => {
+    const studentList: Student[] = records
+      .map(record => {
+        if (!record.student_id) return null;
+
+        return {
+          id: record.student_id,
+          full_name: record.student?.full_name || 'Unknown Student',
+          admission_number: record.student?.admission_number || 'N/A',
+          rollNumber: record.student?.admission_number || 'N/A'
+        };
+      })
+      .filter(Boolean) as Student[];
+
+    const initialAttendance: AttendanceState = {};
+    records.forEach(record => {
+      initialAttendance[record.student_id] = apiStatusToUiStatus(record.status);
+    });
+
+    setStudents(studentList);
+    setClassName('Class Attendance');
+    setAttendanceState(initialAttendance);
+  }, [apiStatusToUiStatus]);
 
   // Set attendance for a specific student
   const setAttendance = useCallback((studentId: string, status: 'present' | 'absent' | 'late' | 'half_day') => {
@@ -231,6 +260,31 @@ export function useAttendance(): UseAttendanceReturn {
       setLoading(true);
       setError(null);
 
+      if (user?.role === 'attendance_staff') {
+        const response = await attendanceApi.getAttendanceStatus(classDivisionId, date, token);
+
+        if (response instanceof Blob) {
+          setError('Unexpected response format');
+          return;
+        }
+
+        if (response.status === 'error') {
+          setError(response.message || 'Failed to load attendance records');
+          return;
+        }
+
+        if (response.status === 'success') {
+          hydrateFromAttendanceRecords(response.data.student_records);
+          setAttendanceData(response.data);
+
+          if (response.data.student_records.length === 0) {
+            setError('No students found for this class from the attendance API');
+          }
+        }
+
+        return;
+      }
+
       // First try to load students for the class
       try {
         await loadStudentsByClass(classDivisionId);
@@ -248,24 +302,7 @@ export function useAttendance(): UseAttendanceReturn {
           }
 
           if (attendanceResponse.status === 'success' && attendanceResponse.data.student_records) {
-            // Extract students from attendance records
-            const studentList: Student[] = attendanceResponse.data.student_records.map(record => ({
-              id: record.student_id,
-              full_name: record.student?.full_name || 'Unknown Student',
-              admission_number: record.student?.admission_number || 'N/A',
-              rollNumber: record.student?.admission_number || 'N/A'
-            }));
-            
-            setStudents(studentList);
-            setClassName('Class Attendance');
-            
-            // Set attendance state from existing records
-            const initialAttendance: AttendanceState = {};
-            attendanceResponse.data.student_records.forEach(record => {
-              initialAttendance[record.student_id] = record.status as 'present' | 'absent' | 'late' | 'half_day';
-            });
-            setAttendanceState(initialAttendance);
-            
+            hydrateFromAttendanceRecords(attendanceResponse.data.student_records);
             setAttendanceData(attendanceResponse.data);
             return; // Success with fallback
           }
@@ -294,7 +331,7 @@ export function useAttendance(): UseAttendanceReturn {
           // Update attendance state from existing records
           const updatedAttendance: AttendanceState = {};
           response.data.student_records.forEach(record => {
-            updatedAttendance[record.student_id] = record.status as 'present' | 'absent' | 'late' | 'half_day';
+            updatedAttendance[record.student_id] = apiStatusToUiStatus(record.status);
           });
           
           // Merge with existing attendance state (keep defaults for new students)
@@ -315,7 +352,7 @@ export function useAttendance(): UseAttendanceReturn {
     } finally {
       setLoading(false);
     }
-  }, [token, loadStudentsByClass]);
+  }, [apiStatusToUiStatus, hydrateFromAttendanceRecords, token, user?.role, loadStudentsByClass]);
 
   // Submit attendance to API
   const submitAttendance = useCallback(async (

@@ -7,6 +7,7 @@ import { ProtectedRoute } from '@/lib/auth/protected-route';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { 
   Table, 
   TableBody, 
@@ -37,7 +38,7 @@ import { Homework } from '@/types/homework';
 import { toast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/context';
 import { useRouter } from 'next/navigation';
-import { formatDate } from '@/lib/utils';
+import { formatDate, isHomeworkVisibleByExpiry } from '@/lib/utils';
 
 interface TeacherAssignment {
   assignment_id: string;
@@ -59,9 +60,12 @@ export default function HomeworkPage() {
   const { user, token, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
   const { t } = useI18n();
+  const canManageHomework = user?.role === 'teacher' || user?.role === 'admin' || user?.role === 'principal';
+  const isTeacher = user?.role === 'teacher';
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [selectedClass, setSelectedClass] = useState('all');
+  const [selectedTargetType, setSelectedTargetType] = useState<'all' | 'class' | 'students'>('all');
   const [homework, setHomework] = useState<Homework[]>([]);
   const [loading, setLoading] = useState(true);
   const [filteredHomework, setFilteredHomework] = useState<Homework[]>([]);
@@ -78,33 +82,60 @@ export default function HomeworkPage() {
     has_prev: boolean;
   } | null>(null);
 
-  // Fetch teacher assignments (subjects + classes) once
+  // Fetch role-specific filter options once
   const fetchAssignments = useCallback(async () => {
     if (!token) return;
     try {
-      const teacherResponse = await academicServices.getMyTeacherClasses(token);
-      if (teacherResponse.status === 'success' && teacherResponse.data) {
-        const subjects = Array.from(new Set(
-          teacherResponse.data.assigned_classes
-            .map((assignment: TeacherAssignment) => assignment.subject)
-            .filter((subject): subject is string => subject !== undefined && subject !== null)
-        ));
-        setTeacherSubjects(subjects);
+      if (user?.role === 'teacher') {
+        const teacherResponse = await academicServices.getMyTeacherClasses(token);
+        if (teacherResponse.status === 'success' && teacherResponse.data) {
+          const subjects = Array.from(new Set(
+            teacherResponse.data.assigned_classes
+              .map((assignment: TeacherAssignment) => assignment.subject)
+              .filter((subject): subject is string => subject !== undefined && subject !== null)
+          ));
+          setTeacherSubjects(subjects);
 
-        const classes = Array.from(new Set(
-          teacherResponse.data.assigned_classes
-            .map((assignment: TeacherAssignment) => `${assignment.class_level} - Section ${assignment.division}`)
-        ));
-        setTeacherClasses(classes);
-      } else {
-        setTeacherSubjects([]);
-        setTeacherClasses([]);
+          const classes = Array.from(new Set(
+            teacherResponse.data.assigned_classes
+              .map((assignment: TeacherAssignment) => `${assignment.class_level} - Section ${assignment.division}`)
+          ));
+          setTeacherClasses(classes);
+        } else {
+          setTeacherSubjects([]);
+          setTeacherClasses([]);
+        }
+        return;
       }
-    } catch (error) {
-      console.error('Error fetching teacher assignments:', error);
-    }
-  }, [token]);
 
+      if (user?.role === 'admin' || user?.role === 'principal') {
+        const summaryResponse = await academicServices.getClassDivisionsSummary(token);
+        if (summaryResponse.status === 'success' && summaryResponse.data) {
+          const classes = summaryResponse.data.divisions.map(
+            division => `${division.level.name} - Section ${division.division}`
+          );
+          const subjects = Array.from(new Set(
+            summaryResponse.data.divisions.flatMap(division =>
+              (division.subjects || []).map(subject => subject.name).filter(Boolean)
+            )
+          ));
+          setTeacherClasses(classes);
+          setTeacherSubjects(subjects);
+        } else {
+          setTeacherSubjects([]);
+          setTeacherClasses([]);
+        }
+        return;
+      }
+
+      setTeacherSubjects([]);
+      setTeacherClasses([]);
+    } catch (error) {
+      console.error('Error fetching homework filters:', error);
+      setTeacherSubjects([]);
+      setTeacherClasses([]);
+    }
+  }, [token, user?.role]);
   // Fetch homework with pagination/filters
   const fetchHomework = useCallback(async () => {
     if (!token) return;
@@ -114,12 +145,15 @@ export default function HomeworkPage() {
         page: currentPage,
         limit,
         subject: selectedSubject !== 'all' ? selectedSubject : undefined,
+        target_type: selectedTargetType !== 'all' ? selectedTargetType : undefined,
       });
       if (homeworkResponse.status === 'success' && homeworkResponse.data) {
-        const homeworkWithAttachments = homeworkResponse.data.homework.map(hw => ({
-          ...hw,
-          attachments: hw.attachments || []
-        }));
+        const homeworkWithAttachments = homeworkResponse.data.homework
+          .filter(isHomeworkVisibleByExpiry)
+          .map(hw => ({
+            ...hw,
+            attachments: hw.attachments || []
+          }));
         // Sort latest to oldest by created_at
         const sortedHomework = homeworkWithAttachments.sort((a, b) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -133,14 +167,14 @@ export default function HomeworkPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, currentPage, limit, selectedSubject, t]);
+  }, [token, currentPage, limit, selectedSubject, selectedTargetType, t]);
 
 
 
   // Fetch assignments once, then homework when pagination/filters change
   useEffect(() => {
-    if (token) fetchAssignments();
-  }, [token, fetchAssignments]);
+    if (token && user?.role) fetchAssignments();
+  }, [token, user?.role, fetchAssignments]);
 
   useEffect(() => {
     if (token) fetchHomework();
@@ -162,17 +196,16 @@ export default function HomeworkPage() {
     setCurrentPage(page);
   };
 
-  // Filter homework based on search term, filters, and teacher assignments
+  // Filter homework based on search term, filters, and role scope
   useEffect(() => {
-    // First filter by teacher's assigned classes and subjects
-    const filteredByTeacher = homework.filter(hw => {
+    const roleScopedHomework = isTeacher ? homework.filter(hw => {
       const classKey = `${hw.class_division.level.name} - Section ${hw.class_division.division}`;
       return teacherClasses.includes(classKey) && 
              (teacherSubjects.includes(hw.subject) || teacherSubjects.length === 0);
-    });
+    }) : homework;
 
     // Then apply search and filter criteria
-    const filtered = filteredByTeacher.filter((assignment: Homework) =>
+    const filtered = roleScopedHomework.filter((assignment: Homework) =>
       (assignment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       assignment.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
               `${assignment.class_division.level.name} - Section ${assignment.class_division.division}`.toLowerCase().includes(searchTerm.toLowerCase())) &&
@@ -185,22 +218,10 @@ export default function HomeworkPage() {
     );
 
     setFilteredHomework(sortedFiltered);
-  }, [homework, teacherClasses, teacherSubjects, searchTerm, selectedSubject, selectedClass]);
+  }, [homework, teacherClasses, teacherSubjects, searchTerm, selectedSubject, selectedClass, isTeacher]);
 
   // Debug: Log authentication state
   console.log('Auth state:', { user, token: !!token, isAuthenticated, authLoading });
-
-  // Only allow teachers to access this page
-  if (user?.role !== 'teacher') {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
-          <p className="text-gray-600">{t('access.teachersOnlyPage', 'Only teachers can access this page.')}</p>
-        </div>
-      </div>
-    );
-  }
 
   // Show loading state while auth is loading
   if (authLoading) {
@@ -232,6 +253,17 @@ export default function HomeworkPage() {
     );
   }
 
+  if (!canManageHomework) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="text-gray-600">{t('homeworkTeacher.access.manageOnly', 'Only teachers, admins, and principals can access this page.')}</p>
+        </div>
+      </div>
+    );
+  }
+
 
 
   const handleDelete = async (id: string) => {
@@ -257,6 +289,28 @@ export default function HomeworkPage() {
 
 
   // Date formatting is now handled by the formatDate utility function from @/lib/utils
+  const formatDueDate = (date: string | null) => {
+    return date ? formatDate(date) : t('homeworkTeacher.list.noDueDate', 'No due date');
+  };
+
+  const getAssignedToText = (assignment: Homework) => {
+    if ((assignment.target_type || 'class') === 'class') {
+      return `${assignment.class_division.level.name} - Section ${assignment.class_division.division}`;
+    }
+
+    const studentNames = assignment.student_targets
+      ?.map(target => target.student?.full_name)
+      .filter((name): name is string => !!name) || [];
+
+    if (studentNames.length > 0) {
+      return studentNames.join(', ');
+    }
+
+    const count = assignment.target_student_ids?.length || 0;
+    return count > 0
+      ? `${count} ${t('homeworkTeacher.list.students', 'students')}`
+      : t('homeworkTeacher.list.noStudentsAssigned', 'No students assigned');
+  };
 
 
 
@@ -317,6 +371,15 @@ export default function HomeworkPage() {
                     <option value="" disabled>{t('homeworkTeacher.filters.noClasses', 'No classes assigned')}</option>
                   )}
                 </select>
+                <select
+                  className="border rounded-md px-3 py-2 text-sm"
+                  value={selectedTargetType}
+                  onChange={(e) => { setSelectedTargetType(e.target.value as typeof selectedTargetType); setCurrentPage(1); }}
+                >
+                  <option value="all">{t('homeworkTeacher.filters.allTargets', 'All Assignments')}</option>
+                  <option value="class">{t('homeworkTeacher.filters.classTarget', 'Entire Class')}</option>
+                  <option value="students">{t('homeworkTeacher.filters.studentTarget', 'Selected Students')}</option>
+                </select>
               </div>
               <Button asChild size="lg">
                 <Link href="/homework/create">
@@ -345,6 +408,7 @@ export default function HomeworkPage() {
                     <TableHead>{t('homeworkTeacher.table.subject', 'Subject')}</TableHead>
                     <TableHead>{t('homeworkTeacher.table.title', 'Title')}</TableHead>
                     <TableHead>{t('homeworkTeacher.table.class', 'Class')}</TableHead>
+                    <TableHead>{t('homeworkTeacher.table.assignedTo', 'Assigned To')}</TableHead>
                     <TableHead>{t('homeworkTeacher.table.dueDate', 'Due Date')}</TableHead>
                     <TableHead className="text-right">{t('academicSetup.cols.actions', 'Actions')}</TableHead>
                   </TableRow>
@@ -372,10 +436,29 @@ export default function HomeworkPage() {
                         </div>
                       </TableCell>
                       <TableCell>{`${assignment.class_division.level.name} - Section ${assignment.class_division.division}`}</TableCell>
+                      <TableCell className="max-w-[260px]">
+                        <div className="space-y-1">
+                          <Badge variant={(assignment.target_type || 'class') === 'students' ? 'secondary' : 'outline'}>
+                            {(assignment.target_type || 'class') === 'students'
+                              ? t('homeworkTeacher.target.individual', 'Individual')
+                              : t('homeworkTeacher.target.class', 'Class')}
+                          </Badge>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="truncate text-sm text-muted-foreground cursor-help">
+                                {getAssignedToText(assignment)}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p>{getAssignedToText(assignment)}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
-                          {formatDate(assignment.due_date)}
+                          {formatDueDate(assignment.due_date)}
                         </div>
                       </TableCell>
 

@@ -18,7 +18,7 @@ import {
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { attendanceApi } from '@/lib/api/attendance';
+import { attendanceApi, ClassAttendanceSummary } from '@/lib/api/attendance';
 import { useI18n } from '@/lib/i18n/context';
 
 
@@ -30,10 +30,15 @@ interface ClassData {
   name: string;
   division: string;
   studentCount: number;
+  attendanceMarked?: boolean;
+  isHoliday?: boolean;
+  presentCount?: number;
+  absentCount?: number;
+  attendancePercentage?: number;
 }
 
 export default function AttendancePage() {
-  const { user, token } = useAuth();
+  const { user, token, loading: authLoading } = useAuth();
   const router = useRouter();
   const { t } = useI18n();
   const [selectedClass, setSelectedClass] = useState<string>('');
@@ -41,12 +46,57 @@ export default function AttendancePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const loadTeacherData = useCallback(async () => {
-    if (!token) return;
+  const isAttendanceStaff = user?.role === 'attendance_staff';
+  const canAccessAttendance = user?.role === 'teacher' || isAttendanceStaff;
+
+  const formatClassName = (classData: ClassData) => {
+    return classData.division
+      ? `${classData.name} - ${t('timetable.section', 'Section')} ${classData.division}`
+      : classData.name;
+  };
+
+  const mapAttendanceSummaryToClassData = useCallback((classData: ClassAttendanceSummary): ClassData => ({
+    id: classData.class_division_id,
+    name: classData.class_name,
+    division: '',
+    studentCount: classData.total_students,
+    attendanceMarked: classData.attendance_marked,
+    isHoliday: classData.is_holiday,
+    presentCount: classData.present_count,
+    absentCount: classData.absent_count,
+    attendancePercentage: classData.attendance_percentage,
+  }), []);
+
+  const loadAttendanceData = useCallback(async () => {
+    if (!token || !user) return;
 
     try {
       setLoading(true);
+      setError(null);
+
+      if (user.role === 'attendance_staff') {
+        const response = await attendanceApi.getAllClassesSummary(date, token);
+
+        if (response instanceof Blob) {
+          setError('Unexpected response format from API');
+          setClasses([]);
+          return;
+        }
+
+        if (response.status === 'error') {
+          setError(response.message || 'Failed to load attendance classes');
+          setClasses([]);
+          return;
+        }
+
+        if (response.status === 'success') {
+          setClasses(response.data.class_attendance.map(mapAttendanceSummaryToClassData));
+        }
+
+        return;
+      }
 
       // Get teacher information and assignments
       const teacherInfoResponse = await attendanceApi.getTeacherInfo(token);
@@ -54,6 +104,13 @@ export default function AttendancePage() {
       // Handle Blob response (shouldn't happen for this endpoint)
       if (teacherInfoResponse instanceof Blob) {
         console.error('Unexpected Blob response');
+        setError('Unexpected response format from API');
+        return;
+      }
+
+      if (teacherInfoResponse.status === 'error') {
+        setError(teacherInfoResponse.message || 'Failed to load teacher classes');
+        setClasses([]);
         return;
       }
 
@@ -71,26 +128,35 @@ export default function AttendancePage() {
         setClasses(classList);
       }
     } catch (error) {
-      console.error('Failed to load teacher data:', error);
+      console.error('Failed to load attendance data:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load attendance data');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [date, mapAttendanceSummaryToClassData, token, user]);
 
-  // Load teacher's classes and summary data
+  // Load attendance classes for the current role
   useEffect(() => {
-    if (token && user?.role === 'teacher') {
-      loadTeacherData();
+    if (token && canAccessAttendance) {
+      loadAttendanceData();
     }
-  }, [token, user, loadTeacherData]);
+  }, [token, canAccessAttendance, loadAttendanceData]);
 
-  // Only allow teachers to access this page
-  if (user?.role !== 'teacher') {
+  if (authLoading || !user) {
+    return (
+      <ProtectedRoute>
+        <div />
+      </ProtectedRoute>
+    );
+  }
+
+  // Only allow teachers and attendance staff to access this page
+  if (!canAccessAttendance) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
-          <p className="text-gray-600">{t('access.teachersOnlyPage', 'Only teachers can access this page.')}</p>
+          <p className="text-gray-600">{t('attendanceMgmt.accessDetails', 'Only authorized attendance users can access this page.')}</p>
         </div>
       </div>
     );
@@ -103,17 +169,14 @@ export default function AttendancePage() {
   };
 
   const handleRefresh = () => {
-    loadTeacherData();
+    loadAttendanceData();
   };
 
   // Filter classes based on search term
   const filteredClasses = classes.filter(cls =>
-    cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    formatClassName(cls).toLowerCase().includes(searchTerm.toLowerCase()) ||
     cls.division.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  // Get unmarked attendance classes - since we don't have attendance history, show all classes
-  const unmarkedClasses = classes; // All classes are considered unmarked since we don't have history
 
   return (
     <ProtectedRoute>
@@ -132,13 +195,25 @@ export default function AttendancePage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-6">
+        {error && (
+          <Card className="border-red-200 bg-red-50 dark:bg-red-900/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
+                <AlertTriangle className="h-5 w-5" />
+                <span>{error}</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="space-y-6">
                 <Card>
                   <CardHeader>
                     <CardTitle>{t('attendanceTeacher.take.title', 'Take Attendance')}</CardTitle>
                     <CardDescription>
-                      {t('attendanceTeacher.take.desc', 'Select a class and date to take attendance')}
+                      {isAttendanceStaff
+                        ? t('attendanceStaff.take.desc', 'Select any class and date to take attendance')
+                        : t('attendanceTeacher.take.desc', 'Select a class and date to take attendance')}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
@@ -173,7 +248,7 @@ export default function AttendancePage() {
                           <option value="">{t('attendanceTeacher.labels.selectClass', 'Select a class')}</option>
                           {classes.map((cls) => (
                             <option key={cls.id} value={cls.id}>
-                              {cls.name} - {t('timetable.section', 'Section')} {cls.division}
+                              {formatClassName(cls)}
                             </option>
                           ))}
                         </select>
@@ -192,9 +267,15 @@ export default function AttendancePage() {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>{t('attendanceTeacher.classes.title', 'Class Overview')}</CardTitle>
+                    <CardTitle>
+                      {isAttendanceStaff
+                        ? t('attendanceStaff.classes.title', 'All Classes')
+                        : t('attendanceTeacher.classes.title', 'Class Overview')}
+                    </CardTitle>
                     <CardDescription>
-                      {t('attendanceTeacher.classes.desc', 'View your assigned classes and their details')}
+                      {isAttendanceStaff
+                        ? t('attendanceStaff.classes.desc', 'View all classes and mark attendance')
+                        : t('attendanceTeacher.classes.desc', 'View your assigned classes and their details')}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -230,7 +311,10 @@ export default function AttendancePage() {
                           <thead>
                             <tr className="border-b">
                               <th className="text-left p-4 font-medium">{t('attendanceMgmt.cols.class', 'Class')}</th>
+                              {isAttendanceStaff && <th className="text-left p-4 font-medium">{t('attendanceMgmt.cols.status', 'Status')}</th>}
                               <th className="text-left p-4 font-medium">{t('attendanceMgmt.details.totalStudents', 'Total Students')}</th>
+                              {isAttendanceStaff && <th className="text-left p-4 font-medium">{t('attendanceMgmt.cols.present', 'Present')}</th>}
+                              {isAttendanceStaff && <th className="text-left p-4 font-medium">{t('attendanceMgmt.cols.absent', 'Absent')}</th>}
                               <th className="text-right p-4 font-medium">{t('academicSetup.cols.actions', 'Actions')}</th>
                             </tr>
                           </thead>
@@ -238,23 +322,43 @@ export default function AttendancePage() {
                             {filteredClasses.map((cls) => (
                               <tr key={cls.id} className="border-b hover:bg-muted/50">
                                 <td className="p-4">
-                                  <div className="font-medium">{cls.name} - {t('timetable.section', 'Section')} {cls.division}</div>
+                                  <div className="font-medium">{formatClassName(cls)}</div>
                                 </td>
+                                {isAttendanceStaff && (
+                                  <td className="p-4">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      cls.isHoliday
+                                        ? 'bg-purple-100 text-purple-800'
+                                        : cls.attendanceMarked
+                                          ? 'bg-green-100 text-green-800'
+                                          : 'bg-orange-100 text-orange-800'
+                                    }`}>
+                                      {cls.isHoliday
+                                        ? t('attendanceMgmt.status.holiday', 'Holiday')
+                                        : cls.attendanceMarked
+                                          ? t('attendanceMgmt.status.marked', 'Marked')
+                                          : t('attendanceMgmt.status.pending', 'Pending')}
+                                    </span>
+                                  </td>
+                                )}
                                 <td className="p-4">
                                   <div className="font-medium">{cls.studentCount}</div>
                                 </td>
-                                <td className="p-4 text-right">
+                                {isAttendanceStaff && <td className="p-4">{cls.presentCount ?? 0}</td>}
+                                {isAttendanceStaff && <td className="p-4">{cls.absentCount ?? 0}</td>}
+                                <td className="p-4">
+                                  <div className="flex justify-end">
                                   <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={() => {
                                       setSelectedClass(cls.id);
-                                      setDate(new Date().toISOString().split('T')[0]);
-                                      router.push(`/attendance/${cls.id}?date=${new Date().toISOString().split('T')[0]}`);
+                                      router.push(`/attendance/${cls.id}?date=${date}`);
                                     }}
                                   >
                                     {t('attendanceTeacher.take.cta', 'Take Attendance')}
                                   </Button>
+                                  </div>
                                 </td>
                               </tr>
                             ))}
@@ -264,57 +368,7 @@ export default function AttendancePage() {
                     )}
                   </CardContent>
                 </Card>
-              </div>
 
-              <div className="space-y-6">
-                {/* Unmarked Attendance Alert */}
-                {unmarkedClasses.length > 0 && (
-                  <Card className="border-l-4 border-l-yellow-500">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                        {t('attendanceMgmt.actionRequired', 'Action Required')}
-                      </CardTitle>
-                      <CardDescription>
-                        {t('attendanceTeacher.unmarked.desc', 'Your assigned classes - ready for attendance marking')}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {unmarkedClasses.slice(0, 3).map((cls) => (
-                          <div key={cls.id} className="p-3 border rounded-lg">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h3 className="font-medium">{cls.name} - {t('timetable.section', 'Section')} {cls.division}</h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                  {cls.studentCount} {t('dashboard.teacher.classOverview.students', 'students')}
-                                </p>
-                              </div>
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedClass(cls.id);
-                                  setDate(new Date().toISOString().split('T')[0]);
-                                  router.push(`/attendance/${cls.id}?date=${new Date().toISOString().split('T')[0]}`);
-                                }}
-                              >
-                                {t('attendanceTeacher.unmarked.markNow', 'Mark Now')}
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                        {unmarkedClasses.length > 3 && (
-                          <p className="text-sm text-gray-500 text-center">
-                            +{unmarkedClasses.length - 3} {t('attendanceTeacher.unmarked.moreClasses', 'more classes need attention')}
-                          </p>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-
-              </div>
             </div>
           </div>
         </ProtectedRoute>

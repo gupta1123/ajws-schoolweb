@@ -4,7 +4,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { BookOpen, Home, Users, Clipboard, FileText,AlertCircle, User, School, Calendar, Cake, LogOut, CheckSquare, Clock, MessageCircle } from 'lucide-react';
+import { BookOpen, Home, Users, Clipboard, FileText,AlertCircle, User, School, Calendar, Cake, LogOut, CheckSquare, Clock, MessageCircle, Utensils } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
 import { useRouter } from 'next/navigation';
@@ -135,6 +135,11 @@ const adminNavItems = [
         icon: CheckSquare,
       },
       {
+        title: 'common.homework',
+        href: '/homework',
+        icon: Clipboard,
+      },
+      {
         title: 'common.timetable',
         href: '/admin/timetable',
         icon: Clock,
@@ -164,6 +169,11 @@ const adminNavItems = [
         title: 'common.birthdays',
         href: '/birthdays',
         icon: Cake,
+      },
+      {
+        title: 'common.foodMenu',
+        href: '/admin/food-menu',
+        icon: Utensils,
       }
     ]
   }
@@ -177,6 +187,19 @@ const principalNavItems: NavItem[] = [
     icon: MessageCircle,
   },
   // Approvals section removed/hidden
+];
+
+const attendanceStaffNavItems: NavCategory[] = [
+  {
+    category: 'sidebar.category.management',
+    items: [
+      {
+        title: 'common.attendance',
+        href: '/attendance',
+        icon: CheckSquare,
+      },
+    ],
+  },
 ];
 
 export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
@@ -203,6 +226,8 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
     if (managementCategory) {
       managementCategory.items = [...managementCategory.items, ...principalNavItems];
     }
+  } else if (user?.role === 'attendance_staff') {
+    navConfig = attendanceStaffNavItems;
   } else {
     navConfig = [];
   }
@@ -219,7 +244,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
         <div className="flex h-full flex-col">
           {/* Product Branding Header */}
           <div className="flex h-16 items-center px-6 border-b bg-gradient-to-r from-primary/10 to-primary/5">
-            <Link href="/dashboard" className="flex items-center gap-3 group">
+            <Link href={user?.role === 'attendance_staff' ? '/attendance' : '/dashboard'} className="flex items-center gap-3 group">
               <div className="bg-primary rounded-xl w-9 h-9 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300">
                 <BookOpen className="h-5 w-5 text-primary-foreground" />
               </div>
@@ -317,7 +342,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
         <div className="flex h-full flex-col">
           {/* Product Branding Header */}
           <div className="flex h-16 items-center px-6 border-b bg-gradient-to-r from-primary/10 to-primary/5">
-            <Link href="/dashboard" className="flex items-center gap-3 group">
+            <Link href={user?.role === 'attendance_staff' ? '/attendance' : '/dashboard'} className="flex items-center gap-3 group">
               <div className="bg-primary rounded-xl w-9 h-9 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300">
                 <BookOpen className="h-5 w-5 text-primary-foreground" />
               </div>

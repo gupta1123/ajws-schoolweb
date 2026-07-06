@@ -36,7 +36,7 @@ const formatDateCustom = (dateString: string, lang: string): string => {
 };
 
 export default function ClassAttendancePage({ params, searchParams }: { params: Promise<{ classId: string }>, searchParams: Promise<{ date?: string }> }) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const { t, lang } = useI18n();
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,6 +44,7 @@ export default function ClassAttendancePage({ params, searchParams }: { params: 
   const [date, setDate] = useState<string>('');
   const [mode, setMode] = useState<'normal' | 'absentFirst'>('normal');
   const [filter, setFilter] = useState<'all' | 'present' | 'absent'>('all');
+  const canAccessAttendance = user?.role === 'teacher' || user?.role === 'attendance_staff';
 
   // Use the attendance hook
   const {
@@ -83,23 +84,35 @@ export default function ClassAttendancePage({ params, searchParams }: { params: 
   // Load attendance data when classId and date are available
   useEffect(() => {
     console.log('useEffect triggered - classId:', classId, 'date:', date, 'user role:', user?.role);
-    if (classId && date && user?.role === 'teacher') {
+    if (classId && date && canAccessAttendance) {
       console.log('Calling loadClassAttendance with:', { classId, date });
       loadClassAttendance(classId, date);
     }
-  }, [classId, date, user, loadClassAttendance]);
+  }, [canAccessAttendance, classId, date, user, loadClassAttendance]);
 
-  // Only allow teachers to access this page
-  if (user?.role !== 'teacher') {
+  if (authLoading || !user) {
+    return (
+      <ProtectedRoute>
+        <div />
+      </ProtectedRoute>
+    );
+  }
+
+  // Only allow teachers and attendance staff to access this page
+  if (!canAccessAttendance) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
-          <p className="text-gray-600">{t('access.teachersOnlyPage', 'Only teachers can access this page.')}</p>
+          <p className="text-gray-600">{t('attendanceMgmt.accessDetails', 'Only authorized attendance users can access this page.')}</p>
         </div>
       </div>
     );
   }
+
+  const handleBackToAttendance = () => {
+    router.push('/attendance');
+  };
 
   const handleAttendanceChange = (studentId: string, status: 'present' | 'absent' | 'half_day') => {
     setAttendance(studentId, status);
@@ -179,9 +192,15 @@ export default function ClassAttendancePage({ params, searchParams }: { params: 
             <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-red-500" />
             <h2 className="text-2xl font-bold mb-2">{t('attendanceTeacher.detail.errorTitle', 'Error Loading Attendance')}</h2>
             <p className="text-gray-600 mb-4">{error}</p>
-            <Button onClick={() => loadClassAttendance(classId, date)}>
-              {t('timetableTeacher.tryAgain', 'Try Again')}
-            </Button>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button variant="outline" onClick={handleBackToAttendance}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                {t('attendanceTeacher.detail.back', 'Back to Attendance')}
+              </Button>
+              <Button onClick={() => loadClassAttendance(classId, date)}>
+                {t('timetableTeacher.tryAgain', 'Try Again')}
+              </Button>
+            </div>
           </div>
         </div>
       </ProtectedRoute>
@@ -194,7 +213,7 @@ export default function ClassAttendancePage({ params, searchParams }: { params: 
         <div className="mb-6">
           <Button 
             variant="ghost" 
-            onClick={() => router.back()}
+            onClick={handleBackToAttendance}
             className="mb-4"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />

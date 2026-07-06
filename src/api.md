@@ -9,13 +9,13 @@ https://ajws-school-ba8ae5e3f955.herokuapp.com
 Principal Login:
  {
      "phone_number":1234567891,
-     "password":"password123"
+     "password": "<PASSWORD>"
 }
 
 Admin Login:
 {
   "phone_number": "1234567890",
-  "password": "Shilpa@123"
+  "password": "<PASSWORD>"
 }
 
 User Registration
@@ -25,7 +25,7 @@ https://ajws-school-ba8ae5e3f955.herokuapp.com/api/system/register-first-admin
 Payload:
 {
   "phone_number": "1234567890",
-  "password": "Shilpa@123",
+  "password": "<PASSWORD>",
   "full_name": "Shilpa",
   "email": "shilpa.tribhuwan@gmail.com"
 }
@@ -49,7 +49,7 @@ Payload: (Roles: "parent","teacher","admin","principal")
 (Principal)
 {
     "phone_number": "1234567891",
-    "password": "password123",
+    "password": "<PASSWORD>",
     "role": "principal",
     "email":"abc@123.com",
     "full_name": "Principal 1"
@@ -57,7 +57,7 @@ Payload: (Roles: "parent","teacher","admin","principal")
 (Parent)
 {
     "phone_number": "1234567892",
-    "password": "password123",
+    "password": "<PASSWORD>",
     "role": "parent",
     "email":"abc@123.com",
     "full_name": "Parent 1"
@@ -72,7 +72,7 @@ Response:
             "role": "parent",
             "full_name": "Parent 1"
         },
-        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIyMjk5ZGU1Yy02M2ZmLTRlNjAtOGFlMS03MTYwMGIyOWJhODYiLCJyb2xlIjoicGFyZW50IiwiaWF0IjoxNzUzNDIwNjc2LCJleHAiOjE3NTM1MDcwNzZ9.4Uzbw56vCQHVjfgPn7xe7UdMpqxrZFjiK_o-yEpNhpQ"
+        "token": "<JWT_TOKEN>"
     }
 }
 
@@ -84,7 +84,7 @@ https://ajws-school-ba8ae5e3f955.herokuapp.com/api/auth/login
 Payload:
 {
     "phone_number": "1234567890",
-    "password": "Shilpa@123"
+    "password": "<PASSWORD>"
 }
 Response:
 {
@@ -96,7 +96,7 @@ Response:
             "role": "admin",
             "full_name": "Shilpa"
         },
-        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ZTQxZTgyMy1lNGY5LTQzZmEtYWI5MC1jZDg4NjM2MWVkMWEiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3NTM0MjAyNDksImV4cCI6MTc1MzUwNjY0OX0.q0fVFantiM5qAWV5uXOq9WUVwsUzj9rmWuUYysTJY2g"
+        "token": "<JWT_TOKEN>"
     }
 }
 
@@ -138,7 +138,7 @@ PayLoad:
   "phone_number": "1234567894",
   "email":"abc@email.com",
   "qualification": "M.Sc. Mathematics",
-   "password": "password123",
+   "password": "<PASSWORD>",
   "experience_years": 2
 }
 Response:
@@ -171,7 +171,7 @@ Response:
         },
         "login_credentials": {
             "phone_number": "1234567894",
-            "password": "password123"
+            "password": "<PASSWORD>"
         }
     }
 }
@@ -4320,7 +4320,7 @@ PayLoad:
   "role": "teacher",
   "department": "Mathematics",
   "designation": "Senior Teacher",
-  "password": "MyPassword123",
+  "password": "<PASSWORD>",
   "user_role": "teacher"
 }
 
@@ -4364,7 +4364,7 @@ Response:
 }
 
 Connect
-ws://ajws-school-ba8ae5e3f955.herokuapp.com?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJkZjA3YmI5Zi00ZmZlLTQ3ZjctOWEwZC01ZmMwZTM4OTZhNTEiLCJyb2xlIjoidGVhY2hlciIsImlhdCI6MTc1NDEyMTkyNCwiZXhwIjoxNzU0MjA4MzI0fQ.jvBhz1Fg3FV8-ja89PkUOj_rCYPad3d9fKBRsk9QKgI
+ws://ajws-school-ba8ae5e3f955.herokuapp.com?token=<JWT_TOKEN>
 
 Subscribe to the thread
 
@@ -6247,7 +6247,7 @@ Payload:
       "department": "Teaching",
       "designation": "Coordinator",
       "subject_specialization": "Mathematics, Physics",
-      "password": "Temp@1234",
+      "password": "<PASSWORD>",
       "user_role": "teacher"
     }
   ]

@@ -41,3 +41,26 @@ export function formatDateTime(date: string | Date | number): string {
 
   return `${formattedDate}, ${time}`;
 }
+
+const HOMEWORK_NO_DUE_DATE_VISIBLE_DAYS = 30;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+export function isHomeworkVisibleByExpiry(homework: {
+  due_date?: string | null;
+  created_at?: string | null;
+}): boolean {
+  if (homework.due_date) {
+    return true;
+  }
+
+  if (!homework.created_at) {
+    return true;
+  }
+
+  const createdAt = new Date(homework.created_at);
+  if (isNaN(createdAt.getTime())) {
+    return true;
+  }
+
+  return Date.now() < createdAt.getTime() + HOMEWORK_NO_DUE_DATE_VISIBLE_DAYS * MS_PER_DAY;
+}

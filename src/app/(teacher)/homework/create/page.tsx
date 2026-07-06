@@ -9,14 +9,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Calendar, X } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Calendar, Loader2, Users, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { homeworkServices } from '@/lib/api/homework';
+import { homeworkServices, CreateHomeworkData } from '@/lib/api/homework';
 import { academicServices } from '@/lib/api/academic';
 import { toast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/context';
 import { FileUploader } from '@/components/ui/file-uploader';
+import type { HomeworkTargetType } from '@/types/homework';
 
 // Interface for the transformed class data we're using
 interface TransformedClass {
@@ -45,10 +47,18 @@ interface AssignedClass {
   subject?: string; // Subject for subject teacher assignments
 }
 
+interface ClassStudent {
+  id: string;
+  full_name: string;
+  admission_number: string;
+}
+
 export default function CreateHomeworkPage() {
   const { user, token, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
   const { t } = useI18n();
+  const canManageHomework = user?.role === 'teacher' || user?.role === 'admin' || user?.role === 'principal';
+  const isTeacher = user?.role === 'teacher';
   const [formData, setFormData] = useState({
     class_division_id: '',
     subject: '',
@@ -63,6 +73,10 @@ export default function CreateHomeworkPage() {
   const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [homeworkId, setHomeworkId] = useState<string | null>(null);
+  const [targetType, setTargetType] = useState<HomeworkTargetType>('class');
+  const [classStudents, setClassStudents] = useState<ClassStudent[]>([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
 
 
   // Fetch class divisions on component mount
@@ -76,8 +90,9 @@ export default function CreateHomeworkPage() {
           return;
         }
         
-        const response = await academicServices.getMyTeacherClasses(token);
-        if (response.status === 'success' && response.data) {
+        if (user?.role === 'teacher') {
+          const response = await academicServices.getMyTeacherClasses(token);
+          if (response.status === 'success' && response.data) {
           // Filter for only subject teacher assignments (not class teacher assignments)
           const subjectTeacherClasses = (response.data.assigned_classes as AssignedClass[]).filter(
             assignedClass => assignedClass.assignment_type === 'subject_teacher'
@@ -109,6 +124,26 @@ export default function CreateHomeworkPage() {
           );
           
           setClassDivisions(uniqueClasses);
+          }
+          return;
+        }
+
+        if (user?.role === 'admin' || user?.role === 'principal') {
+          const response = await academicServices.getClassDivisionsSummary(token);
+          if (response.status === 'success' && response.data) {
+            const transformedClasses = response.data.divisions.map(division => ({
+              id: division.id,
+              division: division.division,
+              class_level: {
+                name: division.level.name
+              },
+              academic_year: {
+                year_name: division.academic_year.year_name
+              }
+            }));
+
+            setClassDivisions(transformedClasses);
+          }
         }
       } catch (error) {
         console.error('Error fetching teacher classes:', error);
@@ -127,22 +162,79 @@ export default function CreateHomeworkPage() {
     } else {
       console.log('No token available, skipping API call');
     }
-  }, [token, t]);
+  }, [token, user?.role, t]);
+
+  useEffect(() => {
+    const fetchSubjectsForSelectedClass = async () => {
+      if (!token || isTeacher) return;
+
+      if (!formData.class_division_id) {
+        setAvailableSubjects([]);
+        return;
+      }
+
+      try {
+        const response = await academicServices.getSubjectsByClassDivision(formData.class_division_id, token);
+        let subjects = response.status === 'success'
+          ? response.data.subjects.map(subject => subject.name).filter(Boolean)
+          : [];
+
+        if (subjects.length === 0) {
+          const allSubjectsResponse = await academicServices.getSubjects(token);
+          subjects = allSubjectsResponse.status === 'success'
+            ? allSubjectsResponse.data.subjects.map(subject => subject.name).filter(Boolean)
+            : [];
+        }
+
+        setAvailableSubjects(Array.from(new Set(subjects)));
+      } catch (error) {
+        console.error('Error fetching subjects for class:', error);
+        setAvailableSubjects([]);
+        toast({
+          title: t('common.error', 'Error'),
+          description: t('homeworkTeacher.create.fetchSubjectsFailed', 'Failed to fetch subjects for this class'),
+          variant: 'error',
+        });
+      }
+    };
+
+    fetchSubjectsForSelectedClass();
+  }, [formData.class_division_id, isTeacher, token, t]);
+
+  useEffect(() => {
+    const fetchClassStudents = async () => {
+      if (!token || !formData.class_division_id || targetType !== 'students') {
+        setClassStudents([]);
+        return;
+      }
+
+      try {
+        setLoadingStudents(true);
+        const response = await academicServices.getStudentsByClass(formData.class_division_id, token);
+
+        if (response.status === 'success') {
+          setClassStudents(response.data.students || []);
+        } else {
+          setClassStudents([]);
+        }
+      } catch (error) {
+        console.error('Error fetching class students:', error);
+        setClassStudents([]);
+        toast({
+          title: t('common.error', 'Error'),
+          description: t('homeworkTeacher.create.fetchStudentsFailed', 'Failed to load students for this class'),
+          variant: 'error',
+        });
+      } finally {
+        setLoadingStudents(false);
+      }
+    };
+
+    fetchClassStudents();
+  }, [formData.class_division_id, targetType, token, t]);
 
   // Debug: Log authentication state
   console.log('Auth state:', { user, token: !!token, isAuthenticated, authLoading });
-
-  // Only allow teachers to access this page
-  if (user?.role !== 'teacher') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only teachers can access this page.</p>
-        </div>
-      </div>
-    );
-  }
 
   // Show loading state while auth is loading
   if (authLoading) {
@@ -174,6 +266,17 @@ export default function CreateHomeworkPage() {
     );
   }
 
+  if (!canManageHomework) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+          <p className="text-gray-600">Only teachers, admins, and principals can access this page.</p>
+        </div>
+      </div>
+    );
+  }
+
 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -182,6 +285,48 @@ export default function CreateHomeworkPage() {
       ...prev,
       [name]: value
     }));
+
+    if (name === 'class_division_id') {
+      setSelectedStudentIds([]);
+      if (!isTeacher) {
+        setFormData(prev => ({
+          ...prev,
+          subject: ''
+        }));
+      }
+    }
+  };
+
+  const handleTargetTypeChange = (value: HomeworkTargetType) => {
+    setTargetType(value);
+    if (value === 'class') {
+      setSelectedStudentIds([]);
+    }
+  };
+
+  const toggleStudentSelection = (studentId: string) => {
+    setSelectedStudentIds(prev =>
+      prev.includes(studentId)
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId]
+    );
+  };
+
+  const buildHomeworkPayload = (): CreateHomeworkData => {
+    const dueDate = formData.due_date ? new Date(formData.due_date) : null;
+    if (dueDate) {
+      dueDate.setHours(23, 59, 59, 999);
+    }
+
+    return {
+      class_division_id: formData.class_division_id,
+      subject: formData.subject,
+      title: formData.title,
+      description: formData.description,
+      due_date: dueDate ? dueDate.toISOString() : null,
+      target_type: targetType,
+      ...(targetType === 'students' ? { student_ids: selectedStudentIds } : {}),
+    };
   };
 
   const handleFilesSelected = (files: File[]) => {
@@ -198,18 +343,25 @@ export default function CreateHomeworkPage() {
       // If homework not created yet, create it now using current form data
       if (!id) {
         // Validate minimal required fields before creating
-        if (!formData.class_division_id || !formData.subject || !formData.title || !formData.due_date) {
+        if (!formData.class_division_id || !formData.subject || !formData.title) {
           toast({
             title: t('common.error', 'Error'),
-            description: t('homeworkTeacher.create.fillDetailsBeforeUpload', 'Please fill in class, subject, title and due date before uploading.'),
+            description: t('homeworkTeacher.create.fillDetailsBeforeUpload', 'Please fill in class, subject, and title before uploading.'),
             variant: 'error',
           });
           return;
         }
 
-        const dueDate = new Date(formData.due_date);
-        dueDate.setHours(23, 59, 59, 999);
-        const payload = { ...formData, due_date: dueDate.toISOString() };
+        if (targetType === 'students' && selectedStudentIds.length === 0) {
+          toast({
+            title: t('common.error', 'Error'),
+            description: t('homeworkTeacher.create.selectStudentsRequired', 'Select at least one student.'),
+            variant: 'error',
+          });
+          return;
+        }
+
+        const payload = buildHomeworkPayload();
         const createRes = await homeworkServices.createHomework(payload, token);
         if (createRes.status !== 'success' || !createRes.data?.homework?.id) {
           throw new Error(createRes.message || 'Failed to create homework before upload');
@@ -262,14 +414,16 @@ export default function CreateHomeworkPage() {
     setIsLoading(true);
     
     try {
-      // Format the due date to ISO string with time
-      const dueDate = new Date(formData.due_date);
-      dueDate.setHours(23, 59, 59, 999); // Set to end of day
-      
-      const payload = {
-        ...formData,
-        due_date: dueDate.toISOString()
-      };
+      if (targetType === 'students' && selectedStudentIds.length === 0) {
+        toast({
+          title: t('common.error', 'Error'),
+          description: t('homeworkTeacher.create.selectStudentsRequired', 'Select at least one student.'),
+          variant: "error",
+        });
+        return;
+      }
+
+      const payload = buildHomeworkPayload();
 
       const response = await homeworkServices.createHomework(payload, token || '');
       
@@ -378,6 +532,19 @@ export default function CreateHomeworkPage() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="target_type">{t('homeworkTeacher.create.assignTo', 'Assign to')}</Label>
+                  <select
+                    id="target_type"
+                    value={targetType}
+                    onChange={(e) => handleTargetTypeChange(e.target.value as HomeworkTargetType)}
+                    className="border rounded-md px-3 py-2 w-full"
+                  >
+                    <option value="class">{t('homeworkTeacher.create.entireClass', 'Entire class')}</option>
+                    <option value="students">{t('homeworkTeacher.create.selectedStudents', 'Selected students')}</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="title">{t('homeworkTeacher.create.titleLabel', 'Title')}</Label>
                   <Input
                     id="title"
@@ -412,10 +579,61 @@ export default function CreateHomeworkPage() {
                       value={formData.due_date}
                       onChange={handleInputChange}
                       className="pl-10"
-                      required
                     />
                   </div>
                 </div>
+
+                {targetType === 'students' && (
+                  <div className="space-y-3 rounded-md border p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <Label>{t('homeworkTeacher.create.students', 'Students')}</Label>
+                        <p className="text-sm text-muted-foreground">
+                          {formData.class_division_id
+                            ? t('homeworkTeacher.create.studentsHelp', 'Select one or more students from the chosen class.')
+                            : t('homeworkTeacher.create.selectClassFirst', 'Select a class first to load students.')}
+                        </p>
+                      </div>
+                      {selectedStudentIds.length > 0 && (
+                        <span className="text-sm text-muted-foreground">
+                          {selectedStudentIds.length} {t('common.selected', 'Selected')}
+                        </span>
+                      )}
+                    </div>
+
+                    {loadingStudents ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {t('homeworkTeacher.create.loadingStudents', 'Loading students...')}
+                      </div>
+                    ) : classStudents.length === 0 ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Users className="h-4 w-4" />
+                        {formData.class_division_id
+                          ? t('homeworkTeacher.create.noStudents', 'No students found for this class.')
+                          : t('homeworkTeacher.create.noClassSelected', 'No class selected.')}
+                      </div>
+                    ) : (
+                      <div className="grid max-h-56 grid-cols-1 gap-2 overflow-y-auto md:grid-cols-2">
+                        {classStudents.map((student) => (
+                          <label
+                            key={student.id}
+                            className="flex cursor-pointer items-start gap-3 rounded-md border p-3 hover:bg-muted/50"
+                          >
+                            <Checkbox
+                              checked={selectedStudentIds.includes(student.id)}
+                              onCheckedChange={() => toggleStudentSelection(student.id)}
+                            />
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-medium">{student.full_name}</span>
+                              <span className="block text-xs text-muted-foreground">{student.admission_number}</span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* File Upload Section */}
                 <div className="space-y-2">
