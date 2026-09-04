@@ -51,8 +51,11 @@ interface Announcement {
 }
 
 const announcementTypes = [
-  { value: 'notification', label: 'Notification', icon: AlertCircle },
   { value: 'circular', label: 'Circular', icon: BookOpen },
+  { value: 'general', label: 'General', icon: AlertCircle },
+  { value: 'urgent', label: 'Urgent', icon: AlertCircle },
+  { value: 'academic', label: 'Academic', icon: BookOpen },
+  { value: 'administrative', label: 'Administrative', icon: AlertCircle },
 ];
 
 const priorities = [
@@ -142,6 +145,10 @@ export default function AnnouncementsPage() {
     const month = date.toLocaleDateString(lang, { month: 'short' });
     const year = date.getFullYear().toString().slice(-2);
     return `${day} ${month} '${year}`;
+  };
+
+  const getAnnouncementTypeLabel = (type: string) => {
+    return announcementTypes.find(t => t.value === type)?.label || type.charAt(0).toUpperCase() + type.slice(1);
   };
 
 
@@ -290,7 +297,7 @@ export default function AnnouncementsPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {announcementTypes.find(t => t.value === announcement.announcement_type)?.label}
+                        {getAnnouncementTypeLabel(announcement.announcement_type)}
                       </Badge>
                     </TableCell>
                     <TableCell>

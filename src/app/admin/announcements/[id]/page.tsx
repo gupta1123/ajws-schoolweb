@@ -13,9 +13,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { createAnnouncementsAPI, type Announcement } from '@/lib/api/announcements';
 
 const announcementTypes = [
-  { value: 'notification', label: 'Notification', icon: AlertCircle, description: 'General notifications and updates' },
   { value: 'circular', label: 'Circular', icon: BookOpen, description: 'Official circulars and announcements' },
-  { value: 'general', label: 'General', icon: AlertCircle, description: 'General announcements' },
+  { value: 'general', label: 'General', icon: AlertCircle, description: 'General announcements and updates' },
+  { value: 'urgent', label: 'Urgent', icon: AlertCircle, description: 'Time-sensitive announcements' },
+  { value: 'academic', label: 'Academic', icon: BookOpen, description: 'Academic notices and updates' },
+  { value: 'administrative', label: 'Administrative', icon: AlertCircle, description: 'Administrative notices and updates' },
 ];
 
 const priorities = [
@@ -118,6 +120,10 @@ export default function AdminAnnouncementViewPage() {
     const month = date.toLocaleDateString('en-US', { month: 'short' });
     const year = date.getFullYear().toString().slice(-2);
     return `${day} ${month} '${year}`;
+  };
+
+  const getAnnouncementTypeLabel = (type: string) => {
+    return announcementTypes.find(t => t.value === type)?.label || type.charAt(0).toUpperCase() + type.slice(1);
   };
 
   if (loading) {
@@ -263,7 +269,7 @@ export default function AdminAnnouncementViewPage() {
                     <span className="text-sm font-medium text-muted-foreground">Type:</span>
                     <div className="flex items-center gap-2">
                       {React.createElement(announcementTypes.find(t => t.value === announcement.announcement_type)?.icon || BookOpen, { className: "w-4 h-4" })}
-                      <span className="font-medium">{announcementTypes.find(t => t.value === announcement.announcement_type)?.label}</span>
+                      <span className="font-medium">{getAnnouncementTypeLabel(announcement.announcement_type)}</span>
                     </div>
                   </div>
 

@@ -16,8 +16,11 @@ import { useAuth } from '@/lib/auth/context';
 import { useI18n } from '@/lib/i18n/context';
 
 const announcementTypes = [
-  { value: 'notification', label: 'Notification', icon: AlertCircle, description: 'General notifications and updates' },
   { value: 'circular', label: 'Circular', icon: BookOpen, description: 'Official circulars and announcements' },
+  { value: 'general', label: 'General', icon: AlertCircle, description: 'General announcements and updates' },
+  { value: 'urgent', label: 'Urgent', icon: AlertCircle, description: 'Time-sensitive announcements' },
+  { value: 'academic', label: 'Academic', icon: BookOpen, description: 'Academic notices and updates' },
+  { value: 'administrative', label: 'Administrative', icon: AlertCircle, description: 'Administrative notices and updates' },
 ];
 
 const priorities = [
@@ -42,7 +45,7 @@ export default function CreateAnnouncementPage() {
   const [formData, setFormData] = useState({
     title: '',
     content: '',
-    announcement_type: 'notification',
+    announcement_type: 'general',
     priority: 'low',
     target_roles: [] as string[],
     target_classes: [] as string[],

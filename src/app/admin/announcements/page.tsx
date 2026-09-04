@@ -17,9 +17,11 @@ import { useI18n } from '@/lib/i18n/context';
 
 
 const announcementTypes = [
-  { value: 'notification', label: 'Notification', icon: AlertCircle },
   { value: 'circular', label: 'Circular', icon: BookOpen },
   { value: 'general', label: 'General', icon: MessageSquare },
+  { value: 'urgent', label: 'Urgent', icon: AlertCircle },
+  { value: 'academic', label: 'Academic', icon: BookOpen },
+  { value: 'administrative', label: 'Administrative', icon: AlertCircle },
 ];
 
 const priorities = [
@@ -151,6 +153,10 @@ export default function AdminAnnouncementsPage() {
     const month = date.toLocaleDateString(lang, { month: 'short' });
     const year = date.getFullYear().toString().slice(-2);
     return `${day} ${month} '${year}`;
+  };
+
+  const getAnnouncementTypeLabel = (type: string) => {
+    return announcementTypes.find(t => t.value === type)?.label || type.charAt(0).toUpperCase() + type.slice(1);
   };
 
 
@@ -387,7 +393,7 @@ export default function AdminAnnouncementsPage() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
-                            {announcementTypes.find(t => t.value === announcement.announcement_type)?.label}
+                            {getAnnouncementTypeLabel(announcement.announcement_type)}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -532,7 +538,7 @@ export default function AdminAnnouncementsPage() {
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">
-                              {announcementTypes.find(t => t.value === announcement.announcement_type)?.label}
+                              {getAnnouncementTypeLabel(announcement.announcement_type)}
                             </Badge>
                           </TableCell>
                           <TableCell>

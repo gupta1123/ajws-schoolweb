@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Save, BookOpen, AlertCircle, Calendar, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,15 +10,17 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth/context';
 
 
 
 const announcementTypes = [
-  { value: 'notification', label: 'Notification', icon: AlertCircle, description: 'General notifications and updates' },
   { value: 'circular', label: 'Circular', icon: BookOpen, description: 'Official circulars and announcements' },
+  { value: 'general', label: 'General', icon: AlertCircle, description: 'General announcements and updates' },
+  { value: 'urgent', label: 'Urgent', icon: AlertCircle, description: 'Time-sensitive announcements' },
+  { value: 'academic', label: 'Academic', icon: BookOpen, description: 'Academic notices and updates' },
+  { value: 'administrative', label: 'Administrative', icon: AlertCircle, description: 'Administrative notices and updates' },
 ];
 
 const priorities = [
@@ -33,19 +35,36 @@ const targetRoles = [
   { value: 'student', label: 'Specific Class Parents' },
 ];
 
+interface Announcement {
+  id: string;
+  title: string;
+  content: string;
+  announcement_type: string;
+  priority: 'low' | 'medium' | 'high';
+  target_roles: string[];
+  target_classes: string[];
+  publish_at: string;
+  expires_at: string;
+}
+
+const getSupportedAnnouncementType = (type: string) => {
+  return announcementTypes.some(announcementType => announcementType.value === type) ? type : 'general';
+};
+
 export default function EditAnnouncementPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
   const { token } = useAuth();
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [announcement, setAnnouncement] = useState<Announcement | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
     title: '',
     content: '',
-    announcement_type: 'notification',
+    announcement_type: 'general',
     priority: 'medium',
     target_roles: [] as string[],
     target_classes: [] as string[],
@@ -53,9 +72,60 @@ export default function EditAnnouncementPage() {
     announcement_time: '09:00',
   });
 
+  const fetchAnnouncement = useCallback(async (id: string) => {
+    if (!token) return;
 
+    try {
+      setLoading(true);
+      const response = await fetch(`https://ajws-school-ba8ae5e3f955.herokuapp.com/api/announcements/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.status === 'success') {
+        const fetchedAnnouncement = data.data.announcement as Announcement;
+        const publishDate = new Date(fetchedAnnouncement.publish_at);
+
+        setAnnouncement(fetchedAnnouncement);
+        setFormData({
+          title: fetchedAnnouncement.title,
+          content: fetchedAnnouncement.content,
+          announcement_type: getSupportedAnnouncementType(fetchedAnnouncement.announcement_type),
+          priority: fetchedAnnouncement.priority,
+          target_roles: fetchedAnnouncement.target_roles,
+          target_classes: fetchedAnnouncement.target_classes,
+          announcement_date: publishDate.toISOString().split('T')[0],
+          announcement_time: publishDate.toTimeString().slice(0, 5),
+        });
+      } else {
+        throw new Error(data.message || 'Failed to fetch announcement');
+      }
+    } catch (error) {
+      console.error('Error fetching announcement:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch announcement details',
+        variant: 'error',
+      });
+      router.push('/announcements');
+    } finally {
+      setLoading(false);
+    }
+  }, [token, toast, router]);
+
+  useEffect(() => {
+    if (params.id && token) {
+      fetchAnnouncement(params.id as string);
+    }
+  }, [params.id, token, fetchAnnouncement]);
 
   const handleUpdateAnnouncement = async () => {
+    if (!announcement) return;
+
     if (!formData.title.trim() || !formData.content.trim() || !formData.announcement_date || !formData.announcement_time) {
       toast({
         title: 'Validation Error',

@@ -21,11 +21,13 @@ export interface AnnouncementFilters {
   limit?: number;
 }
 
+export type AnnouncementType = 'circular' | 'general' | 'urgent' | 'academic' | 'administrative';
+
 export interface Announcement {
   id: string;
   title: string;
   content: string;
-  announcement_type: 'notification' | 'circular' | 'general';
+  announcement_type: AnnouncementType;
   status: 'pending' | 'approved' | 'rejected';
   priority: 'low' | 'medium' | 'high';
   created_by: string;
@@ -70,7 +72,7 @@ export interface Announcement {
 export interface CreateAnnouncementData {
   title: string;
   content: string;
-  announcement_type: 'notification' | 'circular' | 'general';
+  announcement_type: AnnouncementType;
   priority: 'low' | 'medium' | 'high';
   target_roles: string[];
   target_classes?: string[];

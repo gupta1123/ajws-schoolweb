@@ -15,13 +15,15 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth/context';
 import { useI18n } from '@/lib/i18n/context';
-import { createAnnouncementsAPI } from '@/lib/api/announcements';
+import { createAnnouncementsAPI, type AnnouncementType } from '@/lib/api/announcements';
 import { classDivisionsServices } from '@/lib/api/class-divisions';
 
 const announcementTypes = [
-  { value: 'notification', label: 'Notification', icon: AlertCircle, description: 'General notifications and updates' },
   { value: 'circular', label: 'Circular', icon: BookOpen, description: 'Official circulars and announcements' },
-  { value: 'general', label: 'General', icon: AlertCircle, description: 'General announcements' },
+  { value: 'general', label: 'General', icon: AlertCircle, description: 'General announcements and updates' },
+  { value: 'urgent', label: 'Urgent', icon: AlertCircle, description: 'Time-sensitive announcements' },
+  { value: 'academic', label: 'Academic', icon: BookOpen, description: 'Academic notices and updates' },
+  { value: 'administrative', label: 'Administrative', icon: AlertCircle, description: 'Administrative notices and updates' },
 ];
 
 const priorities = [
@@ -122,7 +124,7 @@ export default function AdminCreateAnnouncementPage() {
       const payload = {
         title: formData.title,
         content: formData.content,
-        announcement_type: formData.announcement_type as 'notification' | 'circular' | 'general',
+        announcement_type: formData.announcement_type as AnnouncementType,
         priority: formData.priority as 'low' | 'high',
         target_roles: formData.target_roles,
         target_classes: formData.target_classes,

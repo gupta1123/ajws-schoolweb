@@ -10,15 +10,16 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth/context';
-import { createAnnouncementsAPI, type Announcement } from '@/lib/api/announcements';
+import { createAnnouncementsAPI, type Announcement, type AnnouncementType } from '@/lib/api/announcements';
 
 const announcementTypes = [
-  { value: 'notification', label: 'Notification', icon: AlertCircle, description: 'General notifications and updates' },
   { value: 'circular', label: 'Circular', icon: BookOpen, description: 'Official circulars and announcements' },
-  { value: 'general', label: 'General', icon: AlertCircle, description: 'General announcements' },
+  { value: 'general', label: 'General', icon: AlertCircle, description: 'General announcements and updates' },
+  { value: 'urgent', label: 'Urgent', icon: AlertCircle, description: 'Time-sensitive announcements' },
+  { value: 'academic', label: 'Academic', icon: BookOpen, description: 'Academic notices and updates' },
+  { value: 'administrative', label: 'Administrative', icon: AlertCircle, description: 'Administrative notices and updates' },
 ];
 
 const priorities = [
@@ -32,6 +33,10 @@ const targetRoles = [
   { value: 'parent', label: 'All Parents' },
   { value: 'student', label: 'Specific Class Parents' },
 ];
+
+const getSupportedAnnouncementType = (type: string): AnnouncementType => {
+  return announcementTypes.some(announcementType => announcementType.value === type) ? type as AnnouncementType : 'general';
+};
 
 export default function AdminEditAnnouncementPage() {
   const params = useParams();
@@ -88,12 +93,11 @@ export default function AdminEditAnnouncementPage() {
     if (announcement) {
       // Populate form with existing data
       const publishDate = new Date(announcement.publish_at);
-      const expiresDate = new Date(announcement.expires_at);
 
       setFormData({
         title: announcement.title,
         content: announcement.content,
-        announcement_type: announcement.announcement_type,
+        announcement_type: getSupportedAnnouncementType(announcement.announcement_type),
         priority: announcement.priority,
         target_roles: announcement.target_roles,
         target_classes: announcement.target_classes,
@@ -163,7 +167,7 @@ export default function AdminEditAnnouncementPage() {
       const payload = {
         title: formData.title,
         content: formData.content,
-        announcement_type: formData.announcement_type as 'general' | 'notification' | 'circular',
+        announcement_type: formData.announcement_type as AnnouncementType,
         priority: formData.priority as 'low' | 'medium' | 'high',
         target_roles: formData.target_roles,
         target_classes: formData.target_classes,
