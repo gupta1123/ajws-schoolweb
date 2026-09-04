@@ -22,7 +22,6 @@ const announcementTypes = [
 
 const priorities = [
   { value: 'low', label: 'Low', color: 'bg-blue-100 text-blue-800' },
-  { value: 'medium', label: 'Medium', color: 'bg-yellow-100 text-yellow-800' },
   { value: 'high', label: 'High', color: 'bg-red-100 text-red-800' },
 ];
 
@@ -44,7 +43,7 @@ export default function CreateAnnouncementPage() {
     title: '',
     content: '',
     announcement_type: 'notification',
-    priority: 'medium',
+    priority: 'low',
     target_roles: [] as string[],
     target_classes: [] as string[],
     announcement_date: '',
@@ -262,7 +261,7 @@ export default function CreateAnnouncementPage() {
                   <Label htmlFor="priority">{t('announcements.create.priorityLabel', 'Priority')}</Label>
                   <Select
                     value={formData.priority}
-                    onValueChange={(value: 'low' | 'medium' | 'high') => setFormData(prev => ({ ...prev, priority: value }))}
+                    onValueChange={(value: 'low' | 'high') => setFormData(prev => ({ ...prev, priority: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue />

@@ -113,6 +113,10 @@ export default function AnnouncementViewPage() {
   }, [params.id, fetchAnnouncement]);
 
   const handleDeleteAnnouncement = async (id: string) => {
+    if (announcement?.status !== 'pending') {
+      return;
+    }
+
     try {
       const response = await fetch(`https://ajws-school-ba8ae5e3f955.herokuapp.com/api/announcements/${id}`, {
         method: 'DELETE',
@@ -237,14 +241,16 @@ export default function AnnouncementViewPage() {
           <Edit className="w-4 h-4" />
           Edit
         </Button>
-        <Button
-          variant="destructive"
-          onClick={() => setShowDeleteModal(true)}
-          className="flex items-center gap-2"
-        >
-          <Trash2 className="w-4 h-4" />
-          Delete
-        </Button>
+        {announcement.status === 'pending' && (
+          <Button
+            variant="destructive"
+            onClick={() => setShowDeleteModal(true)}
+            className="flex items-center gap-2"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete
+          </Button>
+        )}
       </div>
 
       {/* Main Content Grid - Everything at one glance */}
@@ -419,40 +425,42 @@ export default function AnnouncementViewPage() {
       </div>
 
       {/* Delete Confirmation Modal */}
-      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Trash2 className="w-5 h-5 text-red-500" />
-              Delete Announcement
-            </DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete &ldquo;{announcement?.title}&rdquo;? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteModal(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (announcement) {
-                  handleDeleteAnnouncement(announcement.id);
-                  setShowDeleteModal(false);
-                }
-              }}
-              className="flex items-center gap-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {announcement.status === 'pending' && (
+        <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-red-500" />
+                Delete Announcement
+              </DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete &ldquo;{announcement?.title}&rdquo;? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (announcement) {
+                    handleDeleteAnnouncement(announcement.id);
+                    setShowDeleteModal(false);
+                  }
+                }}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
