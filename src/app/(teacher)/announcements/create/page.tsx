@@ -14,6 +14,9 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth/context';
 import { useI18n } from '@/lib/i18n/context';
+import { createAnnouncementsAPI, type AnnouncementType } from '@/lib/api/announcements';
+import { FormattedTextEditor, emptyAnnouncementFormat } from '@/components/announcements/formatted-text';
+import { AnnouncementFilePicker } from '@/components/announcements/announcement-attachments';
 
 const announcementTypes = [
   { value: 'circular', label: 'Circular', icon: BookOpen, description: 'Official circulars and announcements' },
@@ -39,6 +42,9 @@ export default function CreateAnnouncementPage() {
   const { toast } = useToast();
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [titleFormat, setTitleFormat] = useState(emptyAnnouncementFormat);
+  const [contentFormat, setContentFormat] = useState(emptyAnnouncementFormat);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const { t } = useI18n();
 
   // Form state
@@ -107,30 +113,39 @@ export default function CreateAnnouncementPage() {
     try {
       setLoading(true);
       const payload = {
-        ...formData,
+        title: formData.title,
+        content: formData.content,
+        announcement_type: formData.announcement_type as AnnouncementType,
+        priority: formData.priority as 'low' | 'high',
+        target_roles: formData.target_roles,
+        target_classes: formData.target_classes,
         publish_at: new Date(`${formData.announcement_date}T${formData.announcement_time}`).toISOString(),
         expires_at: new Date(`${formData.announcement_date}T${formData.announcement_time}`).toISOString(),
+        title_format: titleFormat,
+        content_format: contentFormat,
       };
+      const api = createAnnouncementsAPI(token!);
+      const response = await api.createAnnouncement(payload);
 
-      const response = await fetch('https://ajws-school-ba8ae5e3f955.herokuapp.com/api/announcements', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-
-      if (data.status === 'success') {
+      if (response.status === 'success') {
+        if (attachmentFiles.length > 0) {
+          try {
+            await api.uploadAttachments(response.data.announcement.id, attachmentFiles);
+          } catch (attachmentError) {
+            toast({
+              title: t('announcements.attachments.uploadFailed', 'Announcement created, but file upload failed'),
+              description: attachmentError instanceof Error ? attachmentError.message : t('announcements.attachments.retryEdit', 'You can retry from the edit page.'),
+              variant: 'error',
+            });
+          }
+        }
         toast({
           title: t('common.success', 'Success'),
           description: t('announcements.create.successPending', 'Announcement created successfully and pending approval'),
         });
         router.push('/announcements');
       } else {
-        throw new Error(data.message || 'Failed to create announcement');
+        throw new Error('Failed to create announcement');
       }
     } catch (error) {
       console.error('Error creating announcement:', error);
@@ -218,21 +233,26 @@ export default function CreateAnnouncementPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">{t('announcements.create.titleLabel', 'Title *')}</Label>
-                <Input
+                <FormattedTextEditor
                   id="title"
                   value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  format={titleFormat}
+                  onChange={(title) => setFormData(prev => ({ ...prev, title }))}
+                  onFormatChange={setTitleFormat}
                   placeholder={t('announcements.create.titlePlaceholder', 'Enter announcement title')}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="content">{t('announcements.create.contentLabel', 'Content *')}</Label>
-                <Textarea
+                <FormattedTextEditor
                   id="content"
                   value={formData.content}
-                  onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+                  format={contentFormat}
+                  onChange={(content) => setFormData(prev => ({ ...prev, content }))}
+                  onFormatChange={setContentFormat}
                   placeholder={t('announcements.create.contentPlaceholder', 'Enter announcement content')}
+                  multiline
                   rows={6}
                 />
               </div>
@@ -279,6 +299,16 @@ export default function CreateAnnouncementPage() {
                   </Select>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('announcements.attachments.title', 'Attachments')}</CardTitle>
+              <CardDescription>{t('announcements.attachments.createDescription', 'Files will be uploaded after the announcement is created.')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AnnouncementFilePicker files={attachmentFiles} onChange={setAttachmentFiles} disabled={loading} />
             </CardContent>
           </Card>
 

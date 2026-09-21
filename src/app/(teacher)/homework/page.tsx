@@ -38,7 +38,7 @@ import { Homework } from '@/types/homework';
 import { toast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/context';
 import { useRouter } from 'next/navigation';
-import { formatDate, isHomeworkVisibleByExpiry } from '@/lib/utils';
+import { formatDate, isHomeworkVisibleByExpiry, sortHomeworkLatestFirst } from '@/lib/utils';
 
 interface TeacherAssignment {
   assignment_id: string;
@@ -154,10 +154,9 @@ export default function HomeworkPage() {
             ...hw,
             attachments: hw.attachments || []
           }));
-        // Sort latest to oldest by created_at
-        const sortedHomework = homeworkWithAttachments.sort((a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
+        // The API returns created_at DESC, due_date DESC. Keep the same order
+        // client-side as a safeguard when older backend deployments are used.
+        const sortedHomework = sortHomeworkLatestFirst(homeworkWithAttachments);
         setHomework(sortedHomework);
         setPagination(homeworkResponse.data.pagination || null);
       }
@@ -212,10 +211,7 @@ export default function HomeworkPage() {
       (selectedClass === 'all' || `${assignment.class_division.level.name} - Section ${assignment.class_division.division}` === selectedClass)
     );
 
-    // Sort filtered results latest to oldest by created_at
-    const sortedFiltered = filtered.sort((a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    const sortedFiltered = sortHomeworkLatestFirst(filtered);
 
     setFilteredHomework(sortedFiltered);
   }, [homework, teacherClasses, teacherSubjects, searchTerm, selectedSubject, selectedClass, isTeacher]);

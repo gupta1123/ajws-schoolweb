@@ -13,6 +13,8 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth/context';
 import { createAnnouncementsAPI, type Announcement, type AnnouncementType } from '@/lib/api/announcements';
+import { FormattedTextEditor, emptyAnnouncementFormat } from '@/components/announcements/formatted-text';
+import { AnnouncementAttachments } from '@/components/announcements/announcement-attachments';
 
 const announcementTypes = [
   { value: 'circular', label: 'Circular', icon: BookOpen, description: 'Official circulars and announcements' },
@@ -46,6 +48,8 @@ export default function AdminEditAnnouncementPage() {
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
+  const [titleFormat, setTitleFormat] = useState(emptyAnnouncementFormat);
+  const [contentFormat, setContentFormat] = useState(emptyAnnouncementFormat);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -104,6 +108,8 @@ export default function AdminEditAnnouncementPage() {
         announcement_date: publishDate.toISOString().split('T')[0],
         announcement_time: publishDate.toTimeString().slice(0, 5),
       });
+      setTitleFormat(announcement.title_format || emptyAnnouncementFormat());
+      setContentFormat(announcement.content_format || emptyAnnouncementFormat());
     }
   }, [announcement]);
 
@@ -173,6 +179,8 @@ export default function AdminEditAnnouncementPage() {
         target_classes: formData.target_classes,
         publish_at: new Date(`${formData.announcement_date}T${formData.announcement_time}`).toISOString(),
         expires_at: new Date(`${formData.announcement_date}T${formData.announcement_time}`).toISOString(),
+        title_format: titleFormat,
+        content_format: contentFormat,
       };
 
       const response = await api.editAnnouncement(announcement.id, payload);
@@ -297,21 +305,26 @@ export default function AdminEditAnnouncementPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title *</Label>
-                <Input
+                <FormattedTextEditor
                   id="title"
                   value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  format={titleFormat}
+                  onChange={(title) => setFormData(prev => ({ ...prev, title }))}
+                  onFormatChange={setTitleFormat}
                   placeholder="Enter announcement title"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="content">Content *</Label>
-                <Textarea
+                <FormattedTextEditor
                   id="content"
                   value={formData.content}
-                  onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+                  format={contentFormat}
+                  onChange={(content) => setFormData(prev => ({ ...prev, content }))}
+                  onFormatChange={setContentFormat}
                   placeholder="Enter announcement content"
+                  multiline
                   rows={6}
                 />
               </div>
@@ -360,6 +373,18 @@ export default function AdminEditAnnouncementPage() {
               </div>
             </CardContent>
           </Card>
+
+          {announcement && token && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Attachments</CardTitle>
+                <CardDescription>Upload, download, or remove files attached to this announcement.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AnnouncementAttachments announcementId={announcement.id} token={token} canManage />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Scheduling */}
           <Card>

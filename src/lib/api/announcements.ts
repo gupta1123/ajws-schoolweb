@@ -2,12 +2,28 @@
 
 export interface Attachment {
   id: string;
-  filename: string;
-  original_filename: string;
-  file_path: string;
+  announcement_id: string;
+  file_name: string;
   file_size: number;
-  mime_type: string;
-  uploaded_at: string;
+  file_type: string;
+  mime_type?: string;
+  uploaded_by: string;
+  created_at: string;
+  download_endpoint?: string;
+}
+
+export type AnnouncementFormatMark = 'bold' | 'underline' | 'highlight';
+
+export interface AnnouncementFormatSpan {
+  start: number;
+  end: number;
+  marks: AnnouncementFormatMark[];
+  color?: string;
+}
+
+export interface AnnouncementTextFormat {
+  version: 1;
+  spans: AnnouncementFormatSpan[];
 }
 
 export interface AnnouncementFilters {
@@ -67,6 +83,8 @@ export interface Announcement {
     full_name: string;
   };
   attachments: Attachment[];
+  title_format?: AnnouncementTextFormat | null;
+  content_format?: AnnouncementTextFormat | null;
 }
 
 export interface CreateAnnouncementData {
@@ -80,6 +98,19 @@ export interface CreateAnnouncementData {
   publish_at: string;
   expires_at: string;
   is_featured?: boolean;
+  title_format?: AnnouncementTextFormat;
+  content_format?: AnnouncementTextFormat;
+}
+
+export interface AnnouncementAttachmentDownload {
+  file_url: string;
+  file_name: string;
+  file_type: string;
+  mime_type?: string;
+  file_size: number;
+  expires_at: string;
+  attachment_id: string;
+  announcement_id: string;
 }
 
 export interface ApprovalActionData {
@@ -194,6 +225,32 @@ class AnnouncementsAPI {
     return this.makeRequest(`/announcements/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  async uploadAttachments(id: string, files: File[]): Promise<{ status: string; data: { attachments: Attachment[] } }> {
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+
+    const response = await fetch(`${API_BASE_URL}/announcements/${id}/attachments`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${this.token}` },
+      body: formData,
+    });
+    const data = await response.json().catch(() => ({ status: 'error', message: 'Attachment upload failed' }));
+    if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+    return data;
+  }
+
+  async getAttachments(id: string): Promise<{ status: string; data: { attachments: Attachment[] } }> {
+    return this.makeRequest(`/announcements/${id}/attachments`);
+  }
+
+  async getAttachmentDownload(id: string, attachmentId: string): Promise<{ status: string; data: AnnouncementAttachmentDownload }> {
+    return this.makeRequest(`/announcements/${id}/attachments/${attachmentId}`);
+  }
+
+  async deleteAttachment(id: string, attachmentId: string): Promise<{ status: string; message: string }> {
+    return this.makeRequest(`/announcements/${id}/attachments/${attachmentId}`, { method: 'DELETE' });
   }
 }
 

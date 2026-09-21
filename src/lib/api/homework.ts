@@ -57,8 +57,11 @@ export const homeworkServices = {
     subject?: string;
     status?: string;
     target_type?: HomeworkTargetType;
-    date_from?: string;
-    date_to?: string;
+    teacher_id?: string;
+    academic_year_id?: string;
+    class_level_id?: string;
+    due_date_from?: string;
+    due_date_to?: string;
     page?: number | string;
     limit?: number | string;
   }): Promise<ApiResponseWithCache<HomeworkResponse> | ApiErrorResponse> => {

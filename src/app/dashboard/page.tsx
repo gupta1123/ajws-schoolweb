@@ -36,6 +36,10 @@ const UpcomingBirthdays = dynamic(() => import('@/components/dashboard/upcoming-
   loading: () => <div className="h-32 bg-muted animate-pulse rounded-lg" />
 });
 
+const PrincipalDailyHomework = dynamic(() => import('@/components/homework/principal-daily-homework').then(mod => mod.PrincipalDailyHomework), {
+  loading: () => <div className="h-64 bg-muted animate-pulse rounded-lg" />
+});
+
 
 
 const DashboardPage = () => {
@@ -101,6 +105,13 @@ const DashboardPage = () => {
         ) : canViewAdminDashboard ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
+              {/* Principal Daily Homework Portal */}
+              {user?.role === 'principal' && (
+                <ErrorBoundary fallback={ApiErrorFallback}>
+                  <PrincipalDailyHomework />
+                </ErrorBoundary>
+              )}
+
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <MetricCard

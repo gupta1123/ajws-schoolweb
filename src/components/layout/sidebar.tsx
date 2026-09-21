@@ -202,6 +202,23 @@ const attendanceStaffNavItems: NavCategory[] = [
   },
 ];
 
+const parentNavItems: NavCategory[] = [
+  {
+    category: 'sidebar.category.dashboard',
+    items: [
+      { title: 'common.dashboard', href: '/dashboard', icon: Home },
+    ],
+  },
+  {
+    category: 'sidebar.category.management',
+    items: [
+      { title: 'common.calendar', href: '/calendar', icon: Calendar },
+      { title: 'common.birthdays', href: '/birthdays', icon: Cake },
+      { title: 'common.foodMenu', href: '/admin/food-menu/monthly', icon: Utensils },
+    ],
+  },
+];
+
 export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
@@ -228,6 +245,8 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
     }
   } else if (user?.role === 'attendance_staff') {
     navConfig = attendanceStaffNavItems;
+  } else if (user?.role === 'parent') {
+    navConfig = parentNavItems;
   } else {
     navConfig = [];
   }

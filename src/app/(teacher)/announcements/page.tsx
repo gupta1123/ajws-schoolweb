@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, AlertCircle, Star, BookOpen, Info } from 'lucide-react';
+import { Plus, Search, AlertCircle, Star, BookOpen, Info, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth/context';
-import { Attachment } from '@/types/homework';
+import type { Attachment, AnnouncementTextFormat } from '@/lib/api/announcements';
 import { useI18n } from '@/lib/i18n/context';
+import { FormattedText } from '@/components/announcements/formatted-text';
 
 interface Announcement {
   id: string;
@@ -48,6 +49,7 @@ interface Announcement {
     full_name: string;
   };
   attachments: Attachment[];
+  title_format?: AnnouncementTextFormat | null;
 }
 
 const announcementTypes = [
@@ -289,9 +291,14 @@ export default function AnnouncementsPage() {
                   <TableRow key={announcement.id} className="hover:bg-muted/50">
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{announcement.title}</span>
+                        <span className="font-medium"><FormattedText text={announcement.title} format={announcement.title_format} /></span>
                         {announcement.is_featured && (
                           <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                        )}
+                        {announcement.attachments?.length > 0 && (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground" title={`${announcement.attachments.length} attachment(s)`}>
+                            <Paperclip className="h-3.5 w-3.5" />{announcement.attachments.length}
+                          </span>
                         )}
                       </div>
                     </TableCell>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, AlertCircle, CheckCircle, XCircle, Clock, Eye, MessageSquare, BookOpen, Star, Plus } from 'lucide-react';
+import { Search, AlertCircle, CheckCircle, XCircle, Clock, Eye, MessageSquare, BookOpen, Star, Plus, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth/context';
 import { createAnnouncementsAPI, type Announcement } from '@/lib/api/announcements';
 import { useI18n } from '@/lib/i18n/context';
+import { FormattedText } from '@/components/announcements/formatted-text';
 
 
 const announcementTypes = [
@@ -372,9 +373,14 @@ export default function AdminAnnouncementsPage() {
                       <TableRow key={announcement.id} className="hover:bg-muted/50">
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">{announcement.title}</span>
+                            <span className="font-medium"><FormattedText text={announcement.title} format={announcement.title_format} /></span>
                             {announcement.is_featured && (
                               <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                            )}
+                            {announcement.attachments?.length > 0 && (
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground" title={`${announcement.attachments.length} attachment(s)`}>
+                                <Paperclip className="h-3.5 w-3.5" />{announcement.attachments.length}
+                              </span>
                             )}
                           </div>
                         </TableCell>
@@ -522,9 +528,14 @@ export default function AdminAnnouncementsPage() {
                         <TableRow key={announcement.id} className="hover:bg-muted/50">
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <span className="font-medium">{announcement.title}</span>
+                              <span className="font-medium"><FormattedText text={announcement.title} format={announcement.title_format} /></span>
                               {announcement.is_featured && (
                                 <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                              )}
+                              {announcement.attachments?.length > 0 && (
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground" title={`${announcement.attachments.length} attachment(s)`}>
+                                  <Paperclip className="h-3.5 w-3.5" />{announcement.attachments.length}
+                                </span>
                               )}
                             </div>
                           </TableCell>

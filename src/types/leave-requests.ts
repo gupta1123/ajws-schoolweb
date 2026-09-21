@@ -75,3 +75,43 @@ export interface LeaveRequestResponse {
   cached?: boolean;
   statusCode?: number;
 }
+
+export interface TeacherLeaveRequest {
+  id: string;
+  teacher_id: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewed_by?: string | null;
+  created_at: string;
+  updated_at: string;
+  teacher?: {
+    id: string;
+    full_name: string;
+    role: 'teacher';
+  };
+}
+
+export interface TeacherLeaveRequestPayload {
+  start_date: string;
+  end_date: string;
+  reason: string;
+}
+
+export interface ListTeacherLeaveRequestsParams {
+  status?: 'pending' | 'approved' | 'rejected';
+  from_date?: string;
+  to_date?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface LeaveRequestPagination {
+  page: number;
+  limit: number;
+  total: number;
+  total_pages: number;
+  has_next: boolean;
+  has_prev: boolean;
+}

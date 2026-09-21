@@ -8,9 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth/context';
-import { Attachment } from '@/types/homework';
+import type { Attachment, AnnouncementTextFormat } from '@/lib/api/announcements';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { FormattedText } from '@/components/announcements/formatted-text';
+import { AnnouncementAttachments } from '@/components/announcements/announcement-attachments';
 
 interface Announcement {
   id: string;
@@ -51,6 +53,8 @@ interface Announcement {
     full_name: string;
   };
   attachments: Attachment[];
+  title_format?: AnnouncementTextFormat | null;
+  content_format?: AnnouncementTextFormat | null;
 }
 
 const announcementTypes = [
@@ -226,7 +230,9 @@ export default function AnnouncementViewPage() {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight">{announcement.title}</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              <FormattedText text={announcement.title} format={announcement.title_format} />
+            </h1>
             {announcement.is_featured && (
               <Star className="w-6 h-6 text-yellow-500 fill-current" />
             )}
@@ -274,12 +280,23 @@ export default function AnnouncementViewPage() {
             </CardHeader>
             <CardContent>
               <div className="prose max-w-none">
-                <p className="whitespace-pre-wrap text-base leading-relaxed">
-                  {announcement.content}
-                </p>
+                <FormattedText text={announcement.content} format={announcement.content_format} className="whitespace-pre-wrap text-base leading-relaxed" />
               </div>
             </CardContent>
           </Card>
+
+          {token && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5" /> Attachments
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AnnouncementAttachments announcementId={announcement.id} token={token} canManage={announcement.status === 'pending'} />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Target Audience */}
           <Card>

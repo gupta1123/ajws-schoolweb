@@ -32,6 +32,7 @@ import { useTheme } from '@/lib/theme/context';
 import { useLeaveRequests } from '@/hooks/use-leave-requests';
 import { useSearchParams } from 'next/navigation';
 import { formatDate } from '@/lib/utils';
+import { TeacherLeaveRequests } from '@/components/leave-requests/teacher-leave-requests';
 
 
 // Simple status badge component with theme support
@@ -205,6 +206,8 @@ function LeaveRequestsContent() {
 
   // Fetch data when filters change
   useEffect(() => {
+    if (user?.role === 'teacher') return;
+
     const params: {
       status?: 'pending' | 'approved' | 'rejected';
       student_id?: string;
@@ -269,8 +272,7 @@ function LeaveRequestsContent() {
     );
   }
 
-  // Allow admins, principals, and teachers to access this page
-  // Teachers can view and approve/reject leave requests for their assigned classes
+  // Allow admins, principals, and teachers to access this page.
   if (user?.role !== 'admin' && user?.role !== 'principal' && user?.role !== 'teacher') {
     return (
       <div className="flex items-center justify-center h-full">
@@ -279,6 +281,16 @@ function LeaveRequestsContent() {
           <p className="text-gray-600">{t('leave.noPermission')}</p>
         </div>
       </div>
+    );
+  }
+
+  // Teachers use the self-service API and can manage only their own pending
+  // requests. Admin/principal approval behavior below remains unchanged.
+  if (user.role === 'teacher') {
+    return (
+      <ProtectedRoute>
+        <TeacherLeaveRequests />
+      </ProtectedRoute>
     );
   }
 

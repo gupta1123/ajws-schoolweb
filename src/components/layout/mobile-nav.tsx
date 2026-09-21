@@ -152,6 +152,13 @@ const attendanceStaffNavItems = [
   },
 ];
 
+const parentNavItems = [
+  { title: 'Dashboard', href: '/dashboard', icon: Home },
+  { title: 'Calendar', href: '/calendar', icon: Calendar },
+  { title: 'Birthdays', href: '/birthdays', icon: Cake },
+  { title: 'Food Menu', href: '/admin/food-menu/monthly', icon: Utensils },
+];
+
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -167,10 +174,13 @@ export function MobileNav() {
   const navItems = user?.role === 'teacher' ? teacherNavItems : 
                   user?.role === 'admin' ? adminNavItems :
                   user?.role === 'principal' ? principalNavItems :
-                  user?.role === 'attendance_staff' ? attendanceStaffNavItems : [];
+                  user?.role === 'attendance_staff' ? attendanceStaffNavItems :
+                  user?.role === 'parent' ? parentNavItems : [];
 
   const portalTitle = user?.role === 'teacher'
     ? 'Teacher Portal'
+    : user?.role === 'parent'
+      ? 'Parent Portal'
     : user?.role === 'attendance_staff'
       ? 'Attendance Portal'
       : 'Admin Portal';

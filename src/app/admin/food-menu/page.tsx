@@ -1,14 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import {
   AlertTriangle,
   CalendarDays,
+  FileText,
   Loader2,
   Pencil,
   Plus,
   RefreshCw,
   Trash2,
+  Upload,
   Utensils,
 } from 'lucide-react';
 
@@ -241,7 +244,9 @@ export default function AdminFoodMenuPage() {
     }
   };
 
-  if (user && !canManageFoodMenu) {
+  const canViewMonthlyMenu = canManageFoodMenu || user?.role === 'parent';
+
+  if (user && !canViewMonthlyMenu) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -271,25 +276,45 @@ export default function AdminFoodMenuPage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={loadMenus} disabled={loading}>
-                  <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                  {t('actions.refresh', 'Refresh')}
+                <Button variant="outline" asChild>
+                  <Link href="/admin/food-menu/monthly">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Monthly Menus
+                  </Link>
                 </Button>
-                <Button onClick={openCreateDialog}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  {t('foodMenu.new', 'New Menu')}
-                </Button>
+                {canManageFoodMenu && (
+                  <Button variant="outline" asChild>
+                    <Link href="/admin/food-menu/monthly/create">
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload Monthly Menu
+                    </Link>
+                  </Button>
+                )}
+                {canManageFoodMenu && (
+                  <>
+                  <Button variant="outline" onClick={loadMenus} disabled={loading}>
+                    <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                    {t('actions.refresh', 'Refresh')}
+                  </Button>
+                  <Button onClick={openCreateDialog}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    {t('foodMenu.new', 'New Menu')}
+                  </Button>
+                  </>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {error && (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+        {canManageFoodMenu && (
+          <>
+            {error && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
         <Card>
           <CardHeader>
@@ -426,7 +451,7 @@ export default function AdminFoodMenuPage() {
           </CardContent>
         </Card>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>
@@ -514,7 +539,9 @@ export default function AdminFoodMenuPage() {
               </Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
+            </Dialog>
+          </>
+        )}
       </div>
     </ProtectedRoute>
   );

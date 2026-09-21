@@ -187,13 +187,15 @@ export const apiClient = {
   },
 
   put: async <T, D = unknown>(endpoint: string, data: D, token?: string): Promise<ApiResponse<T> | ApiErrorResponse> => {
+    const isFormData = data instanceof FormData;
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'PUT',
       headers: {
-        'Content-Type': 'application/json',
+        ...(!isFormData && { 'Content-Type': 'application/json' }),
         ...(token && { Authorization: `Bearer ${token}` }),
       },
-      body: JSON.stringify(data),
+      body: isFormData ? data : JSON.stringify(data),
     });
 
     if (!response.ok) {

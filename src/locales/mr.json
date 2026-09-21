@@ -761,7 +761,20 @@
     "createHomework": "गृहपाठ तयार करा",
     "recordClasswork": "वर्गकाम नोंदवा",
     "gradeSubmissions": "सबमिशन ग्रेड करा",
-    "viewReports": "अहवाल पहा"
+    "viewReports": "अहवाल पहा",
+    "principal": {
+      "title": "आजचा गृहपाठ",
+      "subtitle": "सर्व वर्गांमध्ये दिलेला दैनिक गृहपाठ",
+      "assignments": "असाइनमेंट",
+      "fetchFailed": "गृहपाठ डेटा मिळवण्यात अयशस्वी",
+      "noHomework": "आज कोणताही गृहपाठ दिला नाही",
+      "checkBack": "नवीन असाइनमेंटसाठी नंतर तपासा",
+      "students": "विद्यार्थी",
+      "noStudentsAssigned": "कोणतेही विद्यार्थी नियुक्त नाहीत",
+      "due": "देय",
+      "attachments": "अटैचमेंट",
+      "viewAll": "सर्व गृहपाठ पहा"
+    }
   },
   "homeworkTeacher": {
     "authRequired": "या पृष्ठावर प्रवेश करण्यासाठी लॉगिन करा.",

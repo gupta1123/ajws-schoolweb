@@ -17,6 +17,8 @@ import { useAuth } from '@/lib/auth/context';
 import { useI18n } from '@/lib/i18n/context';
 import { createAnnouncementsAPI, type AnnouncementType } from '@/lib/api/announcements';
 import { classDivisionsServices } from '@/lib/api/class-divisions';
+import { FormattedTextEditor, emptyAnnouncementFormat } from '@/components/announcements/formatted-text';
+import { AnnouncementFilePicker } from '@/components/announcements/announcement-attachments';
 
 const announcementTypes = [
   { value: 'circular', label: 'Circular', icon: BookOpen, description: 'Official circulars and announcements' },
@@ -42,6 +44,9 @@ export default function AdminCreateAnnouncementPage() {
   const { toast } = useToast();
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [titleFormat, setTitleFormat] = useState(emptyAnnouncementFormat);
+  const [contentFormat, setContentFormat] = useState(emptyAnnouncementFormat);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const { t } = useI18n();
 
   // Class selection state
@@ -130,11 +135,24 @@ export default function AdminCreateAnnouncementPage() {
         target_classes: formData.target_classes,
         publish_at: new Date(`${formData.announcement_date}T${formData.announcement_time}`).toISOString(),
         expires_at: new Date(`${formData.announcement_date}T${formData.announcement_time}`).toISOString(),
+        title_format: titleFormat,
+        content_format: contentFormat,
       };
 
       const response = await api.createAnnouncement(payload);
 
       if (response.status === 'success') {
+        if (attachmentFiles.length > 0) {
+          try {
+            await api.uploadAttachments(response.data.announcement.id, attachmentFiles);
+          } catch (attachmentError) {
+            toast({
+              title: t('announcements.attachments.uploadFailed', 'Announcement created, but file upload failed'),
+              description: attachmentError instanceof Error ? attachmentError.message : t('announcements.attachments.retryEdit', 'You can retry from the edit page.'),
+              variant: 'error',
+            });
+          }
+        }
         toast({
           title: t('common.success', 'Success'),
           description: t('announcements.create.autoApproved', 'Announcement created and auto-approved successfully'),
@@ -303,21 +321,26 @@ export default function AdminCreateAnnouncementPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">{t('announcements.create.titleLabel', 'Title *')}</Label>
-                <Input
+                <FormattedTextEditor
                   id="title"
                   value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  format={titleFormat}
+                  onChange={(title) => setFormData(prev => ({ ...prev, title }))}
+                  onFormatChange={setTitleFormat}
                   placeholder={t('announcements.create.titlePlaceholder', 'Enter announcement title')}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="content">{t('announcements.create.contentLabel', 'Content *')}</Label>
-                <Textarea
+                <FormattedTextEditor
                   id="content"
                   value={formData.content}
-                  onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+                  format={contentFormat}
+                  onChange={(content) => setFormData(prev => ({ ...prev, content }))}
+                  onFormatChange={setContentFormat}
                   placeholder={t('announcements.create.contentPlaceholder', 'Enter announcement content')}
+                  multiline
                   rows={6}
                 />
               </div>
@@ -364,6 +387,16 @@ export default function AdminCreateAnnouncementPage() {
                   </Select>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('announcements.attachments.title', 'Attachments')}</CardTitle>
+              <CardDescription>{t('announcements.attachments.createDescription', 'Files will be uploaded after the announcement is created.')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AnnouncementFilePicker files={attachmentFiles} onChange={setAttachmentFiles} disabled={loading} />
             </CardContent>
           </Card>
 

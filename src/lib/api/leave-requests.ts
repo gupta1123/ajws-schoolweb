@@ -2,7 +2,11 @@ import { apiClient, ApiResponse, ApiErrorResponse, ApiResponseWithCache } from '
 import type {
   CreateLeaveRequest,
   UpdateLeaveRequestStatus,
-  ListLeaveRequestsParams
+  ListLeaveRequestsParams,
+  TeacherLeaveRequest,
+  TeacherLeaveRequestPayload,
+  ListTeacherLeaveRequestsParams,
+  LeaveRequestPagination,
 } from '@/types/leave-requests';
 
 export const leaveRequestServices = {
@@ -81,5 +85,59 @@ export const leaveRequestServices = {
       `/api/leave-requests/teacher/class${queryString}`,
       token
     );
-  }
+  },
+
+  createTeacherLeave: async (
+    data: TeacherLeaveRequestPayload,
+    token: string
+  ): Promise<ApiResponse<{ leave_request: TeacherLeaveRequest }> | ApiErrorResponse | Blob> => {
+    return apiClient.post<{ leave_request: TeacherLeaveRequest }, TeacherLeaveRequestPayload>(
+      '/api/leave-requests/teacher',
+      data,
+      token
+    );
+  },
+
+  listMyTeacherLeaves: async (
+    params: ListTeacherLeaveRequestsParams = {},
+    token: string
+  ): Promise<ApiResponseWithCache<{
+    leave_requests: TeacherLeaveRequest[];
+    pagination?: LeaveRequestPagination;
+  }> | ApiErrorResponse | Blob> => {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, String(value));
+      }
+    });
+    const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    const response = await apiClient.get<{
+      leave_requests: TeacherLeaveRequest[];
+      pagination?: LeaveRequestPagination;
+    }>(`/api/leave-requests/teacher/my${queryString}`, token);
+    return response as ApiResponseWithCache<{
+      leave_requests: TeacherLeaveRequest[];
+      pagination?: LeaveRequestPagination;
+    }> | ApiErrorResponse | Blob;
+  },
+
+  updateTeacherLeave: async (
+    id: string,
+    data: TeacherLeaveRequestPayload,
+    token: string
+  ): Promise<ApiResponse<{ leave_request: TeacherLeaveRequest }> | ApiErrorResponse> => {
+    return apiClient.put<{ leave_request: TeacherLeaveRequest }, TeacherLeaveRequestPayload>(
+      `/api/leave-requests/teacher/${id}`,
+      data,
+      token
+    );
+  },
+
+  deleteTeacherLeave: async (
+    id: string,
+    token: string
+  ): Promise<ApiResponse<Record<string, never>> | ApiErrorResponse> => {
+    return apiClient.delete<Record<string, never>>(`/api/leave-requests/teacher/${id}`, token);
+  },
 };

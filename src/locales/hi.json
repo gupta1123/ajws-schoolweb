@@ -761,7 +761,20 @@
     "createHomework": "गृहकार्य बनाएँ",
     "recordClasswork": "कक्षा कार्य रिकॉर्ड करें",
     "gradeSubmissions": "सबमिशन ग्रेड करें",
-    "viewReports": "रिपोर्ट देखें"
+    "viewReports": "रिपोर्ट देखें",
+    "principal": {
+      "title": "आज का गृहकार्य",
+      "subtitle": "सभी कक्षाओं में दिया गया दैनिक गृहकार्य",
+      "assignments": "असाइनमेंट",
+      "fetchFailed": "गृहकार्य डेटा प्राप्त करने में विफल",
+      "noHomework": "आज कोई गृहकार्य नहीं दिया गया",
+      "checkBack": "नए असाइनमेंट के लिए बाद में जाँचें",
+      "students": "छात्र",
+      "noStudentsAssigned": "कोई छात्र नियुक्त नहीं",
+      "due": "देय",
+      "attachments": "अटैचमेंट",
+      "viewAll": "सभी गृहकार्य देखें"
+    }
   },
   "homeworkTeacher": {
     "authRequired": "इस पृष्ठ तक पहुँचने के लिए लॉग इन करें।",

@@ -64,3 +64,33 @@ export function isHomeworkVisibleByExpiry(homework: {
 
   return Date.now() < createdAt.getTime() + HOMEWORK_NO_DUE_DATE_VISIBLE_DAYS * MS_PER_DAY;
 }
+
+/**
+ * Mirrors the homework API's canonical ordering: newest creation first, then
+ * latest due date when creation timestamps are equal.
+ */
+export function sortHomeworkLatestFirst<T extends {
+  created_at?: string | null;
+  due_date?: string | null;
+}>(items: T[]): T[] {
+  const timestamp = (value?: string | null) => {
+    if (!value) return 0;
+    const parsed = new Date(value).getTime();
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+
+  return [...items].sort((a, b) => {
+    const createdDifference = timestamp(b.created_at) - timestamp(a.created_at);
+    if (createdDifference !== 0) return createdDifference;
+    return timestamp(b.due_date) - timestamp(a.due_date);
+  });
+}
+
+export function isDateOnLocalDay(value: string | Date, day: Date): boolean {
+  const candidate = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(candidate.getTime())) return false;
+
+  return candidate.getFullYear() === day.getFullYear()
+    && candidate.getMonth() === day.getMonth()
+    && candidate.getDate() === day.getDate();
+}

@@ -12,6 +12,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth/context';
+import { createAnnouncementsAPI, type Announcement as ApiAnnouncement, type AnnouncementType } from '@/lib/api/announcements';
+import { FormattedTextEditor, emptyAnnouncementFormat } from '@/components/announcements/formatted-text';
+import { AnnouncementAttachments } from '@/components/announcements/announcement-attachments';
 
 
 
@@ -35,7 +38,7 @@ const targetRoles = [
   { value: 'student', label: 'Specific Class Parents' },
 ];
 
-interface Announcement {
+interface Announcement extends Pick<ApiAnnouncement, 'title_format' | 'content_format'> {
   id: string;
   title: string;
   content: string;
@@ -45,6 +48,7 @@ interface Announcement {
   target_classes: string[];
   publish_at: string;
   expires_at: string;
+  status: 'pending' | 'approved' | 'rejected';
 }
 
 const getSupportedAnnouncementType = (type: string) => {
@@ -59,6 +63,8 @@ export default function EditAnnouncementPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
+  const [titleFormat, setTitleFormat] = useState(emptyAnnouncementFormat);
+  const [contentFormat, setContentFormat] = useState(emptyAnnouncementFormat);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -101,6 +107,8 @@ export default function EditAnnouncementPage() {
           announcement_date: publishDate.toISOString().split('T')[0],
           announcement_time: publishDate.toTimeString().slice(0, 5),
         });
+        setTitleFormat(fetchedAnnouncement.title_format || emptyAnnouncementFormat());
+        setContentFormat(fetchedAnnouncement.content_format || emptyAnnouncementFormat());
       } else {
         throw new Error(data.message || 'Failed to fetch announcement');
       }
@@ -181,24 +189,18 @@ export default function EditAnnouncementPage() {
       const payload = {
         title: formData.title,
         content: formData.content,
-        announcement_type: formData.announcement_type,
-        priority: formData.priority,
+        announcement_type: formData.announcement_type as AnnouncementType,
+        priority: formData.priority as 'low' | 'medium' | 'high',
         target_roles: formData.target_roles,
         target_classes: formData.target_classes,
         publish_at: new Date(`${formData.announcement_date}T${formData.announcement_time}`).toISOString(),
         expires_at: new Date(`${formData.announcement_date}T${formData.announcement_time}`).toISOString(),
+        title_format: titleFormat,
+        content_format: contentFormat,
       };
+      const response = await createAnnouncementsAPI(token!).editAnnouncement(announcement.id, payload);
 
-      const response = await fetch(`https://ajws-school-ba8ae5e3f955.herokuapp.com/api/announcements/${params.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
+      if (response.status === 'success') {
         toast({
           title: 'Success',
           description: 'Announcement updated successfully',
@@ -306,21 +308,26 @@ export default function EditAnnouncementPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title *</Label>
-                <Input
+                <FormattedTextEditor
                   id="title"
                   value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  format={titleFormat}
+                  onChange={(title) => setFormData(prev => ({ ...prev, title }))}
+                  onFormatChange={setTitleFormat}
                   placeholder="Enter announcement title"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="content">Content *</Label>
-                <Textarea
+                <FormattedTextEditor
                   id="content"
                   value={formData.content}
-                  onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+                  format={contentFormat}
+                  onChange={(content) => setFormData(prev => ({ ...prev, content }))}
+                  onFormatChange={setContentFormat}
                   placeholder="Enter announcement content"
+                  multiline
                   rows={6}
                 />
               </div>
@@ -369,6 +376,18 @@ export default function EditAnnouncementPage() {
               </div>
             </CardContent>
           </Card>
+
+          {announcement && token && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Attachments</CardTitle>
+                <CardDescription>Upload, download, or remove files attached to this announcement.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AnnouncementAttachments announcementId={announcement.id} token={token} canManage={announcement.status === 'pending'} />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Scheduling */}
           <Card>

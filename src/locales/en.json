@@ -548,7 +548,20 @@
     "createHomework": "Create Homework",
     "recordClasswork": "Record Classwork",
     "gradeSubmissions": "Grade Submissions",
-    "viewReports": "View Reports"
+    "viewReports": "View Reports",
+    "principal": {
+      "title": "Today's Homework",
+      "subtitle": "Daily homework assigned across all classes",
+      "assignments": "assignments",
+      "fetchFailed": "Failed to fetch homework data",
+      "noHomework": "No homework assigned today",
+      "checkBack": "Check back later for new assignments",
+      "students": "students",
+      "noStudentsAssigned": "No students assigned",
+      "due": "Due",
+      "attachments": "attachments",
+      "viewAll": "View All Homework"
+    }
   },
   "homeworkTeacher": {
     "authRequired": "Please log in to access this page.",
