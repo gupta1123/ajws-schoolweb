@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/lib/auth/context';
 import { staffServices } from '@/lib/api';
+import { invalidateStaffCache } from '@/lib/api/staff';
 import type { Staff, CreateStaffRequest, CreateStaffWithUserRequest, UpdateStaffRequest } from '@/types/staff';
 
 interface TeacherClassesResponse {
@@ -136,12 +137,15 @@ export const useStaff = (): UseStaffReturn => {
       setError(null);
       
       // Fetch staff list
-      const staffResponse = await staffServices.getStaff(token, params);
+      // the teachers mapping is independent of the list, so ask for both at once
+      const teachersRequest = staffServices.getTeachersMapping(token);
+      teachersRequest.catch(() => {});
+      const staffResponse = await staffServices.getStaff(token, { limit: 200, ...params });
       
       if (staffResponse.status === 'success') {
         // Fetch teachers mapping to get teacher_id for each staff member
         try {
-          const teachersResponse = await staffServices.getTeachersMapping(token);
+          const teachersResponse = await teachersRequest;
           
           if (teachersResponse.status === 'success') {
             // Create a map of staff_id/user_id to teacher data (includes subjects_taught)
@@ -338,6 +342,7 @@ export const useStaff = (): UseStaffReturn => {
 
   // Refresh staff list
   const refreshStaff = useCallback(async () => {
+    invalidateStaffCache(); // an explicit refresh always goes to the server
     await fetchStaff();
   }, [fetchStaff]);
 

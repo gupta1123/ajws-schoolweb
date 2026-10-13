@@ -1,17 +1,20 @@
 // src/components/students/create-parent-modal.tsx
+//
+// Quick "new parent" form, opened from the Link parent panel. When an
+// admission number is passed the new parent is linked to that student at once.
 
 'use client';
 
-import { useState } from 'react';
-
+import { useState, type FormEvent } from 'react';
+import { Eye, EyeOff, Loader2, Shuffle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { User, Phone, Mail, Lock, X, Loader2, CheckCircle } from 'lucide-react';
-import { parentServices, CreateParentRequest } from '@/lib/api/parents';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { FieldShell, TextField } from '@/components/staff/staff-fields';
+import { generatePassword } from '@/components/staff/staff-form';
+import { parentServices, type CreateParentRequest } from '@/lib/api/parents';
 import { useAuth } from '@/lib/auth/context';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/context';
 
 interface CreateParentModalProps {
@@ -22,222 +25,128 @@ interface CreateParentModalProps {
   relationship?: string;
 }
 
+const empty = { full_name: '', phone_number: '', email: '', initial_password: '' };
+
 export function CreateParentModal({ isOpen, onClose, onSuccess, studentAdmissionNumber, relationship }: CreateParentModalProps) {
   const { token } = useAuth();
   const { t } = useI18n();
-  const [formData, setFormData] = useState({
-    full_name: '',
-    phone_number: '',
-    email: '',
-    initial_password: ''
-  });
-  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+  const [form, setForm] = useState(empty);
+  const [showPassword, setShowPassword] = useState(false);
+  const [touched, setTouched] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  const set = (key: keyof typeof empty, value: string) => setForm((f) => ({ ...f, [key]: value }));
+
+  const errors = {
+    full_name: form.full_name.trim() ? '' : t('parents.errors.name', 'Enter the parent’s name.'),
+    phone_number: form.phone_number.replace(/\D/g, '').length >= 10 ? '' : t('parents.errors.phone', 'Enter a 10-digit phone number.'),
+    email: form.email.trim() && !/^\S+@\S+\.\S+$/.test(form.email.trim()) ? t('staff.form.errors.email', 'Enter a valid email address.') : '',
+    initial_password: form.initial_password.length >= 6 ? '' : t('staff.form.errors.password', 'Use at least 6 characters.'),
   };
+  const invalid = Object.values(errors).some(Boolean);
+  const show = (m: string) => (touched && m ? m : undefined);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!token) return;
-
-    setIsLoading(true);
+  const close = () => {
+    if (saving) return;
+    setForm(empty);
+    setTouched(false);
     setError(null);
-
-    try {
-      const parentData: CreateParentRequest = {
-        full_name: formData.full_name.trim(),
-        phone_number: formData.phone_number.trim(),
-        ...(formData.email.trim() && { email: formData.email.trim() }),
-        initial_password: formData.initial_password.trim(),
-        ...(studentAdmissionNumber && relationship && {
-          student_details: [{
-            admission_number: studentAdmissionNumber,
-            relationship: relationship,
-            is_primary_guardian: true
-          }]
-        })
-      };
-
-      const response = await parentServices.createParent(parentData, token);
-
-      // Handle Blob response (shouldn't happen for JSON endpoints)
-      if (response instanceof Blob) {
-        throw new Error('Unexpected response format from API');
-      }
-
-      // Handle error response
-      if ('status' in response && response.status === 'error') {
-        throw new Error(response.message || 'Failed to create parent');
-      }
-
-      // Handle successful response
-      if ('status' in response && response.status === 'success') {
-        toast({
-          title: t('timetable.toasts.success'),
-          description: t('parents.created'),
-        });
-
-        // Reset form
-        setFormData({ full_name: '', phone_number: '', email: '', initial_password: '' });
-
-        // Call success callback if provided
-        if (onSuccess && response.data?.parent?.id) {
-          onSuccess(response.data.parent.id);
-        }
-
-        onClose();
-      } else {
-        throw new Error('Failed to create parent');
-      }
-    } catch (err) {
-      console.error('Error creating parent:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create parent';
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
+    setShowPassword(false);
+    onClose();
   };
 
-  const handleClose = () => {
-    if (!isLoading) {
-      setFormData({ full_name: '', phone_number: '', email: '', initial_password: '' });
-      setError(null);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!token || saving) return;
+    setTouched(true);
+    if (invalid) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const body: CreateParentRequest = {
+        full_name: form.full_name.trim(),
+        phone_number: form.phone_number.trim(),
+        ...(form.email.trim() && { email: form.email.trim() }),
+        initial_password: form.initial_password,
+        ...(studentAdmissionNumber && relationship && { student_details: [{ admission_number: studentAdmissionNumber, relationship, is_primary_guardian: true }] }),
+      };
+      const r = await parentServices.createParent(body, token);
+      if (r instanceof Blob) throw new Error();
+      if ('status' in r && r.status === 'error') throw new Error(r.message);
+      if (!('status' in r) || r.status !== 'success') throw new Error();
+      toast({ title: t('parents.created', 'Parent created successfully'), variant: 'success' });
+      const id = r.data?.parent?.id;
+      setForm(empty);
+      setTouched(false);
+      setShowPassword(false);
       onClose();
+      if (id) onSuccess?.(id);
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : t('parents.createFailed', 'Could not create the parent'));
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={(o) => !o && close()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            {t('parents.createTitle')}
-          </DialogTitle>
-          <DialogDescription>
-            {t('parents.createSubtitle')}
-          </DialogDescription>
+          <DialogTitle>{t('parents.createTitle', 'Create Parent')}</DialogTitle>
+          <DialogDescription>{t('parents.createSubtitle', 'Add a parent account. They sign in with their phone number.')}</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="full_name" className="text-sm font-medium">
-              {t('settings.fullName')} *
-            </Label>
-            <div className="relative">
-              <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                id="full_name"
-                name="full_name"
-                value={formData.full_name}
-                onChange={handleInputChange}
-                placeholder={t('parents.enterFullName')}
-                className="pl-10"
-                required
-                disabled={isLoading}
-              />
+        <form onSubmit={submit} noValidate className="space-y-4">
+          <TextField id="np-name" label={t('settings.fullName', 'Full Name')} value={form.full_name} onChange={(v) => set('full_name', v)} error={show(errors.full_name)} autoFocus placeholder={t('parents.enterFullName', 'Enter full name')} />
+          <TextField id="np-phone" type="tel" label={t('auth.phoneNumber', 'Phone Number')} value={form.phone_number} onChange={(v) => set('phone_number', v)} error={show(errors.phone_number)} placeholder={t('parents.enterPhone', 'Enter phone number')} />
+          <TextField id="np-email" type="email" optional label={t('staff.form.labels.email', 'Email')} value={form.email} onChange={(v) => set('email', v)} error={show(errors.email)} />
+          <FieldShell label={t('parents.initialPassword', 'Initial Password')} htmlFor="np-password" error={show(errors.initial_password)}>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  id="np-password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  value={form.initial_password}
+                  onChange={(e) => set('initial_password', e.target.value)}
+                  className="pr-10"
+                  aria-invalid={touched && Boolean(errors.initial_password)}
+                />
+                <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 size-9 text-muted-foreground" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? t('staff.form.hidePassword', 'Hide password') : t('staff.form.showPassword', 'Show password')}>
+                  {showPassword ? <EyeOff /> : <Eye />}
+                </Button>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  set('initial_password', generatePassword());
+                  setShowPassword(true);
+                }}
+              >
+                <Shuffle />
+                {t('staff.form.generate', 'Generate')}
+              </Button>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="phone_number" className="text-sm font-medium">
-              {t('auth.phoneNumber')} *
-            </Label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                id="phone_number"
-                name="phone_number"
-                type="tel"
-                value={formData.phone_number}
-                onChange={handleInputChange}
-                placeholder={t('parents.enterPhone')}
-                className="pl-10"
-                required
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm font-medium">
-              {t('parents.emailOptional')}
-            </Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder={t('parents.enterEmail')}
-                className="pl-10"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="initial_password" className="text-sm font-medium">
-              {t('parents.initialPassword')} *
-            </Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                id="initial_password"
-                name="initial_password"
-                type="password"
-                value={formData.initial_password}
-                onChange={handleInputChange}
-                placeholder={t('parents.enterInitialPassword')}
-                className="pl-10"
-                required
-                disabled={isLoading}
-              />
-            </div>
-          </div>
+          </FieldShell>
 
           {error && (
-            <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+            <p role="alert" className="text-sm text-tone-danger">
               {error}
-            </div>
+            </p>
           )}
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={isLoading}
-            >
-              <X className="h-4 w-4 mr-2" />
-              {t('actions.cancel')}
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={close} disabled={saving}>
+              {t('actions.cancel', 'Cancel')}
             </Button>
-            <Button
-              type="submit"
-              disabled={isLoading || !formData.full_name || !formData.phone_number || !formData.initial_password}
-              className="bg-primary hover:bg-primary/90"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {t('parents.creating')}
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  {t('parents.createParent')}
-                </>
-              )}
+            <Button type="submit" disabled={saving}>
+              {saving && <Loader2 className="animate-spin" />}
+              {saving ? t('parents.creating', 'Creating...') : t('parents.createParent', 'Create Parent')}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

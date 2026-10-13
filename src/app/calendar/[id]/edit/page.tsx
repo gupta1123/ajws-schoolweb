@@ -9,6 +9,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { EventCreationWizard } from '@/components/calendar/event-creation-wizard';
 import { calendarServices, type CalendarEvent } from '@/lib/api/calendar';
 import { toast } from '@/hooks/use-toast';
+import { FormSkeleton } from '@/components/calendar/form-skeleton';
 
 interface EventFormData {
   title: string;
@@ -19,6 +20,7 @@ interface EventFormData {
   startTime: string;
   endTime: string;
   classDivisionIds: string[];
+  eventCategory: CalendarEvent['event_category'];
 }
 
 // Component that uses dynamic routing - must be wrapped in Suspense
@@ -100,13 +102,9 @@ function EditEventContent({ params }: { params: Promise<{ id: string }> }) {
         is_single_day: true, // Always true since we're editing a single-day event
         start_time: data.isFullDay ? undefined : `${data.startTime}:00`, // Add seconds to match API format
         end_time: data.isFullDay ? undefined : `${data.endTime}:00`, // Add seconds to match API format
-        event_category: 'general',
+        event_category: data.eventCategory,
         timezone: 'Asia/Kolkata'
       };
-
-      // Debug: log the update data being sent
-      console.log('Update data being sent:', updateData);
-      console.log('Original form data:', data);
 
       // Add class division information if class specific
       if (data.eventType === 'class_specific') {
@@ -168,28 +166,17 @@ function EditEventContent({ params }: { params: Promise<{ id: string }> }) {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100 mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading event details...</p>
-        </div>
-      </div>
-    );
+    return <FormSkeleton label="Loading event details..." />;
   }
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen p-4 md:p-6">
-        <main className="max-w-7xl mx-auto pt-6">
-          <EventCreationWizard 
-            event={event || undefined}
-            onSubmit={handleSubmit}
-            onCancel={handleCancel}
-            isLoading={saving}
-          />
-        </main>
-      </div>
+      <EventCreationWizard
+        event={event || undefined}
+        onSubmit={handleSubmit}
+        onCancel={handleCancel}
+        isLoading={saving}
+      />
     </ProtectedRoute>
   );
 }
@@ -197,14 +184,7 @@ function EditEventContent({ params }: { params: Promise<{ id: string }> }) {
 // Main page component that wraps the content in Suspense
 export default function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100 mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading edit event page...</p>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<FormSkeleton label="Loading..." />}>
       <EditEventContent params={params} />
     </Suspense>
   );

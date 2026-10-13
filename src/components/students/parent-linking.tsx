@@ -1,31 +1,24 @@
 // src/components/students/parent-linking.tsx
+//
+// Body of the "Link parent" side panel: find a parent, pick how they relate to
+// the student, link them. Fills the height of its container, with the
+// relationship picker and buttons pinned to the bottom.
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Check, Loader2, Plus, Search, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table';
-import { AlertCircle, CheckCircle, Search, Loader2, Plus } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState, IconChip, Pill } from '@/components/ui/page-kit';
+import { PickField } from '@/components/students/student-fields';
+import { initialsOf } from '@/components/staff/staff-form';
 import { parentServices } from '@/lib/api/parents';
 import { useAuth } from '@/lib/auth/context';
+import { useI18n } from '@/lib/i18n/context';
+import { type } from '@/lib/design/tokens';
+import { cn } from '@/lib/utils';
 import { CreateParentModal } from './create-parent-modal';
 
 interface ParentData {
@@ -33,411 +26,205 @@ interface ParentData {
   full_name: string;
   phone_number: string;
   email: string | null;
-  role: string;
-  created_at?: string;
-  children?: Array<{
-    id: string;
-    full_name: string;
-    admission_number: string;
-    class_division?: {
-      division: string;
-      level: {
-        name: string;
-        sequence_number: number;
-      };
-    };
-  }>;
+  children?: Array<{ id: string; full_name: string }>;
 }
 
 interface ParentLinkingProps {
-  onLinkParent: (parentId: string, relationship: string, isPrimary: boolean, accessLevel: string) => void;
+  onLinkParent: (parentId: string, relationship: string, isPrimary: boolean, accessLevel: string) => void | Promise<void>;
   onCancel: () => void;
-  existingParentMappings?: Array<{
-    relationship: string;
-    parent: {
-      id: string;
-      full_name: string;
-    };
-  }>;
+  existingParentMappings?: Array<{ relationship: string; parent: { id: string; full_name: string } }>;
   studentAdmissionNumber?: string;
   relationship?: string;
+  /** called when a parent created here was linked to the student straight away */
+  onParentCreated?: () => void | Promise<void>;
 }
 
-export function ParentLinking({ onLinkParent, onCancel, existingParentMappings = [], studentAdmissionNumber, relationship }: ParentLinkingProps) {
+const RELATIONSHIPS = ['father', 'mother', 'guardian', 'grandparent', 'other'] as const;
+
+export function ParentLinking({ onLinkParent, onCancel, existingParentMappings = [], studentAdmissionNumber, relationship, onParentCreated }: ParentLinkingProps) {
   const { token } = useAuth();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchType, setSearchType] = useState<'name' | 'phone' | 'email'>('name');
-  const [selectedParentId, setSelectedParentId] = useState('');
-  const [selectedRelationship, setSelectedRelationship] = useState('father');
-  const [isPrimary] = useState(true); // Default to primary guardian
-  const [accessLevel] = useState('full'); // Default to full access
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<boolean>(false);
+  const { t } = useI18n();
+
+  const [query, setQuery] = useState('');
   const [parents, setParents] = useState<ParentData[]>([]);
-  const [filteredParents, setFilteredParents] = useState<ParentData[]>([]);
-  const [showCreateParent, setShowCreateParent] = useState(false);
+  const [found, setFound] = useState<ParentData[] | null>(null); // server results for the current query
+  const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchParents = useCallback(async () => {
-    if (!token) return;
+  const [selected, setSelected] = useState('');
+  const [rel, setRel] = useState('father');
+  const [linking, setLinking] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
-    try {
-      setIsSearching(true);
-      const response = await parentServices.getAllParents(token, { limit: 10 });
+  const fetchParents = useCallback(
+    async (search?: string) => {
+      if (!token) return null;
+      const r = await parentServices.getAllParents(token, search ? { search, limit: 50 } : { limit: 10 });
+      if (r instanceof Blob || !('status' in r) || r.status !== 'success' || !r.data) throw new Error();
+      return (r.data.parents ?? []) as ParentData[];
+    },
+    [token]
+  );
 
-      // Handle Blob response (shouldn't happen for JSON endpoints)
-      if (response instanceof Blob) {
-        setError('Unexpected response format from API');
-        return;
-      }
+  const loadInitial = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    fetchParents()
+      .then((list) => list && setParents(list))
+      .catch(() => setError(t('students.link.loadFailed', 'Could not load parents. Please try again.')))
+      .finally(() => setLoading(false));
+  }, [fetchParents, t]);
 
-      // Handle error response
-      if ('status' in response && response.status === 'error') {
-        setError(response.message || 'Failed to fetch parents. Please try again.');
-        return;
-      }
-
-      // Handle successful response
-      if ('status' in response && response.status === 'success' && response.data) {
-        setParents(response.data.parents || []);
-        setFilteredParents(response.data.parents || []);
-      } else {
-        setError('Failed to fetch parents. Please try again.');
-      }
-    } catch (err) {
-      console.error('Error fetching parents:', err);
-      setError('Failed to fetch parents. Please try again.');
-    } finally {
-      setIsSearching(false);
-    }
+  useEffect(() => {
+    loadInitial();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  // Fetch parents when component mounts
+  // instant filter on what is already loaded, then a server search to find the rest
+  const term = query.trim().toLowerCase();
+  const local = useMemo(
+    () => (term ? parents.filter((p) => p.full_name.toLowerCase().includes(term) || p.phone_number.includes(term) || (p.email ?? '').toLowerCase().includes(term)) : parents),
+    [parents, term]
+  );
+
   useEffect(() => {
-    if (token) {
-      fetchParents();
-    }
-  }, [token, fetchParents]);
+    setFound(null);
+    if (!term) return;
+    setSearching(true);
+    const timer = setTimeout(() => {
+      fetchParents(query.trim())
+        .then((list) => setFound(list))
+        .catch(() => setFound(null))
+        .finally(() => setSearching(false));
+    }, 350);
+    return () => {
+      clearTimeout(timer);
+      setSearching(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [term]);
 
-  // Filter parents when search term changes
+  const results = term ? found ?? local : parents;
+
+  // relationships the student already has can't be used twice
+  const available = RELATIONSHIPS.filter((r) => !existingParentMappings.some((m) => m.relationship === r));
   useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredParents(parents);
-    } else {
-      const filtered = parents.filter(parent =>
-        parent.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        parent.phone_number.includes(searchTerm) ||
-        (parent.email && parent.email.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-      setFilteredParents(filtered);
-    }
-  }, [searchTerm, parents]);
+    if (available.length > 0 && !available.includes(rel as (typeof RELATIONSHIPS)[number])) setRel(available[0]);
+  }, [available, rel]);
 
-  // Get available relationships (filter out existing ones)
-  const getAvailableRelationships = useCallback(() => {
-    const allRelationships = [
-      { value: 'father', label: 'Father' },
-      { value: 'mother', label: 'Mother' },
-      { value: 'guardian', label: 'Guardian' },
-      { value: 'grandparent', label: 'Grandparent' },
-      { value: 'other', label: 'Other' }
-    ];
-
-    // Filter out relationships that already exist
-    return allRelationships.filter(rel =>
-      !existingParentMappings.some(mapping => mapping.relationship === rel.value)
-    );
-  }, [existingParentMappings]);
-
-  // Update relationship when existing mappings change
-  useEffect(() => {
-    const availableRelationships = getAvailableRelationships();
-    if (availableRelationships.length > 0 && !availableRelationships.some(rel => rel.value === selectedRelationship)) {
-      setSelectedRelationship(availableRelationships[0].value);
-    }
-  }, [existingParentMappings, selectedRelationship, getAvailableRelationships]);
-
-  const handleSearch = async () => {
-    if (!token || !searchTerm.trim()) return;
-
+  const link = async () => {
+    if (!selected || linking) return;
+    setLinking(true);
     try {
-      setIsSearching(true);
-      const response = await parentServices.getAllParents(token, { 
-        search: searchTerm.trim(),
-        limit: 50 
-      });
-
-      // Handle Blob response (shouldn't happen for JSON endpoints)
-      if (response instanceof Blob) {
-        setError('Unexpected response format from API');
-        return;
-      }
-
-      // Handle error response
-      if ('status' in response && response.status === 'error') {
-        setError(response.message || 'Search failed. Please try again.');
-        return;
-      }
-
-      // Handle successful response
-      if ('status' in response && response.status === 'success' && response.data) {
-        setFilteredParents(response.data.parents || []);
-      } else {
-        setError('Search failed. Please try again.');
-      }
-    } catch (err) {
-      console.error('Error searching parents:', err);
-      setError('Search failed. Please try again.');
+      await onLinkParent(selected, rel, true, 'full');
     } finally {
-      setIsSearching(false);
+      setLinking(false);
     }
   };
 
-  const handleLinkParent = () => {
-    if (!selectedParentId) {
-      setError('Please select a parent');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      onLinkParent(selectedParentId, selectedRelationship, isPrimary, accessLevel);
-      setSuccess(true);
-      // Reset success after 2 seconds
-      setTimeout(() => {
-        setSuccess(false);
-      }, 2000);
-    } catch {
-      setError('Failed to link parent. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCreateParentSuccess = (parentId: string) => {
-    // Refresh the parents list to include the newly created parent
-    fetchParents();
-    // Optionally select the newly created parent
-    setSelectedParentId(parentId);
-  };
-
-  const handleParentSelect = (parentId: string) => {
-    setSelectedParentId(parentId);
-  };
+  const relLabel = (r: string) => t(`students.relationship.${r}`, r.charAt(0).toUpperCase() + r.slice(1));
 
   return (
-    <div className="space-y-4">
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-      
-      {success && (
-        <Alert className="border-green-200 bg-green-50 text-green-800">
-          <CheckCircle className="h-4 w-4" />
-          <AlertDescription>Parent linked successfully!</AlertDescription>
-        </Alert>
-      )}
-      
-      {/* Search Section */}
-      <div className="space-y-2">
-        <div className="flex justify-between items-center">
-          <Label htmlFor="parent-search">Search Parents by {searchType.charAt(0).toUpperCase() + searchType.slice(1)}</Label>
-          <Button 
-            onClick={() => setShowCreateParent(true)}
-            variant="outline"
-            className="bg-primary hover:bg-primary/90 text-white border-primary"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Create Parent
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* search */}
+      <div className="flex gap-2 border-b p-4">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('students.link.search', 'Search by name, phone or email')} className="pl-8 pr-8" aria-label={t('students.link.search', 'Search by name, phone or email')} />
+          {query && (
+            <button type="button" onClick={() => setQuery('')} className="absolute right-1.5 top-1.5 rounded p-1 text-muted-foreground hover:text-foreground" aria-label={t('actions.clear', 'Clear')}>
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
+        <Button type="button" variant="outline" onClick={() => setCreateOpen(true)}>
+          <Plus />
+          {t('students.link.newParent', 'New parent')}
+        </Button>
+      </div>
+
+      {/* results */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <p className={cn(type.caption, 'px-5 pt-3')}>
+          {term ? t('students.link.found', '{n} found').replace('{n}', String(results.length)) : t('students.link.firstTen', 'Showing the first 10 parents. Search to find others.')}
+        </p>
+        {error ? (
+          <div className="p-5">
+            <p role="alert" className="text-sm text-tone-danger">
+              {error}
+            </p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={loadInitial}>
+              {t('actions.refresh', 'Refresh')}
+            </Button>
+          </div>
+        ) : loading || (searching && found === null && local.length === 0) ? (
+          <div className="space-y-3 p-5">
+            {Array.from({ length: 5 }, (_, i) => (
+              <Skeleton key={i} className="h-11 w-full" />
+            ))}
+          </div>
+        ) : results.length === 0 ? (
+          <EmptyState icon={<Users />} title={t('students.link.none', 'No parents found')} help={t('students.link.noneHelp', 'Try another search, or add a new parent.')} />
+        ) : (
+          <ul role="radiogroup" aria-label={t('students.link.parents', 'Parents')} className="mt-2 divide-y border-y">
+            {results.map((p) => {
+              const on = selected === p.id;
+              const kids = p.children?.length ?? 0;
+              return (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => setSelected(p.id)}
+                    className={cn('flex w-full items-center gap-3 px-5 py-2.5 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring', on && 'bg-tone-primary-soft')}
+                  >
+                    <IconChip tone={on ? 'primary' : 'neutral'}>{initialsOf(p.full_name)}</IconChip>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{p.full_name}</span>
+                      <span className={cn(type.caption, 'block truncate')}>{[p.phone_number, p.email].filter(Boolean).join(' · ')}</span>
+                    </span>
+                    {kids > 0 && <Pill tone="neutral">{t('students.link.children', '{n} child(ren)').replace('{n}', String(kids))}</Pill>}
+                    {on && <Check className="size-4 shrink-0 text-tone-primary" />}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      {/* link */}
+      <div className="space-y-3 border-t bg-background p-4">
+        {available.length > 0 ? (
+          <PickField id="link-relationship" optional={false} label={t('students.link.relationship', 'Relationship')} value={rel} onChange={setRel} placeholder={t('students.detail.choose', 'Choose')} options={available.map((r) => ({ value: r, label: relLabel(r) }))} />
+        ) : (
+          <p className="text-sm text-tone-warning">{t('students.link.allUsed', 'All relationship types are already assigned to this student.')}</p>
+        )}
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onCancel} disabled={linking}>
+            {t('actions.cancel', 'Cancel')}
+          </Button>
+          <Button onClick={link} disabled={!selected || linking || available.length === 0}>
+            {linking && <Loader2 className="animate-spin" />}
+            {linking ? t('students.link.linking', 'Linking...') : t('students.detail.linkParent', 'Link parent')}
           </Button>
         </div>
-        <div className="flex gap-2">
-          <Select value={searchType} onValueChange={(value) => {
-            setSearchType(value as 'name' | 'phone' | 'email');
-            setSearchTerm(''); // Clear search when changing type
-            setFilteredParents(parents); // Reset to initial parents
-          }}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="name">Name</SelectItem>
-              <SelectItem value="phone">Phone</SelectItem>
-              <SelectItem value="email">Email</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              id="parent-search"
-              placeholder={
-                searchType === 'name' ? 'Enter parent name...' :
-                searchType === 'phone' ? 'Enter phone number...' :
-                'Enter email address...'
-              }
-              className="pl-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              title={`Search parents by ${searchType}`}
-            />
-          </div>
-          {searchTerm && (
-            <Button 
-              onClick={() => {
-                setSearchTerm('');
-                setFilteredParents(parents);
-              }}
-              variant="ghost"
-              size="sm"
-              title="Clear search and show initial 10 parents"
-            >
-              Clear
-            </Button>
-          )}
-        </div>
-      </div>
-      
-      {/* Parents Table */}
-      <div className="space-y-2">
-        <div className="flex justify-between items-center">
-          <Label>Available Parents</Label>
-          {!searchTerm ? (
-            <span className="text-sm text-muted-foreground">
-              Showing first 10 parents. Use search to find more.
-            </span>
-          ) : (
-            <span className="text-sm text-muted-foreground">
-              Search results for {searchType}: &quot;{searchTerm}&quot; ({filteredParents.length} found)
-            </span>
-          )}
-        </div>
-        <div className="border rounded-md max-h-64 overflow-y-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Select</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Children</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isSearching ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                    <p>Searching parents...</p>
-                  </TableCell>
-                </TableRow>
-              ) : filteredParents.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    {searchTerm ? (
-                      <div className="space-y-2">
-                        <p>No parents found matching your search.</p>
-                        <p className="text-sm">Try a different search term or create a new parent.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <p>No parents available.</p>
-                        <p className="text-sm">Try searching by name, phone, or email, or create a new parent.</p>
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredParents.map((parent) => (
-                  <TableRow 
-                    key={parent.id}
-                    className={`cursor-pointer hover:bg-muted/50 ${
-                      selectedParentId === parent.id ? 'bg-muted' : ''
-                    }`}
-                    onClick={() => handleParentSelect(parent.id)}
-                  >
-                    <TableCell>
-                      <input
-                        type="radio"
-                        name="selectedParent"
-                        value={parent.id}
-                        checked={selectedParentId === parent.id}
-                        onChange={() => handleParentSelect(parent.id)}
-                        className="h-4 w-4 text-primary focus:ring-primary"
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">{parent.full_name}</TableCell>
-                    <TableCell>{parent.phone_number}</TableCell>
-                    <TableCell>{parent.email || 'Not provided'}</TableCell>
-                                         <TableCell>
-                       <Badge variant="outline">
-                         {parent.children?.length || 0} child{(parent.children?.length || 0) !== 1 ? 'ren' : ''}
-                       </Badge>
-                     </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-      
-      {/* Configuration Section - Only show when a parent is selected */}
-      {selectedParentId && (
-        <div className="space-y-4 border-t pt-4">
-          <div className="space-y-2">
-            <Label htmlFor="relationship">Relationship</Label>
-            <Select value={selectedRelationship} onValueChange={setSelectedRelationship}>
-              <SelectTrigger id="relationship">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {getAvailableRelationships().map((rel) => (
-                  <SelectItem key={rel.value} value={rel.value}>
-                    {rel.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {getAvailableRelationships().length === 0 && (
-              <p className="text-sm text-amber-600 dark:text-amber-400">
-                All relationship types are already assigned to this student.
-              </p>
-            )}
-          </div>
-          
-
-        </div>
-      )}
-      
-      {/* Action Buttons */}
-      <div className="flex justify-end gap-2 pt-4 border-t">
-        <Button 
-          variant="outline" 
-          onClick={onCancel}
-          disabled={isLoading}
-        >
-          Cancel
-        </Button>
-        <Button 
-          onClick={handleLinkParent}
-          disabled={isLoading || !selectedParentId}
-        >
-          {isLoading ? 'Linking...' : 'Link Parent'}
-        </Button>
       </div>
 
-      {/* Create Parent Modal */}
       <CreateParentModal
-        isOpen={showCreateParent}
-        onClose={() => setShowCreateParent(false)}
-        onSuccess={handleCreateParentSuccess}
+        isOpen={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onSuccess={(id) => {
+          // with an admission number the new parent is already linked to this student
+          if (studentAdmissionNumber && onParentCreated) {
+            void onParentCreated();
+            return;
+          }
+          loadInitial();
+          setSelected(id);
+        }}
         studentAdmissionNumber={studentAdmissionNumber}
         relationship={relationship}
       />

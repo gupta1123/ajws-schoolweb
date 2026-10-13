@@ -27,7 +27,10 @@
     "periodsPerDay": "periods/day",
     "managementTitle": "Timetable Management",
     "managementSubtitle": "Create and manage school timetables for all classes",
-    "tabs": { "overview": "Overview", "entries": "Manage Entries" },
+    "tabs": {
+      "overview": "Overview",
+      "entries": "Manage Entries"
+    },
     "kpi": {
       "activeConfigs": "Active Configs",
       "totalClasses": "Total Classes",
@@ -73,8 +76,14 @@
       "managementTitle": "Configuration Management",
       "managementHelp": "Select a configuration to manage timetable entries for that academic year. You can create multiple configurations for different academic years or school structures."
     },
-    "form": { "dayOfWeek": "Day of Week", "periodNumber": "Period Number" },
-    "entries": { "title": "Manage Timetable Entries", "subtitle": "Add and manage subjects, teachers, and schedules for each class" },
+    "form": {
+      "dayOfWeek": "Day of Week",
+      "periodNumber": "Period Number"
+    },
+    "entries": {
+      "title": "Manage Timetable Entries",
+      "subtitle": "Add and manage subjects, teachers, and schedules for each class"
+    },
     "selectClass": "Select Class",
     "addEntryTitle": "Add Timetable Entry",
     "addEntryDesc": "Add a new subject entry to the timetable",
@@ -102,7 +111,8 @@
     "delete": {
       "confirm": "Are you sure you want to delete this timetable entry?",
       "success": "Timetable entry deleted successfully",
-      "failed": "Failed to delete entry"
+      "failed": "Failed to delete entry",
+      "title": "Remove this entry?"
     },
     "teacherConflict": "Teacher Schedule Conflict"
   },
@@ -116,7 +126,12 @@
     "forWeek": "teaching timetable for the week",
     "noClasses": "No Classes Scheduled",
     "noClassesDesc": "You have no classes scheduled for {day}",
-    "table": { "period": "Period", "time": "Time", "subject": "Subject", "class": "Class" }
+    "table": {
+      "period": "Period",
+      "time": "Time",
+      "subject": "Subject",
+      "class": "Class"
+    }
   },
   "common": {
     "dashboard": "Dashboard",
@@ -152,7 +167,8 @@
     "teacher": "Teacher",
     "admin": "Admin",
     "principal": "Principal",
-    "this": "This"
+    "this": "This",
+    "accessDenied": "Access Denied"
   },
   "auth": {
     "title": "Sign in to your account",
@@ -171,28 +187,142 @@
       "title": "Dashboard",
       "subtitle": "Welcome back! Here's what's happening today."
     },
-    "staff": { "title": "Staff Management", "subtitle": "Manage school staff, teachers, and administrators." },
-    "students": { "title": "Student Management", "subtitle": "Manage student records, admissions, and academic progress." },
-    "homework": { "title": "Homework Management", "subtitle": "Create, assign, and track homework assignments." },
-    "classwork": { "title": "Classwork Management", "subtitle": "Track daily class activities and topics covered." },
-    "messaging": { "title": "School Communication Hub", "subtitle": "Connect instantly with parents, colleagues, and students through secure messaging." },
-    "calendar": { "title": "Calendar", "subtitle": "Manage school events, holidays, and important dates." },
-    "calendarCreate": { "title": "Create Event", "subtitle": "Add a new event to the school calendar." },
-    "calendarEdit": { "title": "Edit Event", "subtitle": "Modify event details and settings." },
-    "approvals": { "title": "Event Approvals", "subtitle": "Review and manage event approvals." },
-    "attendance": { "title": "Attendance", "subtitle": "Track student and staff attendance records." },
-    "leaveRequests": { "title": "Leave Requests", "subtitle": "Manage and approve leave requests from staff and students." },
-    "birthdays": { "title": "Birthdays", "subtitle": "Celebrate student and staff birthdays." },
-    "profile": { "title": "Profile", "subtitle": "Manage your account settings and preferences." },
-    "parents": { "title": "Parent Management", "subtitle": "Manage parent accounts and student relationships." },
-    "addParent": { "title": "Add New Parent", "subtitle": "Create a new parent account. Student linking is optional and can be done later." },
-    "addStudent": { "title": "Add New Student", "subtitle": "Add a new student to the school system." },
-    "studentDetails": { "title": "Student Details", "subtitle": "View comprehensive student information and records." },
-    "academicSetup": { "title": "Academic Setup", "subtitle": "Manage academic years, classes, divisions, and subjects." },
-    "editStudent": { "title": "Edit Student", "subtitle": "Update student information and details." },
-    "editStaff": { "title": "Edit Staff Member", "subtitle": "Update staff information and details." },
-    "staffDetails": { "title": "Staff Details", "subtitle": "View comprehensive staff information and assignments." },
-    "fallback": { "title": "Welcome", "subtitle": "Navigate to get started with your tasks." }
+    "staff": {
+      "title": "Staff Management",
+      "subtitle": "Manage school staff, teachers, and administrators."
+    },
+    "students": {
+      "title": "Student Management",
+      "subtitle": "Manage student records, admissions, and academic progress."
+    },
+    "homework": {
+      "title": "Homework Management",
+      "subtitle": "Create, assign, and track homework assignments."
+    },
+    "classwork": {
+      "title": "Classwork Management",
+      "subtitle": "Track daily class activities and topics covered."
+    },
+    "messaging": {
+      "title": "School Communication Hub",
+      "subtitle": "Connect instantly with parents, colleagues, and students through secure messaging."
+    },
+    "calendar": {
+      "title": "Calendar",
+      "subtitle": "Manage school events, holidays, and important dates."
+    },
+    "calendarCreate": {
+      "title": "Create Event",
+      "subtitle": "Add a new event to the school calendar."
+    },
+    "calendarEdit": {
+      "title": "Edit Event",
+      "subtitle": "Modify event details and settings."
+    },
+    "approvals": {
+      "title": "Event Approvals",
+      "subtitle": "Review and manage event approvals."
+    },
+    "attendance": {
+      "title": "Attendance",
+      "subtitle": "Track student and staff attendance records."
+    },
+    "leaveRequests": {
+      "title": "Leave Requests",
+      "subtitle": "Manage and approve leave requests from staff and students."
+    },
+    "birthdays": {
+      "title": "Birthdays",
+      "subtitle": "Celebrate student and staff birthdays."
+    },
+    "profile": {
+      "title": "Profile",
+      "subtitle": "Manage your account settings and preferences."
+    },
+    "parents": {
+      "title": "Parent Management",
+      "subtitle": "Manage parent accounts and student relationships."
+    },
+    "addParent": {
+      "title": "Add New Parent",
+      "subtitle": "Create a new parent account. Student linking is optional and can be done later."
+    },
+    "addStudent": {
+      "title": "Add New Student",
+      "subtitle": "Add a new student to the school system."
+    },
+    "studentDetails": {
+      "title": "Student Details",
+      "subtitle": "View comprehensive student information and records."
+    },
+    "academicSetup": {
+      "title": "Academic Setup",
+      "subtitle": "Manage academic years, classes, divisions, and subjects."
+    },
+    "editStudent": {
+      "title": "Edit Student",
+      "subtitle": "Update student information and details."
+    },
+    "editStaff": {
+      "title": "Edit Staff Member",
+      "subtitle": "Update staff information and details."
+    },
+    "staffDetails": {
+      "title": "Staff Details",
+      "subtitle": "View comprehensive staff information and assignments."
+    },
+    "fallback": {
+      "title": "Welcome",
+      "subtitle": "Navigate to get started with your tasks."
+    },
+    "announcements": {
+      "title": "Announcements",
+      "subtitle": "Create and manage school announcements."
+    },
+    "announcementCreate": {
+      "title": "Create Announcement",
+      "subtitle": "Write a new announcement for the school."
+    },
+    "announcementEdit": {
+      "title": "Edit Announcement",
+      "subtitle": "Update the details and save."
+    },
+    "announcementDetails": {
+      "title": "Announcement Details",
+      "subtitle": "Review the message, audience and status."
+    },
+    "timetable": {
+      "title": "Timetable",
+      "subtitle": "Weekly schedule for every class."
+    },
+    "homeworkCreate": {
+      "title": "Create Homework",
+      "subtitle": "Assign work to a class or to selected students."
+    },
+    "homeworkEdit": {
+      "title": "Edit Homework",
+      "subtitle": "Update the details or files for this homework."
+    },
+    "attendanceDetails": {
+      "title": "Attendance Details",
+      "subtitle": "Student-wise attendance for one class and day."
+    },
+    "foodMenu": {
+      "title": "Food Menu",
+      "subtitle": "Daily breakfast, lunch and snack for the whole school."
+    },
+    "foodMenuMonthly": {
+      "title": "Monthly Menus",
+      "subtitle": "Uploaded monthly menu files."
+    },
+    "foodMenuUpload": {
+      "title": "Upload Monthly Menu",
+      "subtitle": "Publish one menu file for a month."
+    },
+    "addStaff": {
+      "title": "Add Staff",
+      "subtitle": "Create a staff member and their login."
+    }
   },
   "messaging": {
     "title": "Teacher Messaging",
@@ -272,7 +402,10 @@
       "confirmDelete": "Are you sure you want to delete this event? This action cannot be undone.",
       "deleteSuccess": "Event deleted successfully",
       "deleteFailed": "Failed to delete event",
-      "tabs": { "calendar": "Calendar", "pending": "Pending Requests" }
+      "tabs": {
+        "calendar": "Calendar",
+        "pending": "Pending Requests"
+      }
     },
     "view": {
       "today": "Today",
@@ -281,14 +414,21 @@
       "day": "Day",
       "weekOf": "Week of",
       "noEventsToday": "No events scheduled for today",
-      "addEvent": "Add Event"
+      "addEvent": "Add Event",
+      "more": "more",
+      "allDay": "All day"
     },
     "form": {
       "createTitle": "Create New Event",
       "createSubtitle": "Fill in the details for your new event",
       "editTitle": "Edit Event",
       "editSubtitle": "Update the details for this event",
-      "section": { "details": "Event Details" },
+      "section": {
+        "details": "Event Details",
+        "basics": "Details",
+        "when": "When",
+        "audience": "Who is it for?"
+      },
       "labels": {
         "title": "Event Title",
         "description": "Description",
@@ -307,7 +447,10 @@
         "eventType": "Select event type",
         "category": "Select category"
       },
-      "actions": { "selectAll": "Select All", "deselectAll": "Deselect All" },
+      "actions": {
+        "selectAll": "Select All",
+        "deselectAll": "Deselect All"
+      },
       "loadingClasses": "Loading classes...",
       "noClasses": "No classes found.",
       "eventType": {
@@ -333,14 +476,35 @@
         "classes": "Classes:",
         "selected": "selected",
         "category": "Category:",
-        "notSelected": "Not selected"
+        "notSelected": "Not selected",
+        "classesShort": "classes"
       },
       "approvalRequiredTitle": "Approval Required",
       "approvalRequiredDesc": "All events require approval from the Principal before they appear on the calendar.",
       "creating": "Creating...",
       "updating": "Updating...",
       "create": "Create Event",
-      "update": "Update Event"
+      "update": "Update Event",
+      "eventTypeDesc": {
+        "school_wide": "Everyone in the school",
+        "class_specific": "Only selected classes",
+        "teacher_specific": "Teachers and staff only"
+      },
+      "errors": {
+        "endBeforeStart": "End time must be after the start time.",
+        "selectClass": "Select at least one class."
+      },
+      "untitled": "Untitled event",
+      "needsApproval": "Needs principal approval before it appears on the calendar",
+      "pickDate": "Pick a date",
+      "quick": {
+        "today": "Today",
+        "tomorrow": "Tomorrow",
+        "nextWeek": "Next week"
+      },
+      "allYears": "All",
+      "selectedCount": "{{count}} selected",
+      "currentYear": "Current"
     },
     "pending": {
       "title": "Pending Event Requests",
@@ -372,7 +536,11 @@
       "approved": "Approved",
       "approve": "Approve",
       "reject": "Reject",
-      "close": "Close"
+      "close": "Close",
+      "date": "Date",
+      "time": "Time",
+      "appliesTo": "Applies to",
+      "descriptionLabel": "Description"
     },
     "create": {
       "loading": "Loading create event page...",
@@ -384,14 +552,24 @@
       "singleApproved": "Event created and approved successfully",
       "singlePending": "Event created successfully. Waiting for approval.",
       "failed": "Failed to create event"
+    },
+    "legend": {
+      "event": "School event",
+      "classEvent": "Class event",
+      "pending": "Pending"
     }
   },
   "sidebar": {
     "category": {
       "dashboard": "Dashboard",
       "academics": "Academics",
-      "management": "Management"
-    }
+      "management": "Management",
+      "people": "People",
+      "schoolLife": "School life"
+    },
+    "mainNav": "Main navigation",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar"
   },
   "welcome": {
     "goodMorning": "Good morning",
@@ -444,11 +622,25 @@
     }
   },
   "announcements": {
-    "roles": { "teacher": "Teachers", "parent": "All Parents", "student": "Specific Class Parents", "admin": "Administrators" },
-    "common": { "pending": "Pending", "approved": "Approved", "rejected": "Rejected", "total": "Total" },
+    "roles": {
+      "teacher": "Teachers",
+      "parent": "All Parents",
+      "student": "Specific Class Parents",
+      "admin": "Administrators"
+    },
+    "common": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "total": "Total",
+      "approve": "Approve"
+    },
     "list": {
       "title": "Announcements",
-      "subtitle": { "default": "Create and manage school announcements", "teacher": "Create and manage school announcements for students, parents, and staff" },
+      "subtitle": {
+        "default": "Create and manage school announcements",
+        "teacher": "Create and manage school announcements for students, parents, and staff"
+      },
       "loading": "Loading announcements...",
       "emptyTitle": "No announcements found",
       "emptyHelp": "No announcements match your current filters.",
@@ -457,7 +649,10 @@
       "fetchPendingFailed": "Failed to fetch pending announcements",
       "approved": "Announcement approved successfully",
       "approveFailed": "Failed to approve announcement",
-      "tabs": { "overview": "Overview", "pending": "Pending Approvals" },
+      "tabs": {
+        "overview": "Overview",
+        "pending": "Pending Approvals"
+      },
       "search": "Search announcements..."
     },
     "filters": {
@@ -466,7 +661,8 @@
       "priority": "Priority",
       "allStatus": "All Status",
       "allTypes": "All Types",
-      "allPriorities": "All Priorities"
+      "allPriorities": "All Priorities",
+      "all": "All"
     },
     "table": {
       "title": "Title",
@@ -522,14 +718,19 @@
       "selectedClasses": "Selected:",
       "classesSuffix": "class(es)",
       "classesHelp": "Leave empty to send to all students, or select specific classes for targeted announcements."
-    }
+    },
+    "accessHelp": "Only admins and principals can access this section."
   },
   "homework": {
     "totalAssignments": "Total Assignments",
     "completed": "completed",
     "avgSubmission": "Avg. Submission",
     "avgScore": "Avg. Score",
-    "rating": { "excellent": "Excellent", "good": "Good", "needsImprovement": "Needs Improvement" },
+    "rating": {
+      "excellent": "Excellent",
+      "good": "Good",
+      "needsImprovement": "Needs Improvement"
+    },
     "pendingGrading": "Pending Grading",
     "upcoming": "upcoming",
     "weeklySubmissionRates": "Weekly submission rates",
@@ -599,7 +800,9 @@
       "classDivision": "Class Division",
       "subject": "Subject",
       "selectSubject": "Select a subject",
-      "labels": { "selectClass": "Select a class" },
+      "labels": {
+        "selectClass": "Select a class"
+      },
       "titleLabel": "Title",
       "titlePlaceholder": "e.g., Chapter 3 Exercises",
       "description": "Description",
@@ -626,7 +829,43 @@
       "cta": "Update Homework",
       "loadFailed": "Failed to load homework data",
       "updateFailed": "Failed to update homework",
-      "updateError": "An error occurred while updating homework"
+      "updateError": "An error occurred while updating homework",
+      "success": "Homework updated successfully!",
+      "failed": "Failed to update homework"
+    },
+    "group": {
+      "today": "Due today",
+      "tomorrow": "Due tomorrow",
+      "week": "This week",
+      "later": "Later",
+      "past": "Past due"
+    },
+    "form": {
+      "titlePlaceholder": "Homework title, e.g. Chapter 3 exercises",
+      "instructionsPlaceholder": "What should students do? Add page numbers, instructions, anything they need.",
+      "attachments": "Attachments",
+      "attachmentsHint": "Uploaded after the homework is created.",
+      "pickStudents": "Pick at least one student.",
+      "searchStudents": "Search students...",
+      "selectAll": "Select all",
+      "clear": "Clear",
+      "classLabel": "Class",
+      "selectClassFirst": "Select a class first",
+      "optional": "optional",
+      "removeDue": "Remove",
+      "pastDate": "Due date cannot be in the past.",
+      "uploadFailed": "Homework created, but file upload failed",
+      "retryEdit": "You can add the files again from the edit page.",
+      "filesAdded": "Files added.",
+      "fileReplaced": "File replaced.",
+      "fileRemoved": "File removed.",
+      "replaceFailed": "Failed to replace the file. Please try again.",
+      "removeFailed": "Failed to remove the file. Please try again.",
+      "open": "Open",
+      "replace": "Replace",
+      "noFiles": "No files attached yet.",
+      "uploadSelected": "Upload selected",
+      "removeFileTitle": "Remove this file?"
     }
   },
   "messages": {
@@ -638,8 +877,14 @@
     "errorTitle": "Error Loading Chats",
     "tryAgain": "Try Again",
     "active": "active",
-    "tabs": { "direct": "Direct Chats", "group": "Group Chats" },
-    "actions": { "startNew": "Start New Chat", "createGroup": "Create Group" },
+    "tabs": {
+      "direct": "Direct Chats",
+      "group": "Group Chats"
+    },
+    "actions": {
+      "startNew": "Start New Chat",
+      "createGroup": "Create Group"
+    },
     "filters": {
       "title": "Filters",
       "clearAll": "Clear All",
@@ -674,10 +919,13 @@
     "loadingChat": "Loading chat...",
     "typeMessage": "Type a message...",
     "refreshingGroups": "Refreshing groups...",
-    "teacherRoles": { "classTeacher": "Class Teacher", "subjectTeacher": "Subject Teacher" },
+    "teacherRoles": {
+      "classTeacher": "Class Teacher",
+      "subjectTeacher": "Subject Teacher"
+    },
     "classesLower": "classes",
     "primaryLower": "primary",
-    "startNew": { 
+    "startNew": {
       "title": "Start New Chat",
       "subtitle": "Start a conversation with a parent",
       "searchPlaceholder": "Search parents or students...",
@@ -687,7 +935,7 @@
       "errorLoadingParents": "Error loading parents",
       "selectParent": "Select Parent"
     },
-    "startWithTeacher": { 
+    "startWithTeacher": {
       "title": "Start New Chat with Teacher",
       "subtitle": "Start a conversation with a teacher",
       "searchPlaceholder": "Search teachers, subjects, or classes...",
@@ -736,7 +984,15 @@
     "allDivisions": "All Divisions",
     "classesLower": "classes",
     "for": "for",
-    "filters": { "class": "Filter by Class:", "division": "Filter by Division:", "clear": "Clear Filters" },
+    "filters": {
+      "class": "Filter by Class:",
+      "division": "Filter by Division:",
+      "clear": "Clear Filters",
+      "all": "All",
+      "marked": "Marked",
+      "pending": "Pending",
+      "holiday": "Holiday"
+    },
     "actionRequired": "Action Required",
     "unmarkedNotice": "classes still need attendance to be marked.",
     "unmarkedHelp": "Teachers should mark attendance for these classes to maintain accurate records.",
@@ -780,7 +1036,14 @@
       "remarks": "Remarks",
       "markedBy": "Marked By",
       "empty": "No attendance records found for this date.",
-      "studentsLower": "students"
+      "studentsLower": "students",
+      "back": "All classes",
+      "title": "Class attendance",
+      "failed": "Failed to load attendance data",
+      "notMarked": "Attendance not marked",
+      "noReason": "No reason specified",
+      "noMatch": "No students match.",
+      "unknown": "Unknown student"
     },
     "cols": {
       "class": "Class",
@@ -790,7 +1053,30 @@
       "absent": "Absent",
       "attendancePct": "Attendance %"
     },
-    "accessDetails": "Only admins and principals can access attendance details."
+    "accessDetails": "Only admins and principals can access attendance details.",
+    "prevDay": "Previous day",
+    "nextDay": "Next day",
+    "today": "Today",
+    "summary": {
+      "present": "Present",
+      "presentHelp": "{present} of {total} students in marked classes",
+      "classesMarked": "Classes marked",
+      "classesHelp": "{pending} pending · {holiday} on holiday",
+      "absent": "Absent",
+      "absentHelp": "students across marked classes"
+    },
+    "banner": {
+      "one": "1 class hasn't marked attendance",
+      "many": "{n} classes haven't marked attendance",
+      "show": "Show pending"
+    },
+    "row": {
+      "notMarked": "Not marked yet",
+      "students": "{n} students",
+      "noStudents": "No students",
+      "present": "{n} present",
+      "absent": "{n} absent"
+    }
   },
   "attendanceTeacher": {
     "title": "Attendance Management",
@@ -888,7 +1174,9 @@
     "empty": {
       "title": "No leave requests found",
       "adjust": "Try adjusting your filters or search term",
-      "none": "There are no leave requests at the moment"
+      "none": "There are no leave requests at the moment",
+      "caughtUp": "No pending requests",
+      "caughtUpHelp": "New requests from parents will show up here."
     },
     "loading": "Loading leave requests...",
     "noPermission": "You don't have permission to access leave requests.",
@@ -896,15 +1184,44 @@
     "goToLogin": "Go to Login",
     "currentlyOnLeave": "Currently on leave",
     "unknownStudent": "Unknown Student",
-    "loadingAuth": "Loading authentication..."
+    "loadingAuth": "Loading authentication...",
+    "range": {
+      "any": "Any dates",
+      "month": "This month",
+      "custom": "Custom range"
+    },
+    "day": "day",
+    "days": "days",
+    "requestedOn": "Requested",
+    "showMore": "Show more",
+    "showLess": "Show less",
+    "parent": "Parent"
   },
   "settings": {
-    "profile": { "title": "Profile Settings", "desc": "Manage your personal information and preferences" },
-    "appearance": { "title": "Appearance Settings", "desc": "Customize the look and feel of your interface" },
-    "notifications": { "title": "Notifications", "desc": "Configure your notification preferences" },
-    "security": { "title": "Privacy & Security", "desc": "Manage your account security and privacy settings" },
-    "language": { "title": "Language & Region", "desc": "Set your language and regional preferences" },
-    "data": { "title": "Data & Storage", "desc": "Manage your data and storage settings" },
+    "profile": {
+      "title": "Profile Settings",
+      "desc": "Manage your personal information and preferences"
+    },
+    "appearance": {
+      "title": "Appearance Settings",
+      "desc": "Customize the look and feel of your interface"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "desc": "Configure your notification preferences"
+    },
+    "security": {
+      "title": "Privacy & Security",
+      "desc": "Manage your account security and privacy settings"
+    },
+    "language": {
+      "title": "Language & Region",
+      "desc": "Set your language and regional preferences"
+    },
+    "data": {
+      "title": "Data & Storage",
+      "desc": "Manage your data and storage settings"
+    },
     "configure": "Configure",
     "accountInfo": "Account Information",
     "fullName": "Full Name",
@@ -923,9 +1240,34 @@
     "enterInitialPassword": "Enter initial password",
     "creating": "Creating...",
     "createParent": "Create Parent",
-    "created": "Parent created successfully!"
+    "created": "Parent created successfully!",
+    "errors": {
+      "name": "Enter the parent’s name.",
+      "phone": "Enter a 10-digit phone number."
+    },
+    "createFailed": "Could not create the parent"
   },
   "profilePage": {
+    "role": "Role",
+    "details": "Personal details",
+    "editSubtitle": "Update your personal details",
+    "phoneLocked": "Contact the school office to change your phone number.",
+    "work": "Work details",
+    "department": "Department",
+    "designation": "Designation",
+    "joiningDate": "Joining date",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "lastLogin": "Last login",
+    "changePasswordHelp": "Use a strong password you don't use elsewhere.",
+    "mode": "Mode",
+    "light": "Light",
+    "dark": "Dark",
+    "saveFailed": "Could not save changes",
+    "nameRequired": "Name is required",
+    "emailInvalid": "Enter a valid email address",
+    "navy": "Navy",
     "summary": {
       "title": "Profile Summary",
       "joined": "Joined",
@@ -986,7 +1328,10 @@
     "upcoming": "Upcoming Birthdays",
     "subtitle": "Birthdays for students and staff",
     "loadFailed": "Failed to load birthdays",
-    "widgetEmpty": { "title": "No upcoming birthdays", "help": "Birthdays will appear here when approaching" },
+    "widgetEmpty": {
+      "title": "No upcoming birthdays",
+      "help": "Birthdays will appear here when approaching"
+    },
     "clearAll": "Clear all",
     "clearAllFilters": "Clear all filters",
     "type": "Type",
@@ -997,7 +1342,11 @@
     "thisMonth": "This Month",
     "nextMonth": "Next Month",
     "loading": "Loading birthdays...",
-    "empty": { "title": "No birthdays found", "none": "There are no birthdays matching your selected filters." },
+    "empty": {
+      "title": "No birthdays found",
+      "none": "There are no birthdays matching your selected filters.",
+      "range": "No birthdays in this period"
+    },
     "person": "Person",
     "sectionShort": "Sec",
     "todayBang": "Today!",
@@ -1010,7 +1359,21 @@
       "thisWeek": "upcoming birthdays",
       "thisMonth": "total birthdays",
       "nextMonth": "planned celebrations"
-    }
+    },
+    "next7": "Next 7 days",
+    "searchPlaceholder": "Search by name...",
+    "allClasses": "All classes",
+    "inDays": "in {{n}} days",
+    "turns": "Turns {{n}}",
+    "nextUp": "Next: {{name}} · {{date}}",
+    "wishText": "Happy Birthday {{name}}! 🎉 Wishing you a wonderful year ahead. – AJWS",
+    "wishCopied": "Copied",
+    "heroToday": "Today's birthdays",
+    "heroNext": "Up next",
+    "happyBirthday": "Happy Birthday! 🎉",
+    "heroOne": "1 celebration",
+    "heroMany": "{{n}} celebrations",
+    "more": "more"
   },
   "approvals": {
     "title": "Approvals",
@@ -1054,7 +1417,13 @@
     "select": "Select",
     "back": "Go Back",
     "create": "Create",
-    "view": "View"
+    "view": "View",
+    "saveChanges": "Save changes",
+    "clear": "Clear",
+    "done": "Done",
+    "confirm": "Confirm",
+    "remove": "Remove",
+    "call": "Call"
   },
   "pagination": {
     "showing": "Showing",
@@ -1076,12 +1445,17 @@
     "subtitle": "Manage your classes and view student information",
     "loading": "Loading classes...",
     "searchPlaceholder": "Search classes...",
-    "sort": { "name": "Sort by Name", "students": "Sort by Students" },
+    "sort": {
+      "name": "Sort by Name",
+      "students": "Sort by Students"
+    },
     "emptyTitle": "No classes found",
     "noSearchMatch": "No classes match your search.",
     "noAssigned": "You don't have any classes assigned to you yet."
   },
   "students": {
+    "countLabel": "students",
+    "clearFilters": "Clear filters",
     "loading": "Loading students...",
     "searchPlaceholder": "Search students...",
     "allClasses": "All Classes",
@@ -1116,7 +1490,101 @@
     },
     "emptyFiltered": "No students found matching the selected filters.",
     "empty": "No students available.",
-    "na": "N/A"
+    "na": "N/A",
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "transferred": "Transferred"
+    },
+    "gender": {
+      "male": "Male",
+      "female": "Female",
+      "other": "Other"
+    },
+    "relationship": {
+      "father": "Father",
+      "mother": "Mother",
+      "guardian": "Guardian",
+      "grandparent": "Grandparent",
+      "other": "Other"
+    },
+    "record": {
+      "ongoing": "Current",
+      "completed": "Completed",
+      "promoted": "Promoted",
+      "transferred": "Transferred"
+    },
+    "detail": {
+      "loadFailed": "Could not load this student",
+      "errorTitle": "Error loading student",
+      "errors": {
+        "name": "Enter the student’s name."
+      },
+      "saved": "Student updated",
+      "saveFailed": "Could not save the changes. Please try again.",
+      "statusChanged": "Status updated",
+      "statusFailed": "Could not change the status",
+      "setStatus": "Set status",
+      "changeStatusTitle": "Change status",
+      "changeStatusHelp": "{name} will be marked as {status}.",
+      "linked": "Parent linked",
+      "linkFailed": "Could not link the parent",
+      "linkParent": "Link parent",
+      "linkParentHelp": "Link an existing parent to this student.",
+      "primaryLinked": "A primary guardian is already linked",
+      "years": "{n} yrs",
+      "atSchool": "At the school",
+      "about": "About",
+      "gender": "Gender",
+      "bloodGroup": "Blood group",
+      "address": "Address",
+      "emergency": "Emergency contact",
+      "choose": "Choose",
+      "guardians": "Guardians",
+      "primary": "Primary",
+      "noGuardians": "No guardians linked yet",
+      "noGuardiansHelp": "Link a parent so they can follow this student in the app.",
+      "leaveHistory": "Leave history",
+      "noLeaves": "No leave requests",
+      "days": "{n} day(s)",
+      "academicHistory": "Academic history",
+      "fixed": "Fixed details",
+      "fixedHint": "Admission number, class and roll number cannot be changed here."
+    },
+    "link": {
+      "loadFailed": "Could not load parents. Please try again.",
+      "search": "Search by name, phone or email",
+      "newParent": "New parent",
+      "found": "{n} found",
+      "firstTen": "Showing the first 10 parents. Search to find others.",
+      "none": "No parents found",
+      "noneHelp": "Try another search, or add a new parent.",
+      "parents": "Parents",
+      "children": "{n} child(ren)",
+      "relationship": "Relationship",
+      "allUsed": "All relationship types are already assigned to this student.",
+      "linking": "Linking..."
+    },
+    "create": {
+      "newStudent": "New student",
+      "noClass": "No class chosen yet",
+      "classSection": "Class",
+      "errors": {
+        "name": "Enter the student’s name.",
+        "admission": "Enter the admission number.",
+        "roll": "Enter the roll number.",
+        "class": "Choose a class.",
+        "dob": "Pick the date of birth.",
+        "dobFuture": "Date of birth cannot be in the future.",
+        "admissionDate": "Pick the admission date."
+      },
+      "failed": "Could not add the student",
+      "added": "Student added",
+      "extrasFailed": "The address could not be saved. Add it from the profile.",
+      "classesFailed": "Could not load the classes. Refresh to try again.",
+      "moreHint": "Gender, blood group, address and emergency contact.",
+      "parentsHint": "You can link parents from the student’s profile after adding them."
+    }
   },
   "reports": {
     "exportAll": "Export All Reports",
@@ -1151,7 +1619,7 @@
       "personalDetailsDesc": "Enter the staff member's personal details",
       "failed": "Failed to create staff member"
     },
-    "searchPlaceholder": "Search staff...",
+    "searchPlaceholder": "Search by name, phone, subject or class...",
     "addStaff": "Add Staff",
     "assignSubjects": "Assign Subjects",
     "list": {
@@ -1175,7 +1643,14 @@
         "phoneNumber": "Phone Number",
         "role": "Role",
         "initialPassword": "Initial Password",
-        "accountStatus": "Account Status"
+        "accountStatus": "Account Status",
+        "designation": "Designation",
+        "email": "Email",
+        "dob": "Date of birth",
+        "joiningDate": "Joining date",
+        "address": "Address",
+        "emergencyName": "Emergency contact",
+        "emergencyPhone": "Emergency phone"
       },
       "placeholders": {
         "fullNameStaff": "Enter staff member's full name",
@@ -1185,7 +1660,29 @@
         "selectRole": "Select a role",
         "selectStatus": "Select status",
         "setInitialPassword": "Set initial password"
-      }
+      },
+      "contact": "Contact",
+      "contactHint": "Used for sign-in and school notifications.",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "generate": "Generate",
+      "lockedHint": "Role and status cannot be changed here.",
+      "errors": {
+        "name": "Enter the full name.",
+        "phone": "Enter a valid 10-digit phone number.",
+        "password": "Use at least 6 characters.",
+        "phoneUsed": "This number already belongs to {name}.",
+        "email": "Enter a valid email address."
+      },
+      "roleHelp": {
+        "teacher": "Marks attendance, assigns homework and manages their own classes.",
+        "attendance_staff": "Can mark attendance for all classes.",
+        "principal": "Full access to students, staff, approvals and reports.",
+        "admin": "Full access, including school setup and settings."
+      },
+      "newMember": "New staff member",
+      "moreDetails": "More details",
+      "moreDetailsHint": "Designation, email, birthday, joining date, address and emergency contact."
     },
     "detail": {
       "teachingSubjects": "Teaching Subjects",
@@ -1208,7 +1705,57 @@
       },
       "selectSubjectsFor": "Select subjects for",
       "toTeach": "to teach",
-      "currentlyAssigned": "Currently assigned subjects:"
+      "currentlyAssigned": "Currently assigned subjects:",
+      "notAdded": "Not added",
+      "more": "More actions",
+      "markInactive": "Mark as inactive",
+      "markActive": "Mark as active",
+      "nowInactive": "Marked as inactive",
+      "nowActive": "Marked as active",
+      "statusFailed": "Could not change the status",
+      "inactiveHelp": "{name} will be shown as inactive. You can switch this back at any time.",
+      "activeHelp": "{name} will be shown as active again.",
+      "contact": "Contact",
+      "personal": "Personal",
+      "work": "Work",
+      "addedOn": "Added on",
+      "phoneLoginHint": "The phone number is also their sign-in number.",
+      "birthdayToday": "Birthday today",
+      "birthdayIn": "Birthday in {n} days",
+      "justJoined": "Joined this month",
+      "years": "{n} yr",
+      "months": "{n} mo",
+      "unsaved": "Unsaved changes",
+      "discardTitle": "Discard changes?",
+      "discardHelp": "Your edits to this profile have not been saved.",
+      "keepEditing": "Keep editing",
+      "discard": "Discard",
+      "saveFailed": "Could not save: {parts}. Everything else was saved.",
+      "saveParts": {
+        "details": "details",
+        "login": "login account",
+        "dob": "date of birth"
+      },
+      "tabs": {
+        "overview": "Overview",
+        "teaching": "Teaching",
+        "timetable": "Timetable"
+      },
+      "subjectsSaved": "Subjects updated",
+      "subjectsFailed": "Could not update subjects",
+      "subjectsLoadFailed": "Could not load subjects.",
+      "searchSubjects": "Search subjects...",
+      "noSubjectsFound": "No subjects found",
+      "selectedCount": "{n} selected",
+      "stats": {
+        "classTeacher": "Class teacher of",
+        "classesTaught": "Classes taught",
+        "subjects": "Subjects",
+        "withSchool": "With the school"
+      },
+      "roleAccess": "Role & access",
+      "addMissing": "Add missing details",
+      "missingCount": "{n} not filled in yet"
     },
     "edit": {
       "title": "Edit Staff Member",
@@ -1236,6 +1783,42 @@
       "phone": "Phone",
       "classTeacherOf": "Class Teacher Of",
       "subjectsTaught": "Subjects Taught"
+    },
+    "deleted": "Staff member deleted",
+    "inactive": "Inactive",
+    "countLabel": "{n} staff",
+    "tabs": {
+      "all": "All",
+      "classTeachers": "Class teachers",
+      "subjectTeachers": "Subject teachers",
+      "unassigned": "No assignments"
+    },
+    "created": "Staff member added",
+    "updated": "Staff member updated",
+    "createdExtrasFailed": "Some optional details could not be saved. Add them from the profile.",
+    "delete": {
+      "failed": "Could not delete the staff member"
+    },
+    "password": {
+      "title": "Reset password",
+      "help": "Set a new sign-in password for {name}.",
+      "doneHelp": "Share this password with {name}. It will not be shown again.",
+      "new": "New password",
+      "set": "Set password",
+      "copy": "Copy",
+      "copied": "Copied",
+      "updated": "Password updated",
+      "failed": "Could not update the password",
+      "noAccount": "This staff member has no login account."
+    },
+    "timetable": {
+      "failed": "Could not load the timetable",
+      "empty": "No periods scheduled",
+      "emptyHelp": "This teacher is not in the timetable yet.",
+      "period": "Period",
+      "noAccount": "No linked teacher account",
+      "weekly": "Weekly schedule",
+      "periodsCount": "{n} periods a week"
     }
   },
   "changePassword": {
@@ -1257,7 +1840,11 @@
     }
   },
   "academicSetup": {
-    "tabs": { "years": "Academic Years", "divisions": "Classes & Divisions", "subjects": "Subjects" },
+    "tabs": {
+      "years": "Academic Years",
+      "divisions": "Classes & Divisions",
+      "subjects": "Subjects"
+    },
     "years": {
       "title": "Academic Years",
       "add": "Add Academic Year",
@@ -1265,18 +1852,24 @@
       "yearName": "Year Name",
       "setActive": "Set as Active Year"
     },
-    "status": { "active": "Active", "inactive": "Inactive" },
-    "classLevels": { "title": "Class Levels", "add": "Add Class" },
-    "divisions": { 
-      "title": "Divisions", 
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "classLevels": {
+      "title": "Class Levels",
+      "add": "Add Class"
+    },
+    "divisions": {
+      "title": "Divisions",
       "add": "Add Division",
       "edit": "Edit Division",
       "divisionName": "Division Name",
       "assignClassTeacher": "Assign Class Teacher",
       "labelLower": "divisions"
     },
-    "subjects": { 
-      "title": "Subjects", 
+    "subjects": {
+      "title": "Subjects",
       "add": "Add Subject",
       "edit": "Edit Subject",
       "code": "Subject Code",
@@ -1295,13 +1888,24 @@
       "empty": "No subject assignments found",
       "emptyFiltered": "No subject assignments found for the selected filters"
     },
-    "filters": { "grade": "Filter by Grade:", "division": "Filter by Division:", "clear": "Clear Filters" },
+    "filters": {
+      "grade": "Filter by Grade:",
+      "division": "Filter by Division:",
+      "clear": "Clear Filters"
+    },
     "allGrades": "All Grades",
     "allDivisions": "All Divisions",
-    "loading": { "classLevels": "Loading class levels...", "classDivisions": "Loading class divisions...", "subjects": "Loading subjects..." },
+    "loading": {
+      "classLevels": "Loading class levels...",
+      "classDivisions": "Loading class divisions...",
+      "subjects": "Loading subjects..."
+    },
     "notAssigned": "Not assigned",
     "noTeacherAssigned": "No teacher assigned",
-    "empty": { "noDivisions": "No divisions found", "noDivisionsFor": "No divisions found for" },
+    "empty": {
+      "noDivisions": "No divisions found",
+      "noDivisionsFor": "No divisions found for"
+    },
     "cols": {
       "name": "Name",
       "startDate": "Start Date",
@@ -1355,7 +1959,7 @@
     "selectADivision": "Select a Division",
     "teachers": "Teachers",
     "groups": "Groups",
-    "parents": "Parents",
+    "parents": "parents",
     "refresh": "Refresh",
     "classTeacher": "Class Teacher",
     "subjectTeacher": "Subject Teacher",
@@ -1363,13 +1967,12 @@
     "subject": "Subject",
     "noGroupThreads": "No group threads",
     "noGroupThreadsFound": "No group threads found for this division",
-    "participants": "participants",
+    "participants": "Participants",
     "participant": "participant",
     "noParentsFound": "No parents found",
     "noParentsLinked": "No parents are linked to students in this division",
     "rollNo": "Roll No",
     "parent": "parent",
-    "parents": "parents",
     "primaryGuardian": "Primary",
     "openingChat": "Opening Chat...",
     "pleaseWait": "Please wait while we prepare your conversation",
@@ -1378,12 +1981,111 @@
     "groupDetails": "Group Details",
     "created": "Created",
     "totalMessages": "Total Messages",
-    "participants": "Participants",
     "recentMessages": "Recent Messages",
     "unknown": "Unknown",
     "close": "Close",
     "openChat": "Open Chat",
     "selectDivisionToView": "Select a class division to view teachers and groups",
     "admin": "Admin"
+  },
+  "foodMenu": {
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "thisMonth": "This month",
+    "monthly": "Monthly menus",
+    "new": "New menu",
+    "failed": "Failed to load food menus",
+    "saveFailed": "Failed to save food menu",
+    "saved": "Menu saved",
+    "shown": "Menu is visible again",
+    "hiddenToast": "Menu hidden from parents",
+    "editTitle": "Edit menu",
+    "createTitle": "New menu",
+    "fields": {
+      "date": "Date",
+      "breakfast": "Breakfast",
+      "lunch": "Lunch",
+      "snack": "Snack",
+      "notes": "Notes",
+      "visible": "Visible to parents",
+      "visibleHelp": "Hidden menus are not shown to parents."
+    },
+    "filters": {
+      "status": "Status"
+    },
+    "status": {
+      "all": "All menus",
+      "active": "Visible only",
+      "inactive": "Hidden only",
+      "hiddenShort": "Hidden"
+    },
+    "actions": {
+      "hide": "Hide",
+      "show": "Show"
+    },
+    "empty": {
+      "title": "No menus for {month}",
+      "help": "Add a daily menu so parents can see what is served."
+    },
+    "form": {
+      "desc": "Set what is served on a day. Leave a meal empty if there is none.",
+      "optional": "optional",
+      "exists": "A menu already exists for this date.",
+      "editExisting": "Edit it instead"
+    },
+    "placeholders": {
+      "breakfast": "e.g., Poha and banana",
+      "lunch": "e.g., Dal, rice, roti",
+      "snack": "e.g., Milk and biscuits",
+      "notes": "A note for parents"
+    },
+    "hideConfirm": {
+      "title": "Hide this menu?",
+      "desc": "Parents will no longer see the menu for {date}. You can show it again later."
+    },
+    "monthlyPage": {
+      "month": "Month",
+      "year": "Year",
+      "allMonths": "All months",
+      "failed": "Failed to load monthly menus",
+      "openFailed": "Unable to open monthly menu",
+      "deleteFailed": "Failed to delete monthly menu",
+      "deleted": "Monthly menu deleted",
+      "noAccess": "You do not have access to monthly menus.",
+      "empty": "No monthly menus found",
+      "emptyHelp": "Upload a menu file for the month so parents can view it.",
+      "defaultTitle": "{month} Food Menu",
+      "updated": "Updated {date}",
+      "preview": "Preview",
+      "download": "Download",
+      "deleteTitle": "Delete this menu?",
+      "deleteDesc": "\"{name}\" will be removed for everyone, including parents.",
+      "newer": "Newer menu",
+      "older": "Older menu",
+      "openTab": "Open in new tab",
+      "noPreview": "This file type cannot be previewed in the browser.",
+      "noPreviewHelp": "Download it to view the menu."
+    },
+    "upload": {
+      "cta": "Upload menu",
+      "success": "Monthly menu uploaded",
+      "failed": "Failed to upload monthly menu",
+      "tooBig": "{name} exceeds the 10 MB file limit.",
+      "badType": "Unsupported file type. Use JPG, PNG, PDF, TXT, CSV, DOC or DOCX.",
+      "adminsOnly": "Only administrators and principals can upload monthly menus.",
+      "preview": "Preview",
+      "remove": "Remove file",
+      "drop": "Drop the menu file here, or",
+      "browse": "browse",
+      "hint": "JPG, PNG, PDF, TXT, CSV, DOC or DOCX · up to 10 MB",
+      "title": "Display title",
+      "visibleTo": "Visible to admins, principals and parents.",
+      "submit": "Upload menu",
+      "uploading": "Uploading..."
+    },
+    "tabs": {
+      "monthly": "Monthly menus",
+      "daily": "Daily menus (legacy)"
+    }
   }
 }

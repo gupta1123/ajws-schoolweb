@@ -5,7 +5,7 @@
 import { useAuth } from '@/lib/auth/context';
 import { Sidebar } from './sidebar';
 import { EnhancedTopbar } from './enhanced-topbar';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
 interface AppLayoutProps {
@@ -15,6 +15,28 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Restore the saved sidebar preference (desktop only).
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem('sidebar-collapsed') === '1');
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('sidebar-collapsed', next ? '1' : '0');
+      } catch {
+        /* storage unavailable */
+      }
+      return next;
+    });
+  }, []);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -42,13 +64,18 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Sidebar - fixed positioning */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        collapsed={collapsed}
+        onToggleCollapse={toggleCollapsed}
+      />
       
       {/* Enhanced Topbar - fixed positioning */}
-      <EnhancedTopbar onMenuClick={() => setSidebarOpen(true)} />
+      <EnhancedTopbar onMenuClick={() => setSidebarOpen(true)} collapsed={collapsed} />
       
       {/* Main Content Area - properly positioned */}
-      <main className="pt-16 md:ml-64 min-h-screen bg-background">
+      <main className={`pt-16 min-h-screen bg-background transition-[margin] duration-200 ${collapsed ? 'md:ml-16' : 'md:ml-56'}`}>
         <div className="p-4 md:p-6">
           {children}
         </div>

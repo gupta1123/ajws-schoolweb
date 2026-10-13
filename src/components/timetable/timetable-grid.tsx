@@ -1,23 +1,14 @@
 // src/components/timetable/timetable-grid.tsx
+//
+// Weekly timetable grid: periods down, days across. Subjects get a stable
+// soft colour so a class's week can be read at a glance; today's column is
+// highlighted and empty slots offer a quick "add" affordance.
 
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { TimetableEntry, dayNames } from '@/lib/api/timetable';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table';
-import {
-  Edit,
-  Trash2,
-  User,
-  Clock
-} from 'lucide-react';
 import { useI18n } from '@/lib/i18n/context';
+import { cn } from '@/lib/utils';
+import { toneClass, type Tone } from '@/lib/design/tokens';
 
 interface TimetableGridProps {
   timetableData: Record<string, TimetableEntry[]>;
@@ -27,177 +18,156 @@ interface TimetableGridProps {
   } | null;
   onEditEntry?: (entry: TimetableEntry) => void;
   onDeleteEntry?: (entryId: string) => void;
+  /** Called with (day_of_week 1-7, period_number) when an empty slot is clicked. */
+  onAddEntry?: (day: number, period: number) => void;
   className?: string;
 }
 
-export function TimetableGrid({
-  timetableData,
-  config,
-  onEditEntry,
-  onDeleteEntry,
-  className = ''
-}: TimetableGridProps) {
+const dayKeyMap: Record<string, string> = {
+  Monday: 'days.monday',
+  Tuesday: 'days.tuesday',
+  Wednesday: 'days.wednesday',
+  Thursday: 'days.thursday',
+  Friday: 'days.friday',
+  Saturday: 'days.saturday',
+  Sunday: 'days.sunday',
+};
+
+/** Period start time, shared by the admin and teacher timetables. */
+export function periodStartTime(periodNumber: number): string {
+  const hour24 = 8 + periodNumber; // period 1 starts at 9:00
+  const hour12 = ((hour24 + 11) % 12) + 1;
+  return `${hour12}:00 ${hour24 >= 12 ? 'PM' : 'AM'}`;
+}
+
+// Literal classes so Tailwind generates them.
+const SUBJECT_TONES: Tone[] = ['primary', 'success', 'warning', 'info', 'violet', 'rose'];
+const BAR: Record<Tone, string> = {
+  primary: 'bg-tone-primary',
+  success: 'bg-tone-success',
+  warning: 'bg-tone-warning',
+  danger: 'bg-tone-danger',
+  info: 'bg-tone-info',
+  violet: 'bg-tone-violet',
+  rose: 'bg-tone-rose',
+  neutral: 'bg-muted-foreground',
+};
+
+/** Stable tone per subject name. */
+export function subjectTone(name: string): Tone {
+  // free / break-like periods stay quiet so real lessons stand out
+  if (/free|lunch|break|recess|assembly/i.test(name)) return 'neutral';
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return SUBJECT_TONES[hash % SUBJECT_TONES.length];
+}
+export const subjectBar = (name: string) => BAR[subjectTone(name)];
+export const subjectSoft = (name: string) => toneClass[subjectTone(name)].soft;
+export const subjectText = (name: string) => toneClass[subjectTone(name)].text;
+
+export function TimetableGrid({ timetableData, config, onEditEntry, onDeleteEntry, onAddEntry, className = '' }: TimetableGridProps) {
   const { t } = useI18n();
-  const dayKeyMap: Record<string, string> = {
-    Monday: 'days.monday',
-    Tuesday: 'days.tuesday',
-    Wednesday: 'days.wednesday',
-    Thursday: 'days.thursday',
-    Friday: 'days.friday',
-    Saturday: 'days.saturday',
-    Sunday: 'days.sunday',
-  };
+
   if (!config) {
     return (
-      <Card className={className}>
-        <CardContent className="p-8 text-center">
-          <Clock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <p className="text-muted-foreground">{t('timetable.noConfigSelected')}</p>
-        </CardContent>
-      </Card>
+      <div className={cn('rounded-xl border px-4 py-10 text-center text-sm text-muted-foreground', className)}>
+        {t('timetable.noConfigSelected')}
+      </div>
     );
   }
 
-  const renderPeriodCell = (dayIndex: number, periodNumber: number) => {
-    const dayName = dayNames[dayIndex];
-    const dayEntries = timetableData[dayName] || [];
-    const entry = dayEntries.find(e => e.period_number === periodNumber);
+  const today = new Date().getDay() || 7; // 1 = Monday … 7 = Sunday
+  const days = Array.from({ length: config.days_per_week }, (_, i) => i);
+  const periods = Array.from({ length: config.total_periods }, (_, i) => i + 1);
+
+  const renderCell = (dayIndex: number, periodNumber: number) => {
+    const entry = (timetableData[dayNames[dayIndex]] || []).find((e) => e.period_number === periodNumber);
+    const isToday = dayIndex + 1 === today;
 
     if (!entry) {
       return (
-        <TableCell key={`${dayIndex}-${periodNumber}`} className="border border-gray-200 p-2 min-h-[80px] bg-gray-50/50">
-          <div className="text-center text-muted-foreground text-sm">
-            -
-          </div>
-        </TableCell>
+        <td key={`${dayIndex}-${periodNumber}`} className={cn('h-[4.5rem] p-1', isToday && 'bg-tone-primary-soft/30')}>
+          {onAddEntry ? (
+            <button
+              type="button"
+              onClick={() => onAddEntry(dayIndex + 1, periodNumber)}
+              aria-label={`${t(dayKeyMap[dayNames[dayIndex]] || dayNames[dayIndex])} ${t('timetable.period')} ${periodNumber}: ${t('timetable.addEntry')}`}
+              className="flex h-full w-full items-center justify-center rounded-lg border border-dashed border-transparent text-muted-foreground/0 transition-colors hover:border-border hover:bg-muted/50 hover:text-muted-foreground focus-visible:border-ring focus-visible:text-muted-foreground focus-visible:outline-none"
+            >
+              <Plus className="size-4" />
+            </button>
+          ) : null}
+        </td>
       );
     }
 
+    const subject = entry.subject_info?.display_name || entry.subject_info?.name || entry.subject;
     return (
-      <TableCell
-        key={`${dayIndex}-${periodNumber}`}
-        className="border border-gray-200 p-2 min-h-[80px] hover:bg-primary/5 transition-colors"
-      >
-        <div className="space-y-2">
-          <div className="font-medium text-sm">
-            {entry.subject_info?.display_name || entry.subject_info?.name || entry.subject}
+      <td key={`${dayIndex}-${periodNumber}`} className={cn('h-[4.5rem] p-1', isToday && 'bg-tone-primary-soft/30')}>
+        <div className={cn('group/cell relative flex h-full overflow-hidden rounded-lg', subjectSoft(subject))}>
+          <span aria-hidden className={cn('w-1 shrink-0', subjectBar(subject))} />
+          <div className="min-w-0 flex-1 px-2.5 py-1.5">
+            <p className={cn('truncate text-sm font-semibold leading-tight', subjectText(subject))}>{subject}</p>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">{entry.teacher?.full_name || t('timetable.unknownTeacher')}</p>
           </div>
-
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <User className="h-3 w-3" />
-            <span className="truncate">
-              {entry.teacher?.full_name || t('timetable.unknownTeacher')}
-            </span>
-          </div>
-
-          <div className="flex gap-1 pt-1">
-            {onEditEntry && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 hover:bg-primary/10"
-                onClick={() => onEditEntry(entry)}
-              >
-                <Edit className="h-3 w-3" />
-              </Button>
-            )}
-
-            {onDeleteEntry && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 hover:bg-red-100 text-red-600"
-                onClick={() => onDeleteEntry(entry.id)}
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
+          {(onEditEntry || onDeleteEntry) && (
+            <div className="absolute right-1 top-1 flex gap-0.5 rounded-md bg-background/90 p-0.5 opacity-0 shadow-sm transition-opacity focus-within:opacity-100 group-hover/cell:opacity-100">
+              {onEditEntry && (
+                <button
+                  type="button"
+                  onClick={() => onEditEntry(entry)}
+                  aria-label={t('actions.edit', 'Edit')}
+                  className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Pencil className="size-3" />
+                </button>
+              )}
+              {onDeleteEntry && (
+                <button
+                  type="button"
+                  onClick={() => onDeleteEntry(entry.id)}
+                  aria-label={t('actions.delete', 'Delete')}
+                  className="rounded p-1 text-tone-danger hover:bg-tone-danger-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Trash2 className="size-3" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
-      </TableCell>
+      </td>
     );
   };
 
   return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Clock className="h-5 w-5" />
-          {t('timetable.classTimetable')}
-        </CardTitle>
-      </CardHeader>
-
-      <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="border border-gray-200 bg-muted/50 font-semibold text-center">
-                  {t('timetable.period')}
-                </TableHead>
-                {Array.from({ length: config.days_per_week }, (_, i) => (
-                  <TableHead
-                    key={i}
-                    className="border border-gray-200 bg-muted/50 font-semibold text-center min-w-[150px]"
-                  >
-                    {t(dayKeyMap[dayNames[i]] || dayNames[i])}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-
-            <TableBody>
-              {Array.from({ length: config.total_periods }, (_, periodIndex) => (
-                <TableRow key={periodIndex}>
-                  <TableCell className="border border-gray-200 bg-muted/30 font-medium text-center">
-                    <div className="flex flex-col items-center">
-                      <span className="text-sm font-semibold">
-                        {t('timetable.period')} {periodIndex + 1}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatPeriodTime(periodIndex + 1)}
-                      </span>
-                    </div>
-                  </TableCell>
-
-                  {Array.from({ length: config.days_per_week }, (_, dayIndex) =>
-                    renderPeriodCell(dayIndex, periodIndex + 1)
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Legend */}
-        <div className="mt-6 p-4 bg-muted/20 rounded-lg">
-          <h4 className="font-medium mb-3">{t('timetable.legend.title')}</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span>{t('timetable.legend.assigned')}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-gray-200 rounded-full"></div>
-              <span>{t('timetable.legend.noClass')}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Edit className="h-3 w-3" />
-              <span>{t('timetable.legend.editHint')}</span>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className={cn('overflow-x-auto rounded-xl border', className)}>
+      <table className="w-full min-w-[44rem] table-fixed border-collapse">
+        <thead>
+          <tr className="border-b bg-muted/40">
+            <th className="w-24 px-3 py-2 text-left text-xs font-medium text-muted-foreground">{t('timetable.period')}</th>
+            {days.map((i) => {
+              const isToday = i + 1 === today;
+              return (
+                <th key={i} className={cn('px-2 py-2 text-center text-xs font-semibold', isToday ? 'text-tone-primary' : 'text-muted-foreground')}>
+                  {t(dayKeyMap[dayNames[i]] || dayNames[i])}
+                  {isToday && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-primary align-middle" aria-label="today" />}
+                </th>
+              );
+            })}
+          </tr>
+        </thead>
+        <tbody className="divide-y">
+          {periods.map((p) => (
+            <tr key={p}>
+              <th scope="row" className="px-3 text-left align-middle">
+                <span className="block text-sm font-semibold">P{p}</span>
+                <span className="block text-[11px] font-normal text-muted-foreground">{periodStartTime(p)}</span>
+              </th>
+              {days.map((d) => renderCell(d, p))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
-}
-
-// Helper function to format period times (you can customize this)
-function formatPeriodTime(periodNumber: number): string {
-  const startTimes = [
-    '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
-    '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'
-  ];
-
-  return startTimes[periodNumber - 1] || `${periodNumber}:00`;
 }

@@ -27,18 +27,17 @@ function rebaseFormat(format: AnnouncementTextFormat, previous: string, next: st
   const previousChangeEnd = previous.length - suffix;
   const delta = next.length - previous.length;
 
-  // API span ends are inclusive, while browser selections and the edit math
-  // below use exclusive ends. Convert at the boundary in both directions.
+  // Span ends are exclusive (start <= i < end), matching the backend
+  // validation, the mobile renderer and browser selections.
   return {
     version: 1,
     spans: format.spans.flatMap(span => {
-      const exclusiveEnd = span.end + 1;
-      if (exclusiveEnd <= prefix) return [span];
+      if (span.end <= prefix) return [span];
       if (span.start >= previousChangeEnd) {
-        return [{ ...span, start: span.start + delta, end: exclusiveEnd + delta - 1 }];
+        return [{ ...span, start: span.start + delta, end: span.end + delta }];
       }
       return [];
-    }).filter(span => span.start >= 0 && span.end < next.length && span.start <= span.end),
+    }).filter(span => span.start >= 0 && span.end <= next.length && span.start < span.end),
   };
 }
 
@@ -51,6 +50,9 @@ interface FormattedTextEditorProps {
   placeholder?: string;
   multiline?: boolean;
   rows?: number;
+  /** 'clean' = borderless, document-style field with a quiet icon toolbar. */
+  variant?: 'default' | 'clean';
+  className?: string;
 }
 
 export function FormattedTextEditor({
@@ -62,7 +64,10 @@ export function FormattedTextEditor({
   placeholder,
   multiline = false,
   rows = 6,
+  variant = 'default',
+  className,
 }: FormattedTextEditorProps) {
+  const clean = variant === 'clean';
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [selection, setSelection] = useState({ start: 0, end: 0 });
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -78,7 +83,7 @@ export function FormattedTextEditor({
 
   const isMarkActive = (mark: AnnouncementFormatMark) => format.spans.some(span => (
     span.start <= selection.start
-    && span.end + 1 >= selection.end
+    && span.end >= selection.end
     && selection.start < selection.end
     && span.marks.includes(mark)
   ));
@@ -92,7 +97,7 @@ export function FormattedTextEditor({
       setFeedback('Select some text before applying a style.');
       return;
     }
-    const end = selectionEnd - 1;
+    const end = selectionEnd;
 
     const exactIndex = format.spans.findIndex(span => span.start === start && span.end === end && span.marks.includes(mark));
     if (exactIndex >= 0) {
@@ -160,6 +165,95 @@ export function FormattedTextEditor({
     );
   };
 
+  const mirrorSegments = useMemo(() => {
+    if (!clean) return [];
+    const spans = format.spans.filter(span => span.start >= 0 && span.end <= value.length && span.start < span.end);
+    const cuts = Array.from(new Set([0, value.length, ...spans.flatMap(span => [span.start, span.end])])).sort((x, y) => x - y);
+    return cuts.slice(0, -1).map((start, index) => {
+      const end = cuts[index + 1];
+      const active = spans.filter(span => span.start <= start && span.end >= end);
+      const marks = new Set(active.flatMap(span => span.marks));
+      const highlight = [...active].reverse().find(span => span.marks.includes('highlight'));
+      return { start, end, value: value.slice(start, end), marks, color: highlight?.color || '#FFF176' };
+    });
+  }, [clean, format, value]);
+
+  if (clean) {
+    // Live formatting: a mirror layer paints the styles behind a transparent
+    // textarea. Bold is faked with a text-shadow so glyph widths (and the
+    // caret) never drift from the real text.
+    const typography = cn(
+      'w-full whitespace-pre-wrap break-words p-0',
+      multiline ? 'min-h-[7rem] text-[15px] leading-relaxed md:text-[15px]' : 'text-xl font-semibold leading-snug md:text-xl',
+      className
+    );
+    const markButton = (mark: AnnouncementFormatMark, label: string, icon: React.ReactNode) => {
+      const active = isMarkActive(mark);
+      return (
+        <button
+          type="button"
+          aria-label={label}
+          aria-pressed={active}
+          title={`${label} selected text`}
+          onMouseDown={event => event.preventDefault()}
+          onClick={() => applyMark(mark)}
+          className={cn(
+            'inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5',
+            active && (mark === 'highlight' ? 'bg-yellow-300 text-gray-950 hover:bg-yellow-300' : 'bg-primary/10 text-primary')
+          )}
+        >
+          {icon}
+        </button>
+      );
+    };
+    return (
+      <div className="group/editor">
+        <div className="relative">
+          <div aria-hidden className={cn(typography, 'pointer-events-none absolute inset-0 overflow-hidden text-foreground')}>
+            {mirrorSegments.map(segment => (
+              <span
+                key={`${segment.start}-${segment.end}`}
+                className={cn(segment.marks.has('underline') && 'underline decoration-2 underline-offset-2', segment.marks.has('highlight') && 'text-gray-950')}
+                style={{
+                  ...(segment.marks.has('bold') ? { textShadow: '0.6px 0 currentColor, -0.6px 0 currentColor' } : null),
+                  ...(segment.marks.has('highlight') ? { backgroundColor: segment.color } : null),
+                }}
+              >
+                {segment.value}
+              </span>
+            ))}
+            {'\n'}
+          </div>
+          <Textarea
+            id={id}
+            ref={element => { inputRef.current = element; }}
+            value={value}
+            rows={multiline ? rows : 1}
+            onChange={event => handleTextChange(multiline ? event.target.value : event.target.value.replace(/\n/g, ' '))}
+            onKeyDown={event => { if (!multiline && event.key === 'Enter') event.preventDefault(); }}
+            onSelect={updateSelection}
+            onKeyUp={updateSelection}
+            onMouseUp={updateSelection}
+            placeholder={placeholder}
+            className={cn(
+              typography,
+              'relative block resize-none rounded-none border-0 bg-transparent text-transparent shadow-none caret-foreground outline-none selection:bg-primary/20 placeholder:text-muted-foreground/50 focus-visible:ring-0 dark:bg-transparent',
+              !multiline && 'min-h-0'
+            )}
+          />
+        </div>
+        <div className="mt-1 flex items-center gap-0.5">
+          {markButton('bold', 'Bold', <Bold />)}
+          {markButton('underline', 'Underline', <Underline />)}
+          {markButton('highlight', 'Highlight', <Highlighter />)}
+          <span className="ml-2 text-[11px] text-muted-foreground/70" role="status">
+            {feedback ?? 'Select text to style it'}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1 rounded-md border bg-muted/30 p-1">
@@ -213,12 +307,12 @@ interface FormattedTextProps {
 
 export function FormattedText({ text, format, className }: FormattedTextProps) {
   const segments = useMemo(() => {
-    const validSpans = (format?.spans || []).filter(span => span.start >= 0 && span.end < text.length && span.start <= span.end);
-    const boundaries = Array.from(new Set([0, text.length, ...validSpans.flatMap(span => [span.start, span.end + 1])])).sort((a, b) => a - b);
+    const validSpans = (format?.spans || []).filter(span => span.start >= 0 && span.end <= text.length && span.start < span.end);
+    const boundaries = Array.from(new Set([0, text.length, ...validSpans.flatMap(span => [span.start, span.end])])).sort((a, b) => a - b);
 
     return boundaries.slice(0, -1).map((start, index) => {
       const end = boundaries[index + 1];
-      const active = validSpans.filter(span => span.start <= start && span.end + 1 >= end);
+      const active = validSpans.filter(span => span.start <= start && span.end >= end);
       const marks = new Set(active.flatMap(span => span.marks));
       const highlight = [...active].reverse().find(span => span.marks.includes('highlight'));
       return { start, end, value: text.slice(start, end), marks, color: highlight?.color || '#FFF176' };

@@ -3,13 +3,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Cake, Calendar, Users, Gift } from 'lucide-react';
-import Link from 'next/link';
+import { Cake, Gift } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { birthdayServices } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/context';
+import { Panel, RowList, ListRow, IconChip, Pill, EmptyState, InlineError, PanelSkeleton } from '@/components/ui/page-kit';
+import type { Tone } from '@/lib/design/tokens';
 
 interface BirthdayData {
   id: string;
@@ -239,117 +238,73 @@ export function UpcomingBirthdays() {
     });
   };
 
-  const getBirthdayStatus = (daysUntil: number) => {
-    if (daysUntil === 0) return { text: 'Today!', color: 'text-red-600 bg-red-50 dark:bg-red-900/20' };
-    if (daysUntil === 1) return { text: 'Tomorrow!', color: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20' };
-    if (daysUntil <= 7) return { text: `${daysUntil} days`, color: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20' };
-    return { text: `${daysUntil} days`, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' };
+  const getBirthdayStatus = (daysUntil: number): { text: string; tone: Tone } => {
+    if (daysUntil === 0) return { text: 'Today!', tone: 'danger' };
+    if (daysUntil === 1) return { text: 'Tomorrow!', tone: 'warning' };
+    if (daysUntil <= 7) return { text: `${daysUntil} days`, tone: 'info' };
+    return { text: `${daysUntil} days`, tone: 'neutral' };
+  };
+
+  const panelProps = {
+    title: t('birthdays.upcoming', 'Upcoming Birthdays'),
+    icon: <Cake />,
+    href: '/birthdays',
+    hrefLabel: t('common.viewAll', 'View All'),
+    flush: true,
   };
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Cake className="h-5 w-5" />
-            {t('birthdays.upcoming', 'Upcoming Birthdays')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-4 text-muted-foreground">
-            {t('birthdays.loading', 'Loading birthdays...')}
-          </div>
-        </CardContent>
-      </Card>
+      <Panel {...panelProps}>
+        <PanelSkeleton />
+      </Panel>
     );
   }
 
   if (error) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Cake className="h-5 w-5" />
-            {t('birthdays.upcoming', 'Upcoming Birthdays')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-red-500">
-            <Cake className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">{t('birthdays.loadFailed', 'Failed to load birthdays')}</p>
-            <p className="text-xs mt-1">{error}</p>
-          </div>
-        </CardContent>
-      </Card>
+      <Panel {...panelProps}>
+        <InlineError title={t('birthdays.loadFailed', 'Failed to load birthdays')} detail={error} />
+      </Panel>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Cake className="h-5 w-5" />
-            {t('birthdays.upcoming', 'Upcoming Birthdays')}
-          </CardTitle>
-          <Button variant="ghost" size="sm" className="text-xs" asChild>
-            <Link href="/birthdays">
-              {t('common.viewAll', 'View All')}
-            </Link>
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {birthdays.length > 0 ? (
-          <div className="space-y-3">
-            {birthdays.map((birthday) => {
-              const status = getBirthdayStatus(birthday.days_until_birthday || 0);
-              return (
-                <div key={birthday.id} className="p-3 rounded-lg border hover:bg-muted/30 transition-colors">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-full bg-pink-50 dark:bg-pink-900/20">
-                        <Gift className="h-4 w-4 text-pink-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-sm">{birthday.student_name}</h4>
-                        {birthday.class_name && birthday.division && (
-                          <p className="text-xs text-muted-foreground">
-                            {birthday.class_name} - {birthday.division}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${status.color}`}>
-                      {status.text}
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-1 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      <span>{formatBirthday(birthday.date_of_birth)}</span>
-                    </div>
-                    
-                    {birthday.age !== undefined && (
-                      <div className="flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        <span>Turning {birthday.age + 1} years old</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            <Cake className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>{t('birthdays.widgetEmpty.title', 'No upcoming birthdays')}</p>
-            <p className="text-xs">{t('birthdays.widgetEmpty.help', 'Birthdays will appear here when approaching')}</p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <Panel {...panelProps}>
+      {birthdays.length > 0 ? (
+        <RowList>
+          {birthdays.map((birthday) => {
+            const status = getBirthdayStatus(birthday.days_until_birthday || 0);
+            return (
+              <ListRow
+                key={birthday.id}
+                icon={
+                  <IconChip tone="rose">
+                    <Gift />
+                  </IconChip>
+                }
+                title={birthday.student_name}
+                subtitle={
+                  birthday.class_name && birthday.division
+                    ? `${birthday.class_name} - ${birthday.division}`
+                    : undefined
+                }
+                trailing={<Pill tone={status.tone}>{status.text}</Pill>}
+                meta={[
+                  <span key="d">{formatBirthday(birthday.date_of_birth)}</span>,
+                  birthday.age !== undefined && <span key="a">Turning {birthday.age + 1} years old</span>,
+                ]}
+              />
+            );
+          })}
+        </RowList>
+      ) : (
+        <EmptyState
+          icon={<Cake />}
+          title={t('birthdays.widgetEmpty.title', 'No upcoming birthdays')}
+          help={t('birthdays.widgetEmpty.help', 'Birthdays will appear here when approaching')}
+        />
+      )}
+    </Panel>
   );
 }

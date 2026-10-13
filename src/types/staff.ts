@@ -13,6 +13,13 @@ export interface Staff {
   updated_at?: string;
   user_id?: string;
   teacher_id?: string; // Added teacher_id for teacher-specific API calls
+  email?: string;
+  address?: string | null;
+  joining_date?: string | null;
+  date_of_birth?: string | null;
+  emergency_contact?: string | null;
+  emergency_contact_phone?: string | null;
+  user?: { id: string; full_name?: string; email?: string | null; phone_number?: string; role?: string } | null;
   teaching_details: {
     class_teacher_of: Array<{
       class_division_id: string;
@@ -52,6 +59,11 @@ export interface CreateStaffWithUserRequest {
 export interface UpdateStaffRequest {
   full_name?: string;
   phone_number?: string;
+  email?: string | null;
+  address?: string | null;
+  joining_date?: string | null;
+  emergency_contact?: string | null;
+  emergency_contact_phone?: string | null;
   role?: string;
   department?: string;
   designation?: string;

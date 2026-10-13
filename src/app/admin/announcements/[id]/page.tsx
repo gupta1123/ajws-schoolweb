@@ -1,141 +1,106 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Star, Calendar, Users, BookOpen, AlertCircle, CheckCircle, XCircle, Clock, Edit, Trash2 } from 'lucide-react';
+import { CalendarClock, Eye, Megaphone, Pencil, Star, Trash2, User, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { EmptyState, Pill } from '@/components/ui/page-kit';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth/context';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useI18n } from '@/lib/i18n/context';
 import { createAnnouncementsAPI, type Announcement } from '@/lib/api/announcements';
 import { FormattedText } from '@/components/announcements/formatted-text';
 import { AnnouncementAttachments } from '@/components/announcements/announcement-attachments';
+import { surface, type, type Tone } from '@/lib/design/tokens';
+import { cn } from '@/lib/utils';
 
-const announcementTypes = [
-  { value: 'circular', label: 'Circular', icon: BookOpen, description: 'Official circulars and announcements' },
-  { value: 'general', label: 'General', icon: AlertCircle, description: 'General announcements and updates' },
-  { value: 'urgent', label: 'Urgent', icon: AlertCircle, description: 'Time-sensitive announcements' },
-  { value: 'academic', label: 'Academic', icon: BookOpen, description: 'Academic notices and updates' },
-  { value: 'administrative', label: 'Administrative', icon: AlertCircle, description: 'Administrative notices and updates' },
-];
+// Literal classes so Tailwind generates them.
+const priorityBar: Record<Announcement['priority'], string> = {
+  high: 'bg-tone-danger',
+  medium: 'bg-tone-warning',
+  low: 'bg-tone-info',
+};
+const priorityTone: Record<Announcement['priority'], Tone> = { high: 'danger', medium: 'warning', low: 'info' };
+const statusTone: Record<Announcement['status'], Tone> = { pending: 'warning', approved: 'success', rejected: 'danger' };
 
-const priorities = [
-  { value: 'low', label: 'Low', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' },
-  { value: 'medium', label: 'Medium', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' },
-  { value: 'high', label: 'High', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' },
-];
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+function Row({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <span className="mt-0.5 text-muted-foreground [&_svg]:size-4">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className={type.caption}>{label}</p>
+        <div className="mt-0.5 text-sm font-medium">{children}</div>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminAnnouncementViewPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
   const { token } = useAuth();
+  const { t, lang } = useI18n();
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  const fetchAnnouncement = useCallback(async (id: string) => {
-    try {
-      setLoading(true);
-      const api = createAnnouncementsAPI(token!);
-      const response = await api.getAnnouncementById(id);
-
-      if (response.status === 'success') {
+  const fetchAnnouncement = useCallback(
+    async (id: string) => {
+      try {
+        setLoading(true);
+        const response = await createAnnouncementsAPI(token!).getAnnouncementById(id);
+        if (response.status !== 'success') throw new Error('Failed to fetch announcement');
         setAnnouncement(response.data.announcement);
-      } else {
-        throw new Error('Failed to fetch announcement');
+      } catch (error) {
+        console.error('Error fetching announcement:', error);
+        toast({ title: 'Error', description: 'Failed to fetch announcement details', variant: 'error' });
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error fetching announcement:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch announcement details',
-        variant: 'error',
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [token, toast]);
+    },
+    [token, toast]
+  );
 
   useEffect(() => {
-    if (params.id && token) {
-      fetchAnnouncement(params.id as string);
-    }
+    if (params.id && token) fetchAnnouncement(params.id as string);
   }, [params.id, token, fetchAnnouncement]);
 
-  const handleDeleteAnnouncement = async (id: string) => {
+  const handleDelete = async () => {
+    if (!announcement) return;
     try {
-      const api = createAnnouncementsAPI(token!);
-      const response = await api.deleteAnnouncement(id);
-
-      if (response.status === 'success') {
-        toast({
-          title: 'Success',
-          description: 'Announcement deleted successfully',
-        });
-        router.push('/admin/announcements');
-      } else {
-        throw new Error('Failed to delete announcement');
-      }
+      setDeleting(true);
+      const response = await createAnnouncementsAPI(token!).deleteAnnouncement(announcement.id);
+      if (response.status !== 'success') throw new Error('Failed to delete announcement');
+      toast({ title: 'Success', description: 'Announcement deleted successfully' });
+      router.push('/admin/announcements');
     } catch (error) {
       console.error('Error deleting announcement:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete announcement',
-        variant: 'error',
-      });
+      toast({ title: 'Error', description: 'Failed to delete announcement', variant: 'error' });
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'rejected':
-        return <XCircle className="w-4 h-4 text-red-600" />;
-      case 'pending':
-        return <Clock className="w-4 h-4 text-yellow-600" />;
-      default:
-        return <Clock className="w-4 h-4 text-gray-600" />;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return 'bg-green-100 text-green-800';
-      case 'rejected':
-        return 'bg-red-100 text-red-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const day = date.getDate();
-    const month = date.toLocaleDateString('en-US', { month: 'short' });
-    const year = date.getFullYear().toString().slice(-2);
-    return `${day} ${month} '${year}`;
-  };
-
-  const getAnnouncementTypeLabel = (type: string) => {
-    return announcementTypes.find(t => t.value === type)?.label || type.charAt(0).toUpperCase() + type.slice(1);
-  };
+  const fmt = (iso: string, withTime = true) =>
+    new Date(iso).toLocaleString(lang, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      ...(withTime ? { hour: 'numeric', minute: '2-digit' } : {}),
+    });
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-            <p className="text-muted-foreground">Loading announcement...</p>
-          </div>
+      <div className="mx-auto w-full max-w-6xl">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_21rem]">
+          <Skeleton className="h-96 w-full" />
+          <Skeleton className="h-64 w-full" />
         </div>
       </div>
     );
@@ -143,277 +108,140 @@ export default function AdminAnnouncementViewPage() {
 
   if (!announcement) {
     return (
-      <div className="container mx-auto px-4 py-6">
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-bold mb-2">Announcement Not Found</h2>
-          <p className="text-muted-foreground mb-4">The announcement you&apos;re looking for doesn&apos;t exist.</p>
-          <Button onClick={() => router.back()}>Go Back</Button>
+      <div className="mx-auto w-full max-w-6xl">
+        <div className={surface.panel}>
+          <EmptyState
+            icon={<Megaphone />}
+            title={t('announcements.notFound', 'Announcement not found')}
+            help={t('announcements.notFoundHelp', "It may have been deleted, or the link is wrong.")}
+          />
         </div>
       </div>
     );
   }
 
+  const a = announcement;
+  const classNames = a.target_class_names || a.target_classes_detailed?.map((c) => c.name) || a.target_classes || [];
+
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => router.back()}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back
-        </Button>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight">
-              <FormattedText text={announcement.title} format={announcement.title_format} />
-            </h1>
-            {announcement.is_featured && (
-              <Star className="w-6 h-6 text-yellow-500 fill-current" />
-            )}
-          </div>
-          <p className="text-muted-foreground mt-1">
-            View announcement details and information
-          </p>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex items-center gap-3">
-        <Button
-          variant="outline"
-          onClick={() => router.push(`/admin/announcements/${announcement.id}/edit`)}
-          className="flex items-center gap-2"
-        >
-          <Edit className="w-4 h-4" />
-          Edit
-        </Button>
-        <Button
-          variant="destructive"
-          onClick={() => setShowDeleteModal(true)}
-          className="flex items-center gap-2"
-        >
-          <Trash2 className="w-4 h-4" />
-          Delete
-        </Button>
-      </div>
-
-      {/* Main Content Grid - Everything at one glance */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        {/* Content - Takes 2 columns */}
-        <div className="xl:col-span-2 space-y-6">
-          {/* Content Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BookOpen className="w-5 h-5" />
-                Content
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="prose max-w-none">
-                <FormattedText text={announcement.content} format={announcement.content_format} className="whitespace-pre-wrap text-base leading-relaxed" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {token && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5" /> Attachments
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <AnnouncementAttachments announcementId={announcement.id} token={token} canManage />
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Target Audience */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                Target Audience
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <h4 className="text-sm font-medium mb-3">Target Roles</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {announcement.target_roles.map((role) => (
-                      <Badge key={role} variant="outline" className="px-3 py-1">
-                        {role.charAt(0).toUpperCase() + role.slice(1)}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                {announcement.target_classes.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-medium mb-3">Target Classes</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {(announcement.target_class_names || announcement.target_classes_detailed?.map(c => c.name) || announcement.target_classes).map((className, index) => (
-                        <Badge key={index} variant="secondary" className="px-3 py-1">
-                          {className}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
+    <div className="mx-auto w-full max-w-6xl">
+      <div className="grid items-start gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,1fr)_19rem]">
+        <article>
+          <div className="flex gap-4">
+            <span aria-hidden className={cn('w-1 shrink-0 self-stretch rounded-full', priorityBar[a.priority])} />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Pill tone={statusTone[a.status]}>{t(`announcements.status.${a.status}`, cap(a.status))}</Pill>
+                <Pill tone="primary">{t(`announcements.type.${a.announcement_type}`, cap(a.announcement_type))}</Pill>
+                <Pill tone={priorityTone[a.priority]}>{t(`announcements.priority.${a.priority}`, cap(a.priority))}</Pill>
+                {a.is_featured && (
+                  <Pill tone="warning">
+                    <Star className="mr-1 size-3 fill-current" />
+                    {t('announcements.featured', 'Featured')}
+                  </Pill>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* Right Sidebar - Takes 2 columns */}
-        <div className="xl:col-span-2 space-y-6">
-          {/* Key Information - Compact Overview */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Quick Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-muted-foreground">Type:</span>
-                    <div className="flex items-center gap-2">
-                      {React.createElement(announcementTypes.find(t => t.value === announcement.announcement_type)?.icon || BookOpen, { className: "w-4 h-4" })}
-                      <span className="font-medium">{getAnnouncementTypeLabel(announcement.announcement_type)}</span>
-                    </div>
-                  </div>
+              <h1 className="mt-3 break-words text-2xl font-semibold leading-tight tracking-tight">
+                <FormattedText text={a.title} format={a.title_format} />
+              </h1>
+              <p className={cn(type.caption, 'mt-1')}>
+                {a.creator.full_name} · {cap(a.creator.role)} · {fmt(a.created_at, false)}
+              </p>
 
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-muted-foreground">Status:</span>
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(announcement.status)}
-                      <Badge className={getStatusColor(announcement.status)}>
-                        {announcement.status.charAt(0).toUpperCase() + announcement.status.slice(1)}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-muted-foreground">Priority:</span>
-                    <Badge className={priorities.find(p => p.value === announcement.priority)?.color}>
-                      {announcement.priority.charAt(0).toUpperCase() + announcement.priority.slice(1)}
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-muted-foreground">Created:</span>
-                    <span className="font-medium">{formatDate(announcement.created_at)}</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Schedule Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Schedule
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Publish Date</Label>
-                    <div className="text-sm font-medium mt-1">
-                      {formatDate(announcement.publish_at)}
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Expiry Date</Label>
-                    <div className="text-sm font-medium mt-1">
-                      {formatDate(announcement.expires_at)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Creator & Approval Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle>People & Process</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label className="text-sm font-medium text-muted-foreground">Created By</Label>
-                <div className="mt-1">
-                  <div className="font-medium">{announcement.creator.full_name}</div>
-                  <div className="text-sm text-muted-foreground">{announcement.creator.role}</div>
-                </div>
-              </div>
-
-              {announcement.status === 'approved' && announcement.approver && (
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Approved By</Label>
-                  <div className="mt-1">
-                    <div className="font-medium">{announcement.approver.full_name}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {announcement.approved_at ? formatDate(announcement.approved_at) : 'N/A'}
-                    </div>
-                  </div>
+              {a.status === 'rejected' && a.rejection_reason && (
+                <div className="mt-4 rounded-lg border border-tone-danger/30 bg-tone-danger-soft p-3">
+                  <p className="text-xs font-semibold text-tone-danger">{t('announcements.rejectionReason', 'Rejection reason')}</p>
+                  <p className="mt-0.5 text-sm">{a.rejection_reason}</p>
                 </div>
               )}
 
-              {announcement.status === 'rejected' && (
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Rejection Reason</Label>
-                  <div className="mt-2 p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-200">
-                    {announcement.rejection_reason || 'No reason provided'}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+              <div className="mt-5 border-t pt-5 text-[15px] leading-relaxed">
+                <FormattedText text={a.content} format={a.content_format} className="whitespace-pre-wrap break-words" />
+              </div>
 
-      {/* Delete Confirmation Modal */}
-      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Trash2 className="w-5 h-5 text-red-500" />
-              Delete Announcement
-            </DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete &quot;{announcement?.title}&quot;? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteModal(false)}
-            >
-              Cancel
+              <div className="mt-8 border-t pt-6">
+                <h2 className={cn(type.sectionTitle, 'mb-3')}>{t('announcements.attachments.title', 'Attachments')}</h2>
+                <AnnouncementAttachments announcementId={a.id} token={token!} canManage={false} />
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <aside className="space-y-6 lg:sticky lg:top-20 lg:border-l lg:pl-8">
+          <div className="flex gap-2">
+            <Button className="flex-1" onClick={() => router.push(`/admin/announcements/${a.id}/edit`)}>
+              <Pencil />
+              {t('actions.edit', 'Edit')}
             </Button>
             <Button
-              variant="destructive"
-              onClick={() => {
-                if (announcement) {
-                  handleDeleteAnnouncement(announcement.id);
-                  setShowDeleteModal(false);
-                }
-              }}
-              className="flex items-center gap-2"
+              variant="outline"
+              className="flex-1 text-tone-danger hover:text-tone-danger"
+              onClick={() => setShowDelete(true)}
             >
-              <Trash2 className="w-4 h-4" />
-              Delete
+              <Trash2 />
+              {t('actions.delete', 'Delete')}
+            </Button>
+          </div>
+
+          <section className="space-y-4">
+            <Row icon={<CalendarClock />} label={t('announcements.details.publishAt', 'Publishes')}>
+              {fmt(a.publish_at)}
+            </Row>
+            <Row icon={<User />} label={t('announcements.details.createdBy', 'Created by')}>
+              {a.creator.full_name}
+              <span className="ml-1.5 font-normal text-muted-foreground">{cap(a.creator.role)}</span>
+            </Row>
+            {a.status === 'approved' && a.approver && (
+              <Row icon={<User />} label={t('announcements.details.approvedBy', 'Approved by')}>
+                {a.approver.full_name}
+                {a.approved_at && <span className="ml-1.5 font-normal text-muted-foreground">{fmt(a.approved_at, false)}</span>}
+              </Row>
+            )}
+            <Row icon={<Eye />} label={t('announcements.details.views', 'Views')}>
+              {a.view_count ?? 0}
+            </Row>
+          </section>
+
+          <section className="space-y-3 border-t pt-6">
+            <h2 className={type.sectionTitle}>
+              <Users className="mr-1.5 inline size-4 text-muted-foreground" />
+              {t('announcements.details.audience', 'Audience')}
+            </h2>
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-1.5">
+                {a.target_roles.map((r) => (
+                  <Pill key={r} tone="primary">
+                    {r === 'student' ? t('announcements.roles.student', 'Specific Class Parents') : r === 'parent' ? t('announcements.roles.parent', 'All Parents') : t(`announcements.roles.${r}`, cap(r))}
+                  </Pill>
+                ))}
+              </div>
+              {classNames.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {classNames.map((name, i) => (
+                    <Pill key={`${name}-${i}`}>{name}</Pill>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      <Dialog open={showDelete} onOpenChange={setShowDelete}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('announcements.deleteTitle', 'Delete announcement?')}</DialogTitle>
+            <DialogDescription>
+              {t('announcements.deleteDescription', 'This permanently removes the announcement and its attachments. This cannot be undone.')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDelete(false)} disabled={deleting}>
+              {t('actions.cancel', 'Cancel')}
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {t('actions.delete', 'Delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

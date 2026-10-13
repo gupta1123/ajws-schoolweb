@@ -1,421 +1,273 @@
 // src/app/(admin)/staff/[id]/page.tsx
+//
+// Staff profile. Opens read-only; "Edit" turns the same page into a form in
+// place (Save / Cancel pinned to the bottom), so there is no separate edit
+// screen. Teachers also get Teaching and Timetable tabs.
 
 'use client';
 
+import { Suspense, use, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { BookOpen, Briefcase, Cake, CalendarDays, Clock, GraduationCap, HeartPulse, KeyRound, Loader2, Mail, MapPin, MoreHorizontal, Pencil, Phone, Plus, Power, Shield, Trash2, Users } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
-import { Subject } from '@/types/academic';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import {
-  BookOpen,
-  ArrowLeft,
-  Shield,
-  Users,
-  GraduationCap,
-  AlertTriangle,
-  Plus,
-  Edit,
-  CheckCircle,
-  Loader2
-} from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useState, useEffect, useCallback } from 'react';
-import { staffServices } from '@/lib/api/staff';
 import { useI18n } from '@/lib/i18n/context';
-import type { Staff } from '@/types/staff';
+import { staffServices } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { EmptyState, IconChip, InlineError, ListRow, Panel, Pill, RowList } from '@/components/ui/page-kit';
+import { DateField, parseISODate } from '@/components/calendar/event-pickers';
+import { BirthDateField, FieldShell, TextField, draftFromStaff, usePhoneOwners, validateDraft, type StaffDraft } from '@/components/staff/staff-fields';
+import { initialsOf, useRoleText } from '@/components/staff/staff-form';
+import { StaffSubjectsDialog } from '@/components/staff/staff-subjects-dialog';
+import { StaffPasswordDialog } from '@/components/staff/staff-password-dialog';
+import { StaffTimetable } from '@/components/staff/staff-timetable';
+import { surface, type } from '@/lib/design/tokens';
+import { cn } from '@/lib/utils';
+import type { Staff, UpdateStaffRequest } from '@/types/staff';
 
-interface StaffDetailPageProps {
-  params: Promise<{ id: string }>;
-}
+/* ------------------------------ helpers ------------------------------ */
 
-interface TeacherAssignment {
-  assignment_id: string;
-  assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
-  is_primary: boolean;
-  assigned_date: string;
-  class_info: {
-    class_division_id: string;
-    division: string;
-    class_name: string;
-    class_level: string;
-    sequence_number: number;
-    academic_year: string;
-  };
-  subject?: string;
-}
+const unique = <T,>(items: T[], key: (i: T) => string) => {
+  const seen = new Set<string>();
+  return items.filter((i) => (seen.has(key(i)) ? false : (seen.add(key(i)), true)));
+};
 
-interface TeacherClassAssignment {
-  assignment_id: string;
-  assignment_type: string;
-  is_primary: boolean;
-  assigned_date: string;
-  class_info: {
-    class_division_id: string;
-    division: string;
-    class_name: string;
-    class_level: string;
-    sequence_number: number;
-    academic_year: string;
-  };
-  subject?: string;
-}
+/* ------------------------------- page -------------------------------- */
 
-interface TeacherClassesResponse {
-  status: string;
-  data?: {
-    primary_classes?: TeacherClassAssignment[];
-    assignments?: TeacherClassAssignment[];
-  };
-}
-
-export default function StaffDetailPage({ params }: StaffDetailPageProps) {
+function StaffProfile({ id }: { id: string }) {
   const { user, token } = useAuth();
-  const router = useRouter();
   const { t, lang } = useI18n();
+  const router = useRouter();
+  const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const roleText = useRoleText();
 
-  const [staffId, setStaffId] = useState<string>('');
   const [staff, setStaff] = useState<Staff | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [teacherAssignments, setTeacherAssignments] = useState<TeacherAssignment[]>([]);
-  const [assignmentsLoading, setAssignmentsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
-  // Subject management state
-  const [teacherSubjects, setTeacherSubjects] = useState<string[]>([]);
-  const [subjectsLoading, setSubjectsLoading] = useState(false);
-  const [showSubjectDialog, setShowSubjectDialog] = useState(false);
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
-  const [assignmentMode, setAssignmentMode] = useState<'replace' | 'append'>('replace');
-  const [subjectAssignmentLoading, setSubjectAssignmentLoading] = useState(false);
+  const [editing, setEditing] = useState(searchParams.get('edit') === '1');
+  const [draft, setDraft] = useState<StaffDraft | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [tab, setTab] = useState('teaching');
 
-  // Available subjects state
-  const [availableSubjects, setAvailableSubjects] = useState<Array<{id: string, name: string, code: string, is_active: boolean}>>([]);
-  const [availableSubjectsLoading, setAvailableSubjectsLoading] = useState(false);
+  const [confirm, setConfirm] = useState<null | 'delete' | 'status' | 'discard'>(null);
+  const [busy, setBusy] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [subjectsOpen, setSubjectsOpen] = useState(false);
 
-  // Delete confirmation modal state
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const phoneOwners = usePhoneOwners(id);
+  const canManage = user?.role === 'admin' || user?.role === 'principal';
 
-  // Fetch available subjects
-  const fetchAvailableSubjects = useCallback(async () => {
+  useEffect(() => {
     if (!token) return;
-
-    try {
-      setAvailableSubjectsLoading(true);
-
-      const response = await fetch('https://ajws-school-ba8ae5e3f955.herokuapp.com/api/academic/subjects', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const result = await response.json();
-
-      if (result.status === 'success') {
-        // Filter only active subjects
-        const activeSubjects = result.data.subjects.filter((subject: Subject) => subject.is_active);
-        setAvailableSubjects(activeSubjects);
-      } else {
-        console.error('Failed to fetch subjects:', result);
-      }
-    } catch (error) {
-      console.error('Error fetching subjects:', error);
-    } finally {
-      setAvailableSubjectsLoading(false);
-    }
-  }, [token]);
-
-  // Extract staff ID from params
-  useEffect(() => {
-    const extractId = async () => {
-      try {
-        const resolvedParams = await params;
-        setStaffId(resolvedParams.id);
-      } catch (error) {
-        console.error('Error extracting params:', error);
-      }
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
+    // there is no single-staff endpoint, so find the member in the full list
+    staffServices
+      .getStaff(token, { limit: 200 })
+      .then((r) => {
+        if (cancelled) return;
+        const found = r.status === 'success' ? r.data.staff.find((s) => s.id === id) : undefined;
+        if (!found) throw new Error(t('staff.detail.notFound', 'Staff member not found'));
+        setStaff(found);
+      })
+      .catch((e) => !cancelled && setLoadError(e instanceof Error ? e.message : t('staff.detail.errorTitle', 'Failed to fetch staff details')))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
     };
-    extractId();
-  }, [params]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, id, attempt]);
 
-  // Fetch staff details function
-  const fetchStaffDetails = useCallback(async () => {
-    if (!token || !staffId) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch staff list with teacher mapping (same as main staff list)
-      const staffResponse = await staffServices.getStaff(token, { page: 1, limit: 1000 });
-
-      if (staffResponse.status === 'success') {
-        // Fetch teachers mapping to get teacher_id for each staff member
-        try {
-          const teachersResponse = await staffServices.getTeachersMapping(token);
-
-          if (teachersResponse.status === 'success') {
-            // Create a map of staff_id/user_id to teacher data (includes subjects_taught)
-            const teacherMap = new Map<string, { teacher_id: string; subjects_taught?: string[] }>();
-
-            teachersResponse.data.teachers.forEach((teacher) => {
-              const value = { teacher_id: teacher.teacher_id, subjects_taught: teacher.subjects_taught };
-              if (teacher.staff_id) {
-                teacherMap.set(teacher.staff_id, value);
-              }
-              if (teacher.user_id) {
-                teacherMap.set(teacher.user_id, value);
-              }
-            });
-
-            // Find the specific staff member and enrich with teacher_id and subjects_taught
-            const foundStaff = staffResponse.data.staff.find((s) => s.id === staffId);
-            if (foundStaff) {
-              const mapEntry = teacherMap.get(foundStaff.id) || teacherMap.get(foundStaff.user_id || '');
-              const enrichedStaff: Staff = {
-                ...foundStaff,
-                teacher_id: mapEntry?.teacher_id || undefined,
-                teaching_details: {
-                  ...foundStaff.teaching_details,
-                  subjects_taught: mapEntry?.subjects_taught && mapEntry.subjects_taught.length > 0
-                    ? mapEntry.subjects_taught
-                    : (foundStaff.teaching_details?.subjects_taught || [])
-                }
-              };
-
-              setStaff(enrichedStaff);
-            } else {
-              setError('Staff member not found');
-            }
-          } else {
-            // If teachers mapping fails, still show staff data without teacher_id
-            const foundStaff = staffResponse.data.staff.find(s => s.id === staffId);
-            if (foundStaff) {
-            console.log('Staff member found (without teacher mapping):', foundStaff);
-          setStaff(foundStaff);
-        } else {
-          setError('Staff member not found');
-          }
-        }
-        } catch (teachersErr) {
-          console.warn('Failed to fetch teachers mapping, showing staff without teacher_id:', teachersErr);
-          // Still show staff data without teacher_id
-          const foundStaff = staffResponse.data.staff.find(s => s.id === staffId);
-        if (foundStaff) {
-            console.log('Staff member found (without teacher mapping):', foundStaff);
-          setStaff(foundStaff);
-        } else {
-          setError('Staff member not found');
-          }
-        }
-      } else {
-        setError('Failed to fetch staff details');
-      }
-    } catch (err) {
-      console.error('Fetch staff details error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch staff details');
-    } finally {
-      setLoading(false);
-    }
-  }, [token, staffId]);
-
-  // Fetch staff details effect
+  // opened with ?edit=1 (the old edit route redirects here)
   useEffect(() => {
-    if (token && staffId) {
-      fetchStaffDetails();
-    }
-  }, [token, staffId, fetchStaffDetails]);
+    if (staff && editing && !draft) setDraft(draftFromStaff(staff));
+  }, [staff, editing, draft]);
 
-  // Fetch available subjects effect
+  const original = useMemo(() => (staff ? draftFromStaff(staff) : null), [staff]);
+  const dirty = Boolean(editing && draft && original && (Object.keys(draft) as (keyof StaffDraft)[]).some((k) => draft[k] !== original[k]));
+
   useEffect(() => {
-    if (token && staff?.role === 'teacher') {
-      fetchAvailableSubjects();
-    }
-  }, [token, staff?.role, fetchAvailableSubjects]);
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
 
-  // Fetch teacher subjects
-  const fetchTeacherSubjects = useCallback(async () => {
-    if (!token || !staffId || !staff || staff.role !== 'teacher' || !staff.teacher_id) return;
+  const startEdit = useCallback(() => {
+    if (!staff) return;
+    setDraft(draftFromStaff(staff));
+    setSaveError(null);
+    setTab('teaching');
+    setEditing(true);
+  }, [staff]);
 
-    try {
-      setSubjectsLoading(true);
-      // For now, we'll get subjects from the staff teaching_details
-      // In a real scenario, you might want to call a separate API to get current subjects
-      if (staff.teaching_details?.subjects_taught) {
-        setTeacherSubjects(staff.teaching_details.subjects_taught);
-      } else {
-        setTeacherSubjects([]);
-      }
-    } catch (err) {
-      console.error('Error fetching teacher subjects:', err);
-    } finally {
-      setSubjectsLoading(false);
-    }
-  }, [token, staffId, staff]);
-
-  // Assign subjects to teacher
-  const assignSubjectsToTeacher = async () => {
-    if (!token || !staff?.teacher_id || selectedSubjects.length === 0) return;
-
-    try {
-      setSubjectAssignmentLoading(true);
-
-      const payload = {
-        subjects: selectedSubjects,
-        mode: assignmentMode
-      };
-
-      const response = await fetch(`https://ajws-school-ba8ae5e3f955.herokuapp.com/api/academic/teachers/${staff.teacher_id}/subjects`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const result = await response.json();
-
-      if (result.status === 'success') {
-        // Update local state with new subjects
-        if (assignmentMode === 'replace') {
-          setTeacherSubjects(selectedSubjects);
-        } else {
-          // For append mode, merge with existing subjects
-          setTeacherSubjects(prev => [...new Set([...prev, ...selectedSubjects])]);
-        }
-
-        // Reset form
-        setSelectedSubjects([]);
-        setAssignmentMode('replace');
-        setShowSubjectDialog(false);
-
-        console.log('Subjects assigned successfully:', result.data);
-      } else {
-        console.error('Failed to assign subjects:', result);
-      }
-    } catch (error) {
-      console.error('Error assigning subjects:', error);
-    } finally {
-      setSubjectAssignmentLoading(false);
-    }
+  const stopEdit = () => {
+    // drop ?edit=1 so a refresh opens the read-only view
+    if (searchParams.get('edit')) window.history.replaceState(null, '', window.location.pathname);
+    setEditing(false);
+    setDraft(null);
+    setSaveError(null);
+    setConfirm(null);
   };
 
-  // Handle subject selection
-  const handleSubjectToggle = (subject: string) => {
-    setSelectedSubjects(prev =>
-      prev.includes(subject)
-        ? prev.filter(s => s !== subject)
-        : [...prev, subject]
-    );
-  };
+  const isTeacher = staff?.role === 'teacher';
+  const active = staff?.is_active !== false;
+  const teacherId = staff?.user_id;
 
-  // Fetch teacher assignments
-  useEffect(() => {
-    const fetchTeacherAssignments = async () => {
-      if (!token || !staffId || !staff || staff.role !== 'teacher' || !staff.teacher_id) return;
+  // Edit + overflow menu, top right of the profile
+  const actions =
+    staff && canManage && !editing ? (
+      <div className="flex shrink-0 items-center gap-1 self-start">
+        <Button size="sm" variant="outline" onClick={startEdit}>
+          <Pencil />
+          {t('actions.edit', 'Edit')}
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="icon" variant="ghost" className="size-8 text-muted-foreground" aria-label={t('staff.detail.more', 'More actions')} title={t('staff.detail.more', 'More actions')}>
+              <MoreHorizontal />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onSelect={() => setPasswordOpen(true)}>
+              <KeyRound />
+              {t('staff.password.title', 'Reset password')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setConfirm('status')}>
+              <Power />
+              {active ? t('staff.detail.markInactive', 'Mark as inactive') : t('staff.detail.markActive', 'Mark as active')}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-tone-danger focus:text-tone-danger" onSelect={() => setConfirm('delete')}>
+              <Trash2 />
+              {t('actions.delete', 'Delete')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    ) : null;
 
-      console.log('Fetching teacher assignments for teacher_id:', staff.teacher_id);
-      console.log('Staff data in fetchTeacherAssignments:', staff);
+  const set = <K extends keyof StaffDraft>(key: K, value: StaffDraft[K]) => setDraft((d) => (d ? { ...d, [key]: value } : d));
+  const errors = draft ? validateDraft(draft, t, phoneOwners) : {};
+  const [touched, setTouched] = useState(false);
+  const show = (m?: string) => (touched ? m : undefined);
 
+  const save = async () => {
+    if (!token || !staff || !draft || !original) return;
+    setTouched(true);
+    if (Object.keys(errors).length > 0) return;
+    setSaving(true);
+    setSaveError(null);
+
+    const clean = (v: string) => v.trim();
+    const changed = (k: keyof StaffDraft) => clean(draft[k]) !== clean(original[k]);
+    let next: Staff = staff;
+    const failures: string[] = [];
+
+    // 1) staff record
+    const body: UpdateStaffRequest = {};
+    if (changed('fullName')) body.full_name = clean(draft.fullName);
+    if (changed('phone')) body.phone_number = clean(draft.phone);
+    if (changed('email')) body.email = clean(draft.email) || null;
+    if (changed('designation')) body.designation = clean(draft.designation);
+    if (changed('joiningDate')) body.joining_date = draft.joiningDate || null;
+    if (changed('address')) body.address = clean(draft.address) || null;
+    if (changed('emergencyName')) body.emergency_contact = clean(draft.emergencyName) || null;
+    if (changed('emergencyPhone')) body.emergency_contact_phone = clean(draft.emergencyPhone) || null;
+    if (Object.keys(body).length > 0) {
       try {
-        setAssignmentsLoading(true);
-        // Fetch teacher assignments using the teacher_id
-        const response: TeacherClassesResponse = await staffServices.getTeacherClasses(staff.teacher_id, token);
-
-        console.log('Teacher classes API response:', response);
-
-        if (response?.status === 'success' && response.data) {
-          console.log('Full API response data:', response.data);
-          
-          // Transform the response to match our interface
-          const allAssignments: TeacherAssignment[] = [];
-          
-          // Handle primary class assignments (class_teacher)
-          if (response.data.primary_classes && response.data.primary_classes.length > 0) {
-            const primaryAssignments = response.data.primary_classes.map((assignment: TeacherClassAssignment) => ({
-              assignment_id: assignment.assignment_id,
-              assignment_type: 'class_teacher' as const,
-              is_primary: assignment.is_primary,
-              assigned_date: assignment.assigned_date,
-              class_info: {
-                class_division_id: assignment.class_info.class_division_id,
-                division: assignment.class_info.division,
-                class_name: assignment.class_info.class_name,
-                class_level: assignment.class_info.class_level,
-                sequence_number: assignment.class_info.sequence_number,
-                academic_year: assignment.class_info.academic_year
-              }
-            }));
-            allAssignments.push(...primaryAssignments);
-          }
-          
-          // Handle subject teacher assignments
-          if (response.data.assignments && response.data.assignments.length > 0) {
-            const subjectAssignments = response.data.assignments
-              .filter((assignment: TeacherClassAssignment) => assignment.assignment_type === 'subject_teacher')
-              .map((assignment: TeacherClassAssignment) => ({
-                assignment_id: assignment.assignment_id,
-                assignment_type: 'subject_teacher' as const,
-                is_primary: assignment.is_primary,
-                assigned_date: assignment.assigned_date,
-                class_info: {
-                  class_division_id: assignment.class_info.class_division_id,
-                  division: assignment.class_info.division,
-                  class_name: assignment.class_info.class_name,
-                  class_level: assignment.class_info.class_level,
-                  sequence_number: assignment.class_info.sequence_number,
-                  academic_year: assignment.class_info.academic_year
-                },
-                subject: assignment.subject
-              }));
-            allAssignments.push(...subjectAssignments);
-          }
-          
-          console.log('Transformed assignments:', allAssignments);
-          setTeacherAssignments(allAssignments);
-        } else {
-          console.error('Error fetching teacher assignments:', response);
-        }
-      } catch (err) {
-        console.error('Fetch teacher assignments error:', err);
-      } finally {
-        setAssignmentsLoading(false);
+        const r = await staffServices.updateStaff(staff.id, body, token);
+        if (r.status !== 'success') throw new Error();
+        next = { ...next, ...body } as Staff;
+      } catch {
+        failures.push(t('staff.detail.saveParts.details', 'details'));
       }
-    };
+    }
 
-    if (token && staffId && staff?.role === 'teacher' && staff.teacher_id) {
-      fetchTeacherAssignments();
-      fetchTeacherSubjects();
-      fetchAvailableSubjects();
+    // 2) the login account: it signs in by phone, so name / phone / email must follow
+    if (staff.user_id && failures.length === 0 && (body.full_name || body.phone_number || body.email)) {
+      try {
+        const r = await staffServices.updateUserAccount(
+          staff.user_id,
+          { ...(body.full_name && { full_name: body.full_name }), ...(body.phone_number && { phone_number: body.phone_number }), ...(body.email && { email: body.email }) },
+          token
+        );
+        if ('status' in r && r.status !== 'success') throw new Error();
+      } catch {
+        failures.push(t('staff.detail.saveParts.login', 'login account'));
+      }
+    }
+
+    // 3) date of birth has its own endpoint (it cannot be cleared once set)
+    if (changed('dob') && draft.dob) {
+      try {
+        const r = await staffServices.updateStaffDateOfBirth(staff.id, draft.dob, token);
+        if ('status' in r && r.status !== 'success') throw new Error();
+        next = { ...next, date_of_birth: draft.dob };
+      } catch {
+        failures.push(t('staff.detail.saveParts.dob', 'date of birth'));
+      }
+    }
+
+    setStaff(next);
+    setSaving(false);
+    if (failures.length === 0) {
+      toast({ title: t('staff.updated', 'Staff member updated'), variant: 'success' });
+      setTouched(false);
+      stopEdit();
     } else {
-      console.log('Not fetching teacher assignments because:', {
-        hasToken: !!token,
-        hasStaffId: !!staffId,
-        hasStaff: !!staff,
-        isTeacher: staff?.role === 'teacher',
-        hasTeacherId: !!staff?.teacher_id
-      });
+      setSaveError(t('staff.detail.saveFailed', 'Could not save: {parts}. Everything else was saved.').replace('{parts}', failures.join(', ')));
     }
-  }, [token, staffId, staff, fetchTeacherSubjects, fetchAvailableSubjects]);
+  };
 
+  const toggleStatus = async () => {
+    if (!token || !staff) return;
+    setBusy(true);
+    try {
+      const r = await staffServices.updateStaff(staff.id, { is_active: !active }, token);
+      if (r.status !== 'success') throw new Error();
+      setStaff({ ...staff, is_active: !active });
+      toast({ title: active ? t('staff.detail.nowInactive', 'Marked as inactive') : t('staff.detail.nowActive', 'Marked as active'), variant: 'success' });
+      setConfirm(null);
+    } catch {
+      toast({ title: t('staff.detail.statusFailed', 'Could not change the status'), variant: 'error' });
+    } finally {
+      setBusy(false);
+    }
+  };
 
+  const remove = async () => {
+    if (!token || !staff) return;
+    setBusy(true);
+    try {
+      const r = await staffServices.deleteStaff(staff.id, token);
+      if (r.status !== 'success') throw new Error();
+      toast({ title: t('staff.deleted', 'Staff member deleted'), variant: 'success' });
+      router.push('/staff');
+    } catch {
+      toast({ title: t('staff.delete.failed', 'Could not delete the staff member'), variant: 'error' });
+      setBusy(false);
+    }
+  };
 
-  // Only allow admins and principals to access this page
-  if (user?.role !== 'admin' && user?.role !== 'principal') {
+  /* ------------------------------ render ------------------------------ */
+
+  if (user && !canManage) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
-          <p className="text-gray-600">{t('access.adminsOnly', 'Only admins and principals can access this page.')}</p>
+      <div className="flex min-h-[50vh] items-center justify-center text-center">
+        <div>
+          <h2 className="text-xl font-semibold">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t('access.adminsOnly', 'Only admins and principals can access this page.')}</p>
         </div>
       </div>
     );
@@ -423,437 +275,420 @@ export default function StaffDetailPage({ params }: StaffDetailPageProps) {
 
   if (loading) {
     return (
-      <ProtectedRoute>
-        <div className="min-h-screen p-4 md:p-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              <span>{t('staff.loading', 'Loading staff...')}</span>
-            </div>
-          </div>
+      <div className="mx-auto w-full max-w-6xl space-y-4">
+        <Skeleton className="h-28 w-full rounded-lg" />
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+          <Skeleton className="h-72 rounded-lg" />
+          <Skeleton className="h-72 rounded-lg" />
         </div>
-      </ProtectedRoute>
+      </div>
     );
   }
 
-  if (error || !staff) {
+  if (loadError || !staff) {
     return (
-      <ProtectedRoute>
-        <div className="min-h-screen p-4 md:p-8">
-          <div className="mb-6">
-            <Button
-              variant="ghost"
-              onClick={() => router.back()}
-              className="mb-4 flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              {t('staff.backToList', 'Back to Staff')}
-            </Button>
-          </div>
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="text-red-500 mb-4">
-                <Shield className="h-12 w-12 mx-auto" />
-              </div>
-              <h2 className="text-xl font-semibold mb-2">{t('staff.detail.errorTitle', 'Error Loading Staff Details')}</h2>
-              <p className="text-gray-600 mb-4">{error || t('staff.detail.notFound', 'Staff member not found')}</p>
-              <Button onClick={() => router.back()}>{t('actions.back', 'Go Back')}</Button>
-            </div>
-          </div>
-        </div>
-      </ProtectedRoute>
+      <div className="mx-auto w-full max-w-6xl">
+        <InlineError title={t('staff.detail.errorTitle', 'Error Loading Staff Details')} detail={loadError ?? undefined} onRetry={() => setAttempt((a) => a + 1)} retryLabel={t('actions.refresh', 'Refresh')} />
+      </div>
     );
   }
 
- 
-  const classTeacherAssignments = teacherAssignments.filter(assignment => assignment.assignment_type === 'class_teacher');
+  const fmtDate = (iso?: string | null) => {
+    const d = iso ? parseISODate(iso.slice(0, 10)) : undefined;
+    return d ? d.toLocaleDateString(lang, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+  };
 
+  // "Birthday in 12 days" and "2 yr 3 mo with the school"
+  const birthdayHint = (() => {
+    const d = staff.date_of_birth ? parseISODate(staff.date_of_birth.slice(0, 10)) : undefined;
+    if (!d) return '';
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let next = new Date(now.getFullYear(), d.getMonth(), d.getDate());
+    if (next < today) next = new Date(now.getFullYear() + 1, d.getMonth(), d.getDate());
+    const days = Math.round((next.getTime() - today.getTime()) / 86400000);
+    if (days === 0) return t('staff.detail.birthdayToday', 'Birthday today');
+    return days <= 30 ? t('staff.detail.birthdayIn', 'Birthday in {n} days').replace('{n}', String(days)) : '';
+  })();
+  const tenure = (() => {
+    const j = staff.joining_date ? parseISODate(staff.joining_date.slice(0, 10)) : undefined;
+    if (!j) return '';
+    const now = new Date();
+    const months = Math.max(0, (now.getFullYear() - j.getFullYear()) * 12 + now.getMonth() - j.getMonth());
+    const y = Math.floor(months / 12);
+    const m = months % 12;
+    if (y === 0 && m === 0) return t('staff.detail.justJoined', 'Joined this month');
+    return [y > 0 && t('staff.detail.years', '{n} yr').replace('{n}', String(y)), m > 0 && t('staff.detail.months', '{n} mo').replace('{n}', String(m))].filter(Boolean).join(' ');
+  })();
 
-  const subjectTeacherAssignments = teacherAssignments.filter(assignment => assignment.assignment_type === 'subject_teacher');
+  const shownName = editing && draft ? draft.fullName.trim() : staff.full_name;
+  const shownDesignation = (editing && draft ? draft.designation.trim() : staff.designation) || roleText.label(staff.role);
+
+  const classTeacher = unique(staff.teaching_details?.class_teacher_of ?? [], (c) => c.class_division_id);
+  const subjectClasses = unique(staff.teaching_details?.subject_teacher_of ?? [], (c) => `${c.class_division_id}|${c.subject}`);
+  const subjectsTaught = staff.teaching_details?.subjects_taught ?? [];
+  // one row per class, listing the subjects taught there
+  const byClass = Array.from(subjectClasses.reduce((m, c) => m.set(c.class_name, [...(m.get(c.class_name) ?? []), c.subject]), new Map<string, string[]>())).sort((a, b) =>
+    a[0].localeCompare(b[0], undefined, { numeric: true })
+  );
+
+  const activeLabel = active ? t('academicSetup.status.active', 'Active') : t('academicSetup.status.inactive', 'Inactive');
+  const stats: { label: string; value: string; icon: ReactNode; tone: 'primary' | 'violet' | 'success' | 'warning' | 'neutral' }[] = isTeacher
+    ? [
+        { label: t('staff.detail.stats.classTeacher', 'Class teacher of'), value: String(classTeacher.length), icon: <Users />, tone: 'primary' },
+        { label: t('staff.detail.stats.classesTaught', 'Classes taught'), value: String(byClass.length), icon: <GraduationCap />, tone: 'violet' },
+        { label: t('staff.detail.stats.subjects', 'Subjects'), value: String(subjectsTaught.length), icon: <BookOpen />, tone: 'success' },
+        { label: t('staff.detail.stats.withSchool', 'With the school'), value: tenure || '—', icon: <CalendarDays />, tone: 'warning' },
+      ]
+    : [
+        { label: t('staff.form.labels.role', 'Role'), value: roleText.label(staff.role), icon: <Shield />, tone: 'primary' },
+        { label: t('staff.form.labels.accountStatus', 'Account Status'), value: activeLabel, icon: <Power />, tone: active ? 'success' : 'neutral' },
+        { label: t('staff.detail.stats.withSchool', 'With the school'), value: tenure || '—', icon: <CalendarDays />, tone: 'warning' },
+        { label: t('staff.detail.addedOn', 'Added on'), value: fmtDate(staff.created_at) || '—', icon: <Clock />, tone: 'neutral' },
+      ];
+
+  // the designation often just repeats the role ("Teacher"), so only show it when it adds something
+  const extraTitle = shownDesignation !== roleText.label(staff.role) ? shownDesignation : '';
+
+  const hero = (
+    <div className={cn(surface.panel, 'overflow-hidden')}>
+      <div className="flex items-center gap-3 bg-gradient-to-br from-tone-primary-soft to-transparent px-4 py-3">
+        <IconChip className="size-12 rounded-full text-base font-semibold ring-2 ring-background" tone={active ? 'primary' : 'neutral'}>
+          {initialsOf(shownName) || '?'}
+        </IconChip>
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-lg font-semibold leading-tight">{shownName || staff.full_name}</h2>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <Pill tone="primary">{roleText.label(staff.role)}</Pill>
+            <Pill tone={active ? 'success' : 'neutral'}>{activeLabel}</Pill>
+            {birthdayHint && <Pill tone="rose">{birthdayHint}</Pill>}
+            {extraTitle && <span className="text-xs text-muted-foreground">{extraTitle}</span>}
+          </div>
+        </div>
+        {!editing && (
+          <div className="flex shrink-0 items-center gap-1">
+            {staff.phone_number && (
+              <Button asChild size="icon" variant="ghost" className="size-8 text-muted-foreground" title={staff.phone_number}>
+                <a href={`tel:${staff.phone_number}`} aria-label={t('actions.call', 'Call')}>
+                  <Phone />
+                </a>
+              </Button>
+            )}
+            {staff.email && (
+              <Button asChild size="icon" variant="ghost" className="size-8 text-muted-foreground" title={staff.email}>
+                <a href={`mailto:${staff.email}`} aria-label={t('actions.email', 'Email')}>
+                  <Mail />
+                </a>
+              </Button>
+            )}
+          </div>
+        )}
+        {actions}
+      </div>
+      <dl className="grid grid-cols-2 divide-x border-t sm:grid-cols-4 [&>div:nth-child(n+3)]:border-t sm:[&>div:nth-child(n+3)]:border-t-0">
+        {stats.map((s) => (
+          <div key={s.label} className="flex items-center gap-2.5 px-4 py-2">
+            <IconChip tone={s.tone} className="size-8">
+              {s.icon}
+            </IconChip>
+            <div className="min-w-0">
+              <dt className={type.caption}>{s.label}</dt>
+              <dd className="truncate text-sm font-semibold leading-tight">{s.value}</dd>
+            </div>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+
+  type DetailRow = { icon: ReactNode; label: string; value?: string | null };
+  const rows: Record<'contact' | 'personal' | 'work', DetailRow[]> = {
+    contact: [
+      { icon: <Phone />, label: t('staff.form.labels.phoneNumber', 'Phone Number'), value: staff.phone_number },
+      { icon: <Mail />, label: t('staff.form.labels.email', 'Email'), value: staff.email },
+      { icon: <MapPin />, label: t('staff.form.labels.address', 'Address'), value: staff.address },
+    ],
+    personal: [
+      { icon: <Cake />, label: t('staff.form.labels.dob', 'Date of birth'), value: fmtDate(staff.date_of_birth) },
+      { icon: <HeartPulse />, label: t('staff.form.labels.emergencyName', 'Emergency contact'), value: [staff.emergency_contact, staff.emergency_contact_phone].filter(Boolean).join(' · ') },
+    ],
+    work: [
+      { icon: <Briefcase />, label: t('staff.form.labels.designation', 'Designation'), value: extraTitle },
+      { icon: <CalendarDays />, label: t('staff.form.labels.joiningDate', 'Joining date'), value: fmtDate(staff.joining_date) },
+    ],
+  };
+  const missing = Object.values(rows)
+    .flat()
+    .filter((r) => !r.value).length;
+
+  const detailPanel = (title: string, items: DetailRow[]) => {
+    const filled = items.filter((r) => r.value);
+    if (filled.length === 0) return null;
+    return (
+      <Panel title={title} flush>
+        <ul className="divide-y">
+          {filled.map((r) => (
+            <li key={r.label} className="flex items-start gap-3 px-4 py-2.5">
+              <span className="mt-0.5 text-muted-foreground [&_svg]:size-4">{r.icon}</span>
+              <div className="min-w-0">
+                <p className={type.caption}>{r.label}</p>
+                <p className="break-words text-sm font-medium">{r.value}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Panel>
+    );
+  };
+
+  const rail = (
+    <aside className="space-y-4">
+      {detailPanel(t('staff.detail.contact', 'Contact'), rows.contact)}
+      {detailPanel(t('staff.detail.personal', 'Personal'), rows.personal)}
+      {detailPanel(t('staff.detail.work', 'Work'), rows.work)}
+      {missing > 0 && canManage && (
+        <button
+          type="button"
+          onClick={startEdit}
+          className="flex w-full items-center gap-3 rounded-lg border border-dashed px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <IconChip tone="neutral">
+            <Plus />
+          </IconChip>
+          <span className="min-w-0">
+            <span className="block text-sm font-medium">{t('staff.detail.addMissing', 'Add missing details')}</span>
+            <span className={type.caption}>{t('staff.detail.missingCount', '{n} not filled in yet').replace('{n}', String(missing))}</span>
+          </span>
+        </button>
+      )}
+    </aside>
+  );
+
+  const teaching = (
+    <div className="space-y-4">
+      <Panel title={t('teacherRoles.classTeacher', 'Class Teacher')} count={classTeacher.length} icon={<Users />} flush>
+        {classTeacher.length > 0 ? (
+          <RowList>
+            {classTeacher.map((c) => (
+              <ListRow
+                key={c.class_division_id}
+                icon={
+                  <IconChip>
+                    <Users />
+                  </IconChip>
+                }
+                title={c.class_name}
+                subtitle={c.academic_year}
+              />
+            ))}
+          </RowList>
+        ) : (
+          <EmptyState icon={<Users />} title={t('staff.detail.noClassTeacher', 'No class teacher assignments')} />
+        )}
+      </Panel>
+
+      <Panel title={t('staff.detail.subjectTeaching', 'Subject Teaching')} count={byClass.length} icon={<GraduationCap />} flush>
+        {byClass.length > 0 ? (
+          <ul className="divide-y">
+            {byClass.map(([className, subjects]) => (
+              <li key={className} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5">
+                <p className="w-28 shrink-0 text-sm font-medium">{className}</p>
+                <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+                  {subjects.map((sub) => (
+                    <Pill key={sub} tone="violet">
+                      {sub}
+                    </Pill>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState icon={<GraduationCap />} title={t('staff.detail.noSubjectTeaching', 'No subject teaching assignments')} />
+        )}
+      </Panel>
+
+      <Panel
+        title={t('staff.detail.teachingSubjects', 'Teaching Subjects')}
+        count={subjectsTaught.length}
+        icon={<BookOpen />}
+        action={
+          teacherId ? (
+            <Button size="sm" variant="ghost" className="h-7" onClick={() => setSubjectsOpen(true)}>
+              {subjectsTaught.length > 0 ? <Pencil /> : <Plus />}
+              {subjectsTaught.length > 0 ? t('staff.detail.manageSubjects', 'Manage Subjects') : t('staff.assignSubjects', 'Assign Subjects')}
+            </Button>
+          ) : undefined
+        }
+      >
+        {subjectsTaught.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {subjectsTaught.map((sub) => (
+              <Pill key={sub} tone="primary">
+                {sub}
+              </Pill>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">{t('staff.detail.noSubjects', 'No subjects assigned')}</p>
+        )}
+      </Panel>
+    </div>
+  );
+
+  const roleCard = (
+    <Panel title={t('staff.detail.roleAccess', 'Role & access')} icon={<Shield />}>
+      <div className="flex items-start gap-3">
+        <IconChip className="size-10">
+          <Shield />
+        </IconChip>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">{roleText.label(staff.role)}</p>
+          <p className="text-sm text-muted-foreground">{roleText.help(staff.role)}</p>
+        </div>
+      </div>
+    </Panel>
+  );
+
+  const editForm = draft && (
+    <div className="grid gap-4 md:grid-cols-2">
+      <Panel title={t('staff.detail.contact', 'Contact')} icon={<Phone />} className="md:col-span-2">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField id="e-name" label={t('staff.form.labels.fullName', 'Full Name')} value={draft.fullName} onChange={(v) => set('fullName', v)} error={show(errors.fullName)} />
+          <TextField id="e-phone" type="tel" label={t('staff.form.labels.phoneNumber', 'Phone Number')} value={draft.phone} onChange={(v) => set('phone', v)} error={show(errors.phone)} />
+          <TextField id="e-email" type="email" optional label={t('staff.form.labels.email', 'Email')} value={draft.email} onChange={(v) => set('email', v)} error={show(errors.email)} />
+          <TextField id="e-address" optional label={t('staff.form.labels.address', 'Address')} value={draft.address} onChange={(v) => set('address', v)} />
+        </div>
+        <p className={cn(type.caption, 'mt-3')}>{t('staff.detail.phoneLoginHint', 'The phone number is also their sign-in number.')}</p>
+      </Panel>
+      <Panel title={t('staff.detail.personal', 'Personal')} icon={<Cake />}>
+        <div className="space-y-4">
+          <BirthDateField id="e-dob" label={t('staff.form.labels.dob', 'Date of birth')} value={draft.dob} onChange={(v) => set('dob', v)} clearable={!original?.dob} />
+          <TextField id="e-em-name" optional label={t('staff.form.labels.emergencyName', 'Emergency contact')} value={draft.emergencyName} onChange={(v) => set('emergencyName', v)} />
+          <TextField id="e-em-phone" type="tel" optional label={t('staff.form.labels.emergencyPhone', 'Emergency phone')} value={draft.emergencyPhone} onChange={(v) => set('emergencyPhone', v)} error={show(errors.emergencyPhone)} />
+        </div>
+      </Panel>
+      <Panel title={t('staff.detail.work', 'Work')} icon={<Briefcase />}>
+        <div className="space-y-4">
+          <TextField id="e-designation" optional label={t('staff.form.labels.designation', 'Designation')} value={draft.designation} onChange={(v) => set('designation', v)} placeholder={roleText.label(staff.role)} />
+          <FieldShell label={t('staff.form.labels.joiningDate', 'Joining date')} optional htmlFor="e-joining">
+            <DateField id="e-joining" value={draft.joiningDate} onChange={(v) => set('joiningDate', v)} onClear={() => set('joiningDate', '')} hideQuickPicks yearDropdown />
+          </FieldShell>
+          <p className={type.caption}>{t('staff.form.lockedHint', 'Role and status cannot be changed here.')}</p>
+        </div>
+      </Panel>
+    </div>
+  );
+
+  const main = editing ? (
+    editForm
+  ) : isTeacher ? (
+    <Tabs value={tab} onValueChange={setTab}>
+      <TabsList className="mb-4">
+        <TabsTrigger value="teaching">{t('staff.detail.tabs.teaching', 'Teaching')}</TabsTrigger>
+        <TabsTrigger value="timetable">{t('staff.detail.tabs.timetable', 'Timetable')}</TabsTrigger>
+      </TabsList>
+      <TabsContent value="teaching">{teaching}</TabsContent>
+      <TabsContent value="timetable">{teacherId ? <StaffTimetable teacherId={teacherId} /> : <EmptyState title={t('staff.timetable.noAccount', 'No linked teacher account')} />}</TabsContent>
+    </Tabs>
+  ) : (
+    roleCard
+  );
 
   return (
-    <ProtectedRoute>
-      <div className="container max-w-4xl mx-auto py-6">
-        {/* Header */}
-        <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => router.back()}
-            className="mb-4 flex items-center gap-2 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {t('staff.backToList', 'Back to Staff')}
-          </Button>
+    <div className={cn('mx-auto w-full max-w-6xl space-y-4', editing && 'pb-24')}>
+      {hero}
+      <div className={cn('grid gap-4', !editing && 'lg:grid-cols-[minmax(0,1fr)_20rem]')}>
+        <div className="min-w-0">{main}</div>
+        {!editing && rail}
+      </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-16 w-16">
-                <AvatarFallback className="text-xl bg-primary/10 text-primary font-semibold">
-                  {staff.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+      {saveError && editing && (
+        <p role="alert" className="text-sm text-tone-danger">
+          {saveError}
+        </p>
+      )}
 
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">{staff.full_name}</h1>
-                <p className="text-muted-foreground mt-1">{staff.phone_number}</p>
-              </div>
-            </div>
+      {editing && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur md:left-56">
+          <div className="mx-auto flex max-w-6xl items-center justify-end gap-2 p-3 md:px-6">
+            {dirty && <p className="mr-auto text-xs text-muted-foreground">{t('staff.detail.unsaved', 'Unsaved changes')}</p>}
+            <Button variant="ghost" onClick={() => (dirty ? setConfirm('discard') : stopEdit())} disabled={saving}>
+              {t('actions.cancel', 'Cancel')}
+            </Button>
+            <Button onClick={save} disabled={saving || !dirty}>
+              {saving && <Loader2 className="animate-spin" />}
+              {saving ? t('actions.updating', 'Updating...') : t('actions.saveChanges', 'Save changes')}
+            </Button>
           </div>
         </div>
+      )}
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            onClick={() => router.push(`/staff/${staff.id}/edit`)}
-            className="flex items-center gap-2"
-          >
-            <Shield className="w-4 h-4" />
-            {t('actions.edit', 'Edit')}
-          </Button>
-
-          <Button
-            variant="destructive"
-            onClick={() => setShowDeleteModal(true)}
-            className="flex items-center gap-2"
-          >
-            <AlertTriangle className="w-4 h-4" />
-            {t('actions.delete', 'Delete')}
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6">
-          {/* Class Assignments - Only for teachers */}
-          {staff?.role === 'teacher' && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <BookOpen className="h-5 w-5" />
-                  {t('staff.detail.classAssignments', 'Class Assignments')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {assignmentsLoading ? (
-                  <div className="flex items-center justify-center gap-3 py-8">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                    <span className="text-muted-foreground">{t('staff.detail.loadingAssignments', 'Loading assignments...')}</span>
-                  </div>
-                ) : (
-                  <div className="space-y-5">
-                    {/* Class Teacher assignments */}
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-medium flex items-center gap-2">
-                          <Users className="h-4 w-4" />
-                          {(() => {
-                            const translation = t('teacherRoles.classTeacher', 'Class Teacher');
-                            console.log('Current lang:', lang, 'Translation:', translation);
-                            return translation;
-                          })()}
-                        </h4>
-                      </div>
-
-                                            {classTeacherAssignments.length > 0 ? (
-                        <div className="space-y-2">
-                          {classTeacherAssignments.map((assignment, index) => (
-                            <div key={index} className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border border-primary/20">
-                              <div>
-                                <p className="font-medium">
-                                  {assignment.class_info?.class_name}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {assignment.class_info?.academic_year}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-6 bg-muted/30 rounded-lg">
-                          <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-                          <p className="text-sm text-muted-foreground">{t('staff.detail.noClassTeacher', 'No class teacher assignments')}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Subject Teacher assignments */}
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-medium flex items-center gap-2">
-                          <GraduationCap className="h-4 w-4" />
-                          {t('staff.detail.subjectTeaching', 'Subject Teaching')}
-                        </h4>
-                      </div>
-
-                                            {subjectTeacherAssignments.length > 0 ? (
-                        <div className="space-y-2">
-                          {subjectTeacherAssignments.map((assignment, index) => (
-                            <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
-                              <div>
-                                <p className="font-medium">
-                                  {assignment.class_info?.class_name}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {assignment.subject || t('teacherRoles.subjectTeacher', 'Subject Teacher')}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-6 bg-muted/30 rounded-lg">
-                          <GraduationCap className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-                          <p className="text-sm text-muted-foreground">{t('staff.detail.noSubjectTeaching', 'No subject teaching assignments')}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Subject Management - Only for teachers */}
-          {staff?.role === 'teacher' && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between text-lg">
-                  <div className="flex items-center gap-2">
-                    <GraduationCap className="h-5 w-5" />
-                    {t('staff.detail.teachingSubjects', 'Teaching Subjects')}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowSubjectDialog(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Edit className="h-4 w-4" />
-                    {t('staff.detail.manageSubjects', 'Manage Subjects')}
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {subjectsLoading ? (
-                  <div className="flex items-center justify-center gap-3 py-8">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                    <span className="text-muted-foreground">{t('academicSetup.loading.subjects', 'Loading subjects...')}</span>
-                  </div>
-                ) : teacherSubjects.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="flex flex-wrap gap-2">
-                      {teacherSubjects.map((subject) => (
-                        <Badge key={subject} variant="secondary" className="px-3 py-1">
-                          {subject}
-                        </Badge>
-                      ))}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {teacherSubjects.length} {t('staff.detail.subjectsAssigned', 'subjects assigned')}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="text-center py-6 bg-muted/30 rounded-lg">
-                    <GraduationCap className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-                    <p className="text-sm text-muted-foreground mb-3">{t('staff.detail.noSubjects', 'No subjects assigned')}</p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowSubjectDialog(true)}
-                      className="flex items-center gap-2"
-                    >
-                      <Plus className="h-4 w-4" />
-                      {t('staff.assignSubjects', 'Assign Subjects')}
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-
-        {/* Delete Confirmation Modal */}
-        <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-red-500" />
-                {t('staff.delete.title', 'Delete Staff Member')}
-              </DialogTitle>
-              <DialogDescription>
-                {t('staff.delete.confirm', 'Are you sure you want to delete')} &ldquo;{staff?.full_name}&rdquo;? {t('staff.delete.cannotUndo', 'This action cannot be undone.')}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="py-4">
-              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-800">
-                  <strong>{t('staff.delete.warning', 'Warning')}:</strong> {t('staff.delete.warningDesc', 'Deleting this staff member will also remove all their assignments and cannot be recovered.')}
-                </p>
-              </div>
-            </div>
-
-            <DialogFooter className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowDeleteModal(false)}
-              >
-                {t('actions.cancel', 'Cancel')}
+      {/* confirmations */}
+      <Dialog open={confirm !== null} onOpenChange={(o) => !o && !busy && setConfirm(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {confirm === 'delete' && t('staff.delete.title', 'Delete Staff Member')}
+              {confirm === 'status' && (active ? t('staff.detail.markInactive', 'Mark as inactive') : t('staff.detail.markActive', 'Mark as active'))}
+              {confirm === 'discard' && t('staff.detail.discardTitle', 'Discard changes?')}
+            </DialogTitle>
+            <DialogDescription>
+              {confirm === 'delete' && `${t('staff.delete.confirm', 'Are you sure you want to delete')} “${staff.full_name}”? ${t('staff.delete.warningDesc', 'Deleting this staff member will also remove all their assignments and cannot be recovered.')}`}
+              {confirm === 'status' &&
+                (active
+                  ? t('staff.detail.inactiveHelp', '{name} will be shown as inactive. You can switch this back at any time.').replace('{name}', staff.full_name)
+                  : t('staff.detail.activeHelp', '{name} will be shown as active again.').replace('{name}', staff.full_name))}
+              {confirm === 'discard' && t('staff.detail.discardHelp', 'Your edits to this profile have not been saved.')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirm(null)} disabled={busy}>
+              {confirm === 'discard' ? t('staff.detail.keepEditing', 'Keep editing') : t('actions.cancel', 'Cancel')}
+            </Button>
+            {confirm === 'delete' && (
+              <Button variant="destructive" onClick={remove} disabled={busy}>
+                {busy && <Loader2 className="animate-spin" />}
+                {t('actions.delete', 'Delete')}
               </Button>
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  // Handle delete logic here
-                  console.log('Delete staff member:', staff?.id);
-                  setShowDeleteModal(false);
-                }}
-                className="flex items-center gap-2"
-              >
-                <AlertTriangle className="w-4 h-4" />
-                {t('staff.delete.title', 'Delete Staff Member')}
+            )}
+            {confirm === 'status' && (
+              <Button onClick={toggleStatus} disabled={busy}>
+                {busy && <Loader2 className="animate-spin" />}
+                {t('actions.confirm', 'Confirm')}
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Subject Management Dialog */}
-        <Dialog open={showSubjectDialog} onOpenChange={setShowSubjectDialog}>
-          <DialogContent className="sm:max-w-2xl">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <GraduationCap className="w-5 h-5 text-primary" />
-                {t('staff.detail.manageSubjects', 'Manage Teaching Subjects')}
-              </DialogTitle>
-              <DialogDescription>
-                {t('staff.detail.selectSubjectsFor', 'Select subjects for')} {staff?.full_name} {t('staff.detail.toTeach', 'to teach')}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-6">
-              {/* Current subjects */}
-              {teacherSubjects.length > 0 && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">{t('staff.detail.currentlyAssigned', 'Currently assigned subjects:')}</Label>
-                  <div className="flex flex-wrap gap-1">
-                    {teacherSubjects.map((subject) => (
-                      <Badge key={subject} variant="outline" className="text-xs">
-                        {subject}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Assignment Mode */}
-              <div className="space-y-2">
-                <Label>{t('staff.assign.assignmentMode', 'Assignment Mode')}</Label>
-                <Select
-                  value={assignmentMode}
-                  onValueChange={(value: 'replace' | 'append') => setAssignmentMode(value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="replace">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                        {t('staff.assign.replace', 'Replace existing subjects')}
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="append">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-blue-500" />
-                        {t('staff.assign.add', 'Add to existing subjects')}
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  {assignmentMode === 'replace'
-                    ? t('staff.assign.replaceHelp', 'This will replace all existing subjects with the selected ones.')
-                    : t('staff.assign.addHelp', 'This will add the selected subjects to the existing ones.')}
-                </p>
-              </div>
-
-              {/* Subject Selection */}
-              <div className="space-y-3">
-                <Label>{t('staff.assign.selectSubjects', 'Select Subjects *')}</Label>
-                {availableSubjectsLoading ? (
-                  <div className="flex items-center justify-center gap-3 py-8">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                    <span className="text-muted-foreground">{t('academicSetup.loading.subjects', 'Loading subjects...')}</span>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-3 border rounded-lg bg-muted/30">
-                    {availableSubjects.map((subject) => (
-                      <div key={subject.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`subject-${subject.id}`}
-                          checked={selectedSubjects.includes(subject.name)}
-                          onCheckedChange={() => handleSubjectToggle(subject.name)}
-                        />
-                        <Label
-                          htmlFor={`subject-${subject.id}`}
-                          className="text-sm cursor-pointer flex-1 truncate"
-                        >
-                          {subject.name}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Selected subjects preview */}
-              {selectedSubjects.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">{t('staff.assign.selectedSubjects', 'Selected subjects')}{' '}({selectedSubjects.length}):</p>
-                  <div className="flex flex-wrap gap-1">
-                    {selectedSubjects.map((subject) => (
-                      <Badge key={subject} variant="default" className="text-xs">
-                        {subject}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <DialogFooter className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowSubjectDialog(false);
-                  setSelectedSubjects([]);
-                  setAssignmentMode('replace');
-                }}
-                disabled={subjectAssignmentLoading}
-              >
-                {t('actions.cancel', 'Cancel')}
+            )}
+            {confirm === 'discard' && (
+              <Button variant="destructive" onClick={stopEdit}>
+                {t('staff.detail.discard', 'Discard')}
               </Button>
-              <Button
-                onClick={assignSubjectsToTeacher}
-                disabled={subjectAssignmentLoading || selectedSubjects.length === 0}
-                className="flex items-center gap-2"
-              >
-                {subjectAssignmentLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {t('actions.assigning', 'Assigning...')}
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4" />
-                    {t('staff.assign.assignSelected', 'Assign Selected')}
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <StaffPasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} userId={staff.user_id} staffName={staff.full_name} />
+      {teacherId && (
+        <StaffSubjectsDialog
+          open={subjectsOpen}
+          onOpenChange={setSubjectsOpen}
+          staffName={staff.full_name}
+          teacherId={teacherId}
+          current={subjectsTaught}
+          onSaved={(subjects) => setStaff((s) => (s ? { ...s, teaching_details: { ...s.teaching_details, subjects_taught: subjects } } : s))}
+        />
+      )}
+    </div>
+  );
+}
+
+export default function StaffDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  return (
+    <ProtectedRoute>
+      <Suspense fallback={null}>
+        <StaffProfile id={id} />
+      </Suspense>
     </ProtectedRoute>
   );
 }

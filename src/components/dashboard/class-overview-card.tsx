@@ -3,13 +3,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Users } from 'lucide-react';
-import Link from 'next/link';
+import { Users, GraduationCap } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { academicServices } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/context';
+import { Panel, EmptyState, Pill } from '@/components/ui/page-kit';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface TeacherClass {
   id: string;
@@ -94,99 +93,61 @@ export function ClassOverviewCard() {
   const classTeacherClasses = classes.filter(cls => cls.teacherRole === 'class_teacher');
   const subjectTeacherClasses = classes.filter(cls => cls.teacherRole === 'subject_teacher');
 
-  if (loading) {
-    return (
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">{t('dashboard.teacher.classOverview.title', 'Class Overview')}</h2>
-          <Button variant="ghost" size="sm" className="text-xs" asChild>
-            <Link href="/classes">
-              {t('common.viewAll', 'View All')}
-            </Link>
-          </Button>
-        </div>
-        <div className="text-center py-8 text-muted-foreground">
-          {t('dashboard.teacher.classOverview.loading', 'Loading classes...')}
-        </div>
+  const renderGroup = (label: string, items: TeacherClass[], showSubject: boolean) => (
+    <div>
+      <p className="mb-2 text-xs font-medium text-muted-foreground">{label}</p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((classItem) => (
+          <div
+            key={classItem.assignmentId}
+            className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 transition-colors hover:bg-muted/50"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">
+                {classItem.name} - {classItem.division}
+              </p>
+              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Users className="size-3" />
+                {classItem.studentCount} {t('dashboard.teacher.classOverview.students', 'students')}
+              </p>
+            </div>
+            <Pill tone={showSubject ? 'violet' : 'primary'} className="max-w-[50%] truncate">
+              {showSubject
+                ? classItem.subject || t('dashboard.teacher.classOverview.subject', 'Subject')
+                : t('dashboard.teacher.classOverview.classTeacher', 'Class Teacher')}
+            </Pill>
+          </div>
+        ))}
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
-    <div className="mb-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">{t('dashboard.teacher.classOverview.title', 'Class Overview')}</h2>
-        <Button variant="ghost" size="sm" className="text-xs" asChild>
-          <Link href="/classes">
-            {t('common.viewAll', 'View All')}
-          </Link>
-        </Button>
-      </div>
-      
-      {/* Class Teacher Section */}
-      {classTeacherClasses.length > 0 && (
-        <div className="mb-6">
-          <h3 className="text-md font-medium text-muted-foreground mb-3">{t('dashboard.teacher.classOverview.asClassTeacher', 'As Class Teacher')}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {classTeacherClasses.map((classItem) => (
-              <Card key={classItem.assignmentId} className="hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base font-semibold">
-                    {classItem.name} - {classItem.division}
-                  </CardTitle>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Users className="h-4 w-4" />
-                    <span>
-                      {classItem.studentCount} {t('dashboard.teacher.classOverview.students', 'students')}
-                    </span>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-sm text-muted-foreground">
-                    {t('dashboard.teacher.classOverview.classTeacher', 'Class Teacher')}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+    <Panel
+      title={t('dashboard.teacher.classOverview.title', 'Class Overview')}
+      icon={<GraduationCap />}
+      href="/classes"
+      hrefLabel={t('common.viewAll', 'View All')}
+    >
+      {loading ? (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-[52px] rounded-md" />
+          ))}
+        </div>
+      ) : classes.length === 0 ? (
+        <EmptyState
+          icon={<GraduationCap />}
+          title={t('dashboard.teacher.classOverview.noClasses', 'No classes assigned yet.')}
+        />
+      ) : (
+        <div className="space-y-4">
+          {classTeacherClasses.length > 0 &&
+            renderGroup(t('dashboard.teacher.classOverview.asClassTeacher', 'As Class Teacher'), classTeacherClasses, false)}
+          {subjectTeacherClasses.length > 0 &&
+            renderGroup(t('dashboard.teacher.classOverview.asSubjectTeacher', 'As Subject Teacher'), subjectTeacherClasses, true)}
         </div>
       )}
-
-      {/* Subject Teacher Section */}
-      {subjectTeacherClasses.length > 0 && (
-        <div>
-          <h3 className="text-md font-medium text-muted-foreground mb-3">{t('dashboard.teacher.classOverview.asSubjectTeacher', 'As Subject Teacher')}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {subjectTeacherClasses.map((classItem) => (
-              <Card key={classItem.assignmentId} className="hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base font-semibold">
-                    {classItem.name} - {classItem.division}
-                  </CardTitle>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Users className="h-4 w-4" />
-                    <span>
-                      {classItem.studentCount} {t('dashboard.teacher.classOverview.students', 'students')}
-                    </span>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-sm text-muted-foreground">
-                    {t('dashboard.teacher.classOverview.subject', 'Subject')}: {classItem.subject}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* No Classes Message */}
-      {classes.length === 0 && !loading && (
-        <div className="text-center py-8 text-muted-foreground">
-          {t('dashboard.teacher.classOverview.noClasses', 'No classes assigned yet.')}
-        </div>
-      )}
-    </div>
+    </Panel>
   );
 }

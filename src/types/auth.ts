@@ -25,6 +25,31 @@ export interface User {
   last_login?: string;
 }
 
+export interface StaffInfo {
+  staff_id: string;
+  department?: string | null;
+  designation?: string | null;
+  joining_date?: string | null;
+  is_active?: boolean;
+}
+
+/** Response of GET /api/users/profile */
+export interface ProfileData {
+  user: User;
+  staff: StaffInfo | null;
+  ids?: {
+    user_id: string;
+    staff_id: string | null;
+    teacher_id: string | null;
+  };
+}
+
+export interface UpdateProfileData {
+  full_name?: string;
+  email?: string;
+  preferred_language?: 'english' | 'hindi' | 'marathi';
+}
+
 export interface AuthResponse {
   status: string;
   data: {

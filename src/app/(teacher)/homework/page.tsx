@@ -4,31 +4,13 @@
 
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { 
-  Tooltip, 
-  TooltipContent, 
-  TooltipTrigger 
-} from '@/components/ui/tooltip';
-import {
-  Search,
-  Plus,
-  Edit,
-  Trash2,
-  BookOpen,
-  Calendar
-} from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { EmptyState, Pill } from '@/components/ui/page-kit';
+import { Search, Plus, Edit, Trash2, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
 
@@ -38,7 +20,9 @@ import { Homework } from '@/types/homework';
 import { toast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/context';
 import { useRouter } from 'next/navigation';
-import { formatDate, isHomeworkVisibleByExpiry, sortHomeworkLatestFirst } from '@/lib/utils';
+import { cn, formatDate, isHomeworkVisibleByExpiry, sortHomeworkLatestFirst } from '@/lib/utils';
+import { subjectText } from '@/components/timetable/timetable-grid';
+import { surface } from '@/lib/design/tokens';
 
 interface TeacherAssignment {
   assignment_id: string;
@@ -62,6 +46,7 @@ export default function HomeworkPage() {
   const { t } = useI18n();
   const canManageHomework = user?.role === 'teacher' || user?.role === 'admin' || user?.role === 'principal';
   const isTeacher = user?.role === 'teacher';
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [selectedClass, setSelectedClass] = useState('all');
@@ -111,9 +96,11 @@ export default function HomeworkPage() {
       if (user?.role === 'admin' || user?.role === 'principal') {
         const summaryResponse = await academicServices.getClassDivisionsSummary(token);
         if (summaryResponse.status === 'success' && summaryResponse.data) {
-          const classes = summaryResponse.data.divisions.map(
-            division => `${division.level.name} - Section ${division.division}`
-          );
+          const classes = Array.from(new Set(
+            summaryResponse.data.divisions.map(
+              division => `${division.level.name} - Section ${division.division}`
+            )
+          ));
           const subjects = Array.from(new Set(
             summaryResponse.data.divisions.flatMap(division =>
               (division.subjects || []).map(subject => subject.name).filter(Boolean)
@@ -216,9 +203,6 @@ export default function HomeworkPage() {
     setFilteredHomework(sortedFiltered);
   }, [homework, teacherClasses, teacherSubjects, searchTerm, selectedSubject, selectedClass, isTeacher]);
 
-  // Debug: Log authentication state
-  console.log('Auth state:', { user, token: !!token, isAuthenticated, authLoading });
-
   // Show loading state while auth is loading
   if (authLoading) {
     return (
@@ -274,19 +258,14 @@ export default function HomeworkPage() {
       }
     } catch (error) {
       console.error('Error deleting homework:', error);
-        toast({
-          title: t('common.error', 'Error'),
-          description: t('homeworkTeacher.delete.failed', 'Failed to delete homework assignment'),
-          variant: "error",
-        });
+      toast({
+        title: t('common.error', 'Error'),
+        description: t('homeworkTeacher.delete.failed', 'Failed to delete homework assignment'),
+        variant: "error",
+      });
+    } finally {
+      setPendingDelete(null);
     }
-  };
-
-
-
-  // Date formatting is now handled by the formatDate utility function from @/lib/utils
-  const formatDueDate = (date: string | null) => {
-    return date ? formatDate(date) : t('homeworkTeacher.list.noDueDate', 'No due date');
   };
 
   const getAssignedToText = (assignment: Homework) => {
@@ -308,225 +287,230 @@ export default function HomeworkPage() {
       : t('homeworkTeacher.list.noStudentsAssigned', 'No students assigned');
   };
 
+  // Group by due date so "what's due next" reads first
+  type GroupKey = 'today' | 'tomorrow' | 'week' | 'later' | 'none' | 'past';
+  const groupMeta: Record<GroupKey, { label: string; urgent?: boolean; showDate?: boolean }> = {
+    today: { label: t('homeworkTeacher.group.today', 'Due today'), urgent: true },
+    tomorrow: { label: t('homeworkTeacher.group.tomorrow', 'Due tomorrow') },
+    week: { label: t('homeworkTeacher.group.week', 'This week'), showDate: true },
+    later: { label: t('homeworkTeacher.group.later', 'Later'), showDate: true },
+    none: { label: t('homeworkTeacher.list.noDueDate', 'No due date') },
+    past: { label: t('homeworkTeacher.group.past', 'Past due'), showDate: true },
+  };
+  const bucketOf = (date: string | null): GroupKey => {
+    if (!date) return 'none';
+    const due = new Date(date);
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const diff = Math.round((new Date(due.getFullYear(), due.getMonth(), due.getDate()).getTime() - startOfToday.getTime()) / 86400000);
+    if (diff < 0) return 'past';
+    if (diff === 0) return 'today';
+    if (diff === 1) return 'tomorrow';
+    return diff <= 7 ? 'week' : 'later';
+  };
+  const groups = (['today', 'tomorrow', 'week', 'later', 'none', 'past'] as GroupKey[])
+    .map((key) => ({
+      key,
+      ...groupMeta[key],
+      items: filteredHomework
+        .filter((hw) => bucketOf(hw.due_date) === key)
+        .sort((a, b) => (a.due_date || '').localeCompare(b.due_date || '')),
+    }))
+    .filter((g) => g.items.length > 0);
 
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-2 text-gray-600">{t('homeworkTeacher.list.loading', 'Loading homework...')}</p>
-        </div>
-      </div>
-    );
-  }
+  const activeFilters = selectedSubject !== 'all' || selectedClass !== 'all' || selectedTargetType !== 'all' || !!searchTerm;
+  const filterTrigger = 'h-9 w-auto min-w-[9.5rem] gap-2';
 
   return (
     <ProtectedRoute>
-      <div className="space-y-6">
-        {/* Action Bar */}
-        {/* Filters and Search */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4 items-center">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder={t('homeworkTeacher.list.search', 'Search homework...')} 
-                  className="pl-10" 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+      <div className="mx-auto w-full max-w-6xl space-y-4">
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[14rem] flex-1">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={t('homeworkTeacher.list.search', 'Search homework...')}
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <Select value={selectedSubject} onValueChange={(v) => { setSelectedSubject(v); setCurrentPage(1); }}>
+            <SelectTrigger aria-label={t('homeworkTeacher.table.subject', 'Subject')} className={filterTrigger}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('homeworkTeacher.filters.allSubjects', 'All Subjects')}</SelectItem>
+              {teacherSubjects.map((subject) => (
+                <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={selectedClass} onValueChange={setSelectedClass}>
+            <SelectTrigger aria-label={t('homeworkTeacher.table.class', 'Class')} className={filterTrigger}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('homeworkTeacher.filters.allClasses', 'All Classes')}</SelectItem>
+              {teacherClasses.map((cls) => (
+                <SelectItem key={cls} value={cls}>{cls}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={selectedTargetType} onValueChange={(v) => { setSelectedTargetType(v as typeof selectedTargetType); setCurrentPage(1); }}>
+            <SelectTrigger aria-label={t('homeworkTeacher.table.assignedTo', 'Assigned To')} className={filterTrigger}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('homeworkTeacher.filters.allTargets', 'All Assignments')}</SelectItem>
+              <SelectItem value="class">{t('homeworkTeacher.filters.classTarget', 'Entire Class')}</SelectItem>
+              <SelectItem value="students">{t('homeworkTeacher.filters.studentTarget', 'Selected Students')}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button asChild>
+            <Link href="/homework/create">
+              <Plus />
+              {t('homeworkTeacher.create.cta', 'Create Homework')}
+            </Link>
+          </Button>
+        </div>
+
+        {/* List, grouped by when the work is due */}
+        <div className={cn(surface.panel, 'overflow-hidden')}>
+          {loading ? (
+            <ul className="divide-y" aria-busy>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <li key={i} className="flex items-center gap-4 px-4 py-3.5">
+                  <Skeleton className="h-4 w-24" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-1/3" />
+                    <Skeleton className="h-3 w-2/3" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : filteredHomework.length === 0 ? (
+            <EmptyState
+              icon={<BookOpen />}
+              title={t('homeworkTeacher.empty.title', 'No homework found')}
+              help={
+                activeFilters
+                  ? t('homeworkTeacher.empty.noMatch', 'No homework matches your search.')
+                  : t('homeworkTeacher.empty.none', "You haven't created any homework yet.")
+              }
+            />
+          ) : (
+            groups.map((group) => (
+              <section key={group.key} aria-label={group.label}>
+                <div className="flex items-baseline gap-2 border-b bg-muted/40 px-4 py-1.5">
+                  <h3 className={cn('text-xs font-semibold uppercase tracking-wide', group.urgent ? 'text-tone-warning' : 'text-muted-foreground')}>
+                    {group.label}
+                  </h3>
+                  <span className="text-xs tabular-nums text-muted-foreground">{group.items.length}</span>
+                </div>
+                <ul className="divide-y border-b last:border-b-0">
+                  {group.items.map((assignment) => {
+                    const individual = (assignment.target_type || 'class') === 'students';
+                    const classLabel = `${assignment.class_division.level.name} · ${assignment.class_division.division}`;
+                    return (
+                      <li
+                        key={assignment.id}
+                        className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-3 transition-colors hover:bg-muted/40 md:grid-cols-[8rem_minmax(0,1fr)_auto]"
+                      >
+                        <p className="col-span-2 text-xs font-semibold tabular-nums text-foreground md:col-span-1 md:text-sm">
+                          {classLabel}
+                        </p>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium leading-snug">{assignment.title}</p>
+                          <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                            <span className={cn('shrink-0 font-medium', subjectText(assignment.subject))}>{assignment.subject}</span>
+                            {assignment.description && (
+                              <>
+                                <span aria-hidden>·</span>
+                                <span className="truncate">{assignment.description}</span>
+                              </>
+                            )}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          {individual && (
+                            <span title={getAssignedToText(assignment)}>
+                              <Pill tone="violet">
+                                {t('homeworkTeacher.target.individual', 'Individual')}
+                                {' · '}
+                                {assignment.student_targets?.length || assignment.target_student_ids?.length || 0}
+                              </Pill>
+                            </span>
+                          )}
+                          {group.showDate && assignment.due_date && (
+                            <span className="hidden text-xs tabular-nums text-muted-foreground sm:inline">{formatDate(assignment.due_date)}</span>
+                          )}
+                          <div className="flex gap-0.5">
+                            <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-foreground" asChild aria-label={t('actions.edit', 'Edit')} title={t('actions.edit', 'Edit')}>
+                              <Link href={`/homework/edit/${assignment.id}`}>
+                                <Edit />
+                              </Link>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-muted-foreground hover:bg-tone-danger-soft hover:text-tone-danger"
+                              aria-label={t('actions.delete', 'Delete')}
+                              title={t('actions.delete', 'Delete')}
+                              onClick={() => setPendingDelete(assignment.id)}
+                            >
+                              <Trash2 />
+                            </Button>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))
+          )}
+
+          {/* Pagination */}
+          {!loading && pagination && pagination.total_pages > 1 && (
+            <div className="flex items-center justify-between gap-3 border-t px-4 py-2.5">
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {((currentPage - 1) * limit) + 1}–{Math.min(currentPage * limit, pagination.total)} {t('pagination.of', 'of')} {pagination.total}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => handlePageChange(currentPage - 1)} disabled={!pagination.has_prev}>
+                  {t('pagination.previous', 'Previous')}
+                </Button>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {currentPage} / {pagination.total_pages}
+                </span>
+                <Button variant="outline" size="sm" onClick={() => handlePageChange(currentPage + 1)} disabled={!pagination.has_next}>
+                  {t('pagination.next', 'Next')}
+                </Button>
               </div>
-              <div className="flex gap-2">
-                <select 
-                  className="border rounded-md px-3 py-2 text-sm"
-                  value={selectedSubject}
-                  onChange={(e) => { setSelectedSubject(e.target.value); setCurrentPage(1); }}
-                >
-                  <option value="all">{t('homeworkTeacher.filters.allSubjects', 'All Subjects')}</option>
-                  {teacherSubjects.length > 0 ? (
-                    teacherSubjects.map(subject => (
-                      <option key={subject} value={subject}>{subject}</option>
-                    ))
-                  ) : (
-                    <option value="" disabled>{t('homeworkTeacher.filters.noSubjects', 'No subjects assigned')}</option>
-                  )}
-                </select>
-                <select 
-                  className="border rounded-md px-3 py-2 text-sm"
-                  value={selectedClass}
-                  onChange={(e) => setSelectedClass(e.target.value)}
-                >
-                  <option value="all">{t('homeworkTeacher.filters.allClasses', 'All Classes')}</option>
-                  {teacherClasses.length > 0 ? (
-                    teacherClasses.map(cls => (
-                      <option key={cls} value={cls}>{cls}</option>
-                    ))
-                  ) : (
-                    <option value="" disabled>{t('homeworkTeacher.filters.noClasses', 'No classes assigned')}</option>
-                  )}
-                </select>
-                <select
-                  className="border rounded-md px-3 py-2 text-sm"
-                  value={selectedTargetType}
-                  onChange={(e) => { setSelectedTargetType(e.target.value as typeof selectedTargetType); setCurrentPage(1); }}
-                >
-                  <option value="all">{t('homeworkTeacher.filters.allTargets', 'All Assignments')}</option>
-                  <option value="class">{t('homeworkTeacher.filters.classTarget', 'Entire Class')}</option>
-                  <option value="students">{t('homeworkTeacher.filters.studentTarget', 'Selected Students')}</option>
-                </select>
-              </div>
-              <Button asChild size="lg">
-                <Link href="/homework/create">
-                  <Plus className="mr-2 h-5 w-5" />
-                  {t('homeworkTeacher.create.cta', 'Create Homework')}
-                </Link>
+            </div>
+          )}
+        </div>
+
+        {/* Delete confirmation */}
+        <Dialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>{t('homeworkTeacher.delete.title', 'Delete this homework?')}</DialogTitle>
+              <DialogDescription>
+                {t('homeworkTeacher.delete.description', 'Students and parents will no longer see it. This cannot be undone.')}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setPendingDelete(null)}>
+                {t('actions.cancel', 'Cancel')}
               </Button>
-
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Homework Assignments Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('homeworkTeacher.list.title', 'Homework Assignments')}</CardTitle>
-            <CardDescription>
-              {t('homeworkTeacher.list.subtitle', "List of homework assignments you've created")}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('homeworkTeacher.table.subject', 'Subject')}</TableHead>
-                    <TableHead>{t('homeworkTeacher.table.title', 'Title')}</TableHead>
-                    <TableHead>{t('homeworkTeacher.table.class', 'Class')}</TableHead>
-                    <TableHead>{t('homeworkTeacher.table.assignedTo', 'Assigned To')}</TableHead>
-                    <TableHead>{t('homeworkTeacher.table.dueDate', 'Due Date')}</TableHead>
-                    <TableHead className="text-right">{t('academicSetup.cols.actions', 'Actions')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredHomework.map((assignment) => (
-                    <TableRow key={assignment.id} className="hover:bg-muted/50">
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="h-4 w-4 text-muted-foreground" />
-                          {assignment.subject}
-                        </div>
-                      </TableCell>
-                      <TableCell className="max-w-[280px]">
-                        <div>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="font-medium truncate cursor-help">{assignment.title}</div>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs">
-                              <p className="font-medium">{assignment.title}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          <div className="text-sm text-muted-foreground truncate">{assignment.description}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{`${assignment.class_division.level.name} - Section ${assignment.class_division.division}`}</TableCell>
-                      <TableCell className="max-w-[260px]">
-                        <div className="space-y-1">
-                          <Badge variant={(assignment.target_type || 'class') === 'students' ? 'secondary' : 'outline'}>
-                            {(assignment.target_type || 'class') === 'students'
-                              ? t('homeworkTeacher.target.individual', 'Individual')
-                              : t('homeworkTeacher.target.class', 'Class')}
-                          </Badge>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="truncate text-sm text-muted-foreground cursor-help">
-                                {getAssignedToText(assignment)}
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs">
-                              <p>{getAssignedToText(assignment)}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          {formatDueDate(assignment.due_date)}
-                        </div>
-                      </TableCell>
-
-                      <TableCell className="text-right">
-                        <Button variant="outline" size="sm" className="mr-2" asChild>
-                          <Link href={`/homework/edit/${assignment.id}`}>
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleDelete(assignment.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            
-            {filteredHomework.length === 0 && (
-              <div className="text-center py-12">
-                <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">{t('homeworkTeacher.empty.title', 'No homework found')}</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  {searchTerm ? t('homeworkTeacher.empty.noMatch', 'No homework matches your search.') : t('homeworkTeacher.empty.none', "You haven't created any homework yet.")}
-                </p>
-                <div className="mt-6">
-                  <Button asChild>
-                    <Link href="/homework/create">
-                      <Plus className="mr-2 h-4 w-4" />
-                      {t('homeworkTeacher.create.cta', 'Create Homework')}
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Pagination */}
-            {pagination && pagination.total_pages > 1 && (
-              <div className="flex items-center justify-between mt-4">
-                <div className="text-sm text-gray-700">
-                  {t('pagination.showing', 'Showing')} {((currentPage - 1) * limit) + 1} {t('pagination.to', 'to')} {Math.min(currentPage * limit, pagination.total)} {t('pagination.of', 'of')} {pagination.total} {t('pagination.results', 'results')}
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={!pagination.has_prev}
-                  >
-                    {t('pagination.previous', 'Previous')}
-                  </Button>
-                  <span className="flex items-center px-3 py-2 text-sm">
-                    {t('pagination.page', 'Page')} {currentPage} {t('pagination.of', 'of')} {pagination.total_pages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={!pagination.has_next}
-                  >
-                    {t('pagination.next', 'Next')}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              <Button variant="destructive" onClick={() => pendingDelete && handleDelete(pendingDelete)}>
+                {t('actions.delete', 'Delete')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </ProtectedRoute>
   );

@@ -10,6 +10,7 @@ import { EventCreationWizard } from '@/components/calendar/event-creation-wizard
 import { calendarServices, CreateEventRequest } from '@/lib/api/calendar';
 import { toast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/context';
+import { FormSkeleton } from '@/components/calendar/form-skeleton';
 
 
 interface CreateEventFormData {
@@ -31,12 +32,6 @@ function CreateEventContent() {
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const { t } = useI18n();
-
-  // Debug: log the date parameter received
-  const dateParam = searchParams.get('date');
-  console.log('Create Page: date parameter received:', dateParam);
-  console.log('Create Page: searchParams.getAll():', Array.from(searchParams.entries()));
-  console.log('Create Page: current timezone offset:', new Date().getTimezoneOffset());
 
   const handleSubmit = async (data: CreateEventFormData) => {
     if (!user) {
@@ -107,10 +102,6 @@ function CreateEventContent() {
         throw new Error('Title, description, and event date are required');
       }
 
-      // Debug: log the payload being sent
-      console.log('API Payload being sent:', apiPayload);
-      console.log('Original form data:', data);
-
       // Determine if user has auto-approval privileges
       const hasAutoApproval = user.role === 'admin' || user.role === 'principal';
       
@@ -121,8 +112,6 @@ function CreateEventContent() {
           ...apiPayload,
           class_division_ids: data.classDivisionIds
         };
-        
-        console.log('Creating multi-class event with payload:', payloadWithClasses);
         
         const response = await calendarServices.createEvent(token!, payloadWithClasses);
         
@@ -146,7 +135,6 @@ function CreateEventContent() {
         }
       } else if (data.eventType === 'teacher_specific') {
         // Create teacher-specific event (no class selection needed)
-        console.log('Creating teacher-specific event with payload:', apiPayload);
         
         const response = await calendarServices.createEvent(token!, apiPayload);
         
@@ -213,16 +201,12 @@ function CreateEventContent() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen p-4 md:p-6">
-        <main className="max-w-7xl mx-auto pt-6">
-          <EventCreationWizard 
-            initialDate={initialDate}
-            onSubmit={handleSubmit}
-            onCancel={handleCancel}
-            isLoading={isLoading}
-          />
-        </main>
-      </div>
+      <EventCreationWizard
+        initialDate={initialDate}
+        onSubmit={handleSubmit}
+        onCancel={handleCancel}
+        isLoading={isLoading}
+      />
     </ProtectedRoute>
   );
 }
@@ -231,14 +215,7 @@ function CreateEventContent() {
 export default function CreateEventPage() {
   const { t } = useI18n();
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100 mx-auto mb-4"></div>
-          <p className="text-gray-500">{t('calendar.create.loading', 'Loading create event page...')}</p>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<FormSkeleton label={t('calendar.create.loading', 'Loading...')} />}>
       <CreateEventContent />
     </Suspense>
   );

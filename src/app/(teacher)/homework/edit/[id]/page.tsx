@@ -1,1047 +1,157 @@
+// src/app/(teacher)/homework/edit/[id]/page.tsx
+
 'use client';
 
-import { useAuth } from '@/lib/auth/context';
-import { ProtectedRoute } from '@/lib/auth/protected-route';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useState, useEffect, useCallback, useRef, use } from 'react';
+import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { Loader2, Image as ImageIcon, FileText, File as FileIcon, Edit, Trash2, X, RefreshCw, Download, Users } from 'lucide-react';
-import { homeworkServices, AttachmentsResponse, CreateHomeworkData } from '@/lib/api/homework';
-import { academicServices } from '@/lib/api/academic';
-import { ApiResponseWithCache, ApiErrorResponse } from '@/lib/api/client';
-import { Homework, Attachment, HomeworkTargetType } from '@/types/homework';
+import { BookOpen } from 'lucide-react';
+import { useAuth } from '@/lib/auth/context';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/page-kit';
+import { toISODate } from '@/components/calendar/event-pickers';
+import { homeworkServices } from '@/lib/api/homework';
+import type { Homework } from '@/types/homework';
 import { toast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/context';
-import { FileUploader } from '@/components/ui/file-uploader';
-
-// Interface for the API response structure
-interface AssignedClass {
-  assignment_id: string;
-  class_division_id: string;
-  division: string;
-  class_name: string;
-  class_level: string;
-  sequence_number: number;
-  academic_year: string;
-  assignment_type: 'class_teacher' | 'subject_teacher' | 'assistant_teacher' | 'substitute_teacher';
-  is_primary: boolean;
-  assigned_date: string;
-  subject?: string;
-}
-
-// API Response types
-interface ApiResponse<T = unknown> {
-  status: 'success' | 'error';
-  message?: string;
-  data?: T;
-}
-
-interface HomeworkApiResponse extends ApiResponse {
-  data?: {
-    homework?: Homework;
-  };
-}
-
-
-
-interface UploadApiResponse extends ApiResponse {
-  data?: {
-    attachments?: Attachment[];
-  };
-}
-
-interface TeacherClassesApiResponse extends ApiResponse {
-  data?: {
-    assigned_classes?: AssignedClass[];
-  };
-}
-
-// Interface for the transformed class data we're using
-interface TransformedClass {
-  id: string;
-  division: string;
-  class_level: {
-    name: string;
-  };
-  academic_year: {
-    year_name: string;
-  };
-}
-
-interface ClassStudent {
-  id: string;
-  full_name: string;
-  admission_number: string;
-}
+import { HomeworkForm, type HomeworkFormValues } from '@/components/homework/homework-form';
+import { HomeworkAccess } from '@/components/homework/homework-access';
+import { HomeworkAttachments } from '@/components/homework/homework-attachments';
+import { useHomeworkOptions } from '@/components/homework/use-homework-options';
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default function EditHomeworkPage({ params }: PageProps) {
-  const unwrappedParams = use(params);
-  const { user, token, isAuthenticated, loading: authLoading } = useAuth();
+  const { id } = use(params);
+  const { token } = useAuth();
   const router = useRouter();
   const { t } = useI18n();
-  const canManageHomework = user?.role === 'teacher' || user?.role === 'admin' || user?.role === 'principal';
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [loadingStudents, setLoadingStudents] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const options = useHomeworkOptions();
   const [homework, setHomework] = useState<Homework | null>(null);
-  const [classDivisions, setClassDivisions] = useState<TransformedClass[]>([]);
-  const [targetType, setTargetType] = useState<HomeworkTargetType>('class');
-  const [classStudents, setClassStudents] = useState<ClassStudent[]>([]);
-  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
-
-  const [existingAttachments, setExistingAttachments] = useState<Attachment[]>([]);
-  const [editingAttachment, setEditingAttachment] = useState<string | null>(null);
-  const [editFileInput, setEditFileInput] = useState<HTMLInputElement | null>(null);
-  const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
-  const [imageBlobUrls, setImageBlobUrls] = useState<Record<string, string>>({});
-
-  // keep track of mounted status to avoid state updates on unmounted
-  const mountedRef = useRef(true);
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => { mountedRef.current = false; };
-  }, []);
-
-  // Format class division name for display
-  const formatClassName = (division: TransformedClass) => {
-    return `${division.class_level?.name || t('common.none', 'Unknown')} - ${t('timetable.section', 'Section')} ${division.division}`;
-  };
-
-  // Load image as blob URL using API client
-  const loadImageBlob = useCallback(async (attachment: Attachment): Promise<string | null> => {
-    if (!homework?.id || !attachment.file_type?.startsWith('image/')) {
-      return null;
-    }
-
-    try {
-      console.log('Loading image blob for:', attachment.file_name);
-
-      // First, try using the Supabase public URL if available
-      if (attachment.download_url) {
-        console.log('Using Supabase URL for:', attachment.file_name, attachment.download_url);
-        return attachment.download_url;
-      }
-
-      // Fallback to API client for blob loading
-      const blob = await homeworkServices.downloadAttachment(homework.id, attachment.id, token || '');
-      const url = URL.createObjectURL(blob);
-      return url;
-    } catch (error) {
-      console.error('Failed to load image blob for:', attachment.file_name, error);
-      return null;
-    }
-  }, [homework?.id, token]);
-
-  // Load all image blobs for attachments
-  const loadAllImageBlobs = useCallback(async (attachments: Attachment[]) => {
-    const imageAttachments = attachments.filter(att => att.file_type?.startsWith('image/'));
-
-    for (const attachment of imageAttachments) {
-      const blobUrl = await loadImageBlob(attachment);
-      if (blobUrl && mountedRef.current) {
-        setImageBlobUrls(prev => ({ ...prev, [attachment.id]: blobUrl }));
-      }
-    }
-  }, [loadImageBlob]);
-
-  // Track latest blob URLs in a ref so we can clean up safely on unmount
-  const imageBlobUrlsRef = useRef<Record<string, string>>({});
-  useEffect(() => {
-    imageBlobUrlsRef.current = imageBlobUrls;
-  }, [imageBlobUrls]);
-
-  // Cleanup function for blob URLs (no state updates here to avoid render loops)
-  const cleanupBlobUrls = useCallback(() => {
-    const urls = imageBlobUrlsRef.current;
-    Object.values(urls).forEach(url => {
-      if (url && url.startsWith('blob:')) {
-        URL.revokeObjectURL(url);
-      }
-    });
-  }, []);
-
-  const fetchExistingAttachmentsById = useCallback(
-    async (homeworkId: string) => {
-      if (!homeworkId || !token) {
-        console.log('Cannot fetch attachments: missing homework ID or token', { homeworkId, hasToken: !!token });
-        return;
-      }
-      try {
-        console.log('Fetching attachments for homework:', homeworkId);
-        const response = await homeworkServices.getHomeworkAttachments(homeworkId, token);
-        console.log('Attachments API response status:', (response as ApiResponseWithCache<AttachmentsResponse> | ApiErrorResponse)?.status);
-
-        if ((response as ApiErrorResponse)?.status === 'error') {
-          console.log('API error while fetching attachments:', response);
-          return;
-        }
-
-        const attachments = (response as ApiResponseWithCache<AttachmentsResponse>)?.data?.attachments ?? [];
-        setExistingAttachments(attachments);
-        console.log('Successfully loaded attachments:', attachments.length);
-        if (attachments.length > 0) {
-          console.log('Sample attachment:', {
-            name: attachments[0].file_name,
-            hasDownloadUrl: !!attachments[0].download_url,
-            hasDownloadEndpoint: !!attachments[0].download_endpoint
-          });
-        }
-
-        // Load image blobs for all image attachments
-        await loadAllImageBlobs(attachments);
-      } catch (err) {
-        console.error('Error fetching attachments:', err);
-      }
-    },
-    [token, loadAllImageBlobs]
-  );
-
-  const handleDeleteAttachment = async (attachment: Attachment) => {
-    if (!homework?.id || !token) return;
-
-    if (!confirm(`Are you sure you want to delete "${attachment.file_name}"?`)) {
-      return;
-    }
-
-    try {
-      const response = await homeworkServices.deleteAttachment(homework.id, attachment.id, token);
-      if ((response as ApiResponse)?.status === 'success') {
-        toast({
-          title: "Success",
-          description: "Attachment deleted successfully!",
-          variant: "success",
-        });
-        // Remove from local state
-        setExistingAttachments(prev => prev.filter(att => att.id !== attachment.id));
-
-      } else {
-        throw new Error((response as ApiResponse)?.message || 'Failed to delete attachment');
-      }
-    } catch (err) {
-      console.error('Error deleting attachment:', err);
-      toast({
-        title: "Error",
-        description: "Failed to delete attachment. Please try again.",
-        variant: "error",
-      });
-    }
-  };
-
-  const handleEditAttachment = async (attachment: Attachment, newFile: File) => {
-    if (!homework?.id || !token) return;
-
-    try {
-      const formData = new FormData();
-      formData.append('files', newFile);
-
-      const response = await homeworkServices.updateAttachment(homework.id, attachment.id, formData, token);
-      if ((response as ApiResponse)?.status === 'success') {
-        toast({
-          title: "Success",
-          description: "Attachment updated successfully!",
-          variant: "success",
-        });
-        // Refresh attachments to get updated data
-        await fetchExistingAttachmentsById(homework.id);
-      } else {
-        throw new Error((response as ApiResponse)?.message || 'Failed to update attachment');
-      }
-    } catch (err) {
-      console.error('Error updating attachment:', err);
-      toast({
-        title: "Error",
-        description: "Failed to update attachment. Please try again.",
-        variant: "error",
-      });
-    }
-  };
-
-  const handleThumbnailClick = (attachment: Attachment) => {
-    if (attachment.file_type?.startsWith('image/')) {
-      const imageUrl = imageBlobUrls[attachment.id];
-      if (imageUrl) {
-        setPreviewImage({ url: imageUrl, name: attachment.file_name });
-      } else {
-        console.log('Blob URL not available yet for:', attachment.file_name);
-      }
-    }
-  };
-
-  const getAttachmentUrl = (attachment: Attachment): string => {
-    // Prefer public Supabase URL when provided
-    if (attachment.download_url) return attachment.download_url;
-    // Fallback to API download endpoint (may require auth on server)
-    const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://ajws-school-ba8ae5e3f955.herokuapp.com';
-    if (attachment.download_endpoint) {
-      return `${API_BASE}${attachment.download_endpoint}`;
-    }
-    if (homework?.id) {
-      return `${API_BASE}/api/homework/${homework.id}/attachments/${attachment.id}`;
-    }
-    return '';
-  };
-
-  const handleDownload = (attachment: Attachment) => {
-    const url = getAttachmentUrl(attachment);
-    if (!url) return;
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = attachment.file_name;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const getFileIcon = (fileType: string) => {
-    if (fileType?.startsWith('image/')) {
-      return <ImageIcon className="h-5 w-5 text-green-500" />;
-    } else if (fileType?.includes('pdf')) {
-      return <FileText className="h-5 w-5 text-red-500" />;
-    } else if (fileType?.includes('word') || fileType?.includes('document') || fileType?.includes('msword')) {
-      return <FileText className="h-5 w-5 text-blue-500" />;
-    } else if (fileType?.includes('text') || fileType === 'text/plain') {
-      return <FileText className="h-5 w-5 text-gray-500" />;
-    } else {
-      return <FileIcon className="h-5 w-5 text-muted-foreground" />;
-    }
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const [formData, setFormData] = useState({
-    class_division_id: '',
-    subject: '',
-    title: '',
-    description: '',
-    due_date: ''
-  });
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const fetchClassStudents = async () => {
-      if (!token || !formData.class_division_id || targetType !== 'students') {
-        setClassStudents([]);
-        return;
-      }
-
-      try {
-        setLoadingStudents(true);
-        const response = await academicServices.getStudentsByClass(formData.class_division_id, token);
-
-        if (response.status === 'success') {
-          setClassStudents(response.data.students || []);
-        } else {
-          setClassStudents([]);
-        }
-      } catch (err) {
-        console.error('Error fetching class students:', err);
-        setClassStudents([]);
-      } finally {
-        setLoadingStudents(false);
-      }
-    };
-
-    fetchClassStudents();
-  }, [formData.class_division_id, targetType, token]);
-
-  // Fetch base data
-  useEffect(() => {
-    const homeworkIdFromParams = unwrappedParams.id;
-
-    const fetchData = async () => {
-      if (!user || !token || !homeworkIdFromParams) return;
-
+    if (!token) return;
+    let cancelled = false;
+    (async () => {
       try {
         setLoading(true);
-        setError(null);
-
-        if (user.role === 'teacher') {
-          const teacherResponse = await academicServices.getMyTeacherClasses(token);
-          if ((teacherResponse as TeacherClassesApiResponse)?.status === 'success' && (teacherResponse as TeacherClassesApiResponse)?.data) {
-            const subjectTeacherClasses = (teacherResponse as TeacherClassesApiResponse).data?.assigned_classes?.filter(
-              (assignment: AssignedClass) => assignment.assignment_type === 'subject_teacher'
-            ) ?? [];
-
-            const transformedClasses: TransformedClass[] = subjectTeacherClasses.map((assignment: AssignedClass) => ({
-              id: assignment.class_division_id,
-              division: assignment.division,
-              class_level: { name: assignment.class_level },
-              academic_year: { year_name: assignment.academic_year }
-            }));
-
-            // dedupe
-            const uniqueClasses = transformedClasses.filter(
-              (classItem, index, self) => index === self.findIndex(c => c.id === classItem.id)
-            );
-            setClassDivisions(uniqueClasses);
-          }
-        } else if (user.role === 'admin' || user.role === 'principal') {
-          const summaryResponse = await academicServices.getClassDivisionsSummary(token);
-          if (summaryResponse.status === 'success' && summaryResponse.data) {
-            const transformedClasses: TransformedClass[] = summaryResponse.data.divisions.map(division => ({
-              id: division.id,
-              division: division.division,
-              class_level: { name: division.level.name },
-              academic_year: { year_name: division.academic_year.year_name }
-            }));
-
-            setClassDivisions(transformedClasses);
-          }
-        }
-
-        // Fetch specific homework data
-        console.log('Fetching homework with ID:', homeworkIdFromParams);
-        const homeworkResponse = await homeworkServices.getHomeworkById(token, homeworkIdFromParams);
-        console.log('API Response:', homeworkResponse);
-
-        if ((homeworkResponse as HomeworkApiResponse)?.status === 'success') {
-          const homeworkData = (homeworkResponse as HomeworkApiResponse).data?.homework;
-          if (homeworkData) {
-            console.log('Found homework data:', homeworkData);
-            setHomework(homeworkData);
-            const formattedDueDate = homeworkData.due_date
-              ? new Date(homeworkData.due_date).toISOString().split('T')[0]
-              : '';
-
-            setFormData({
-              class_division_id: homeworkData.class_division_id ?? '',
-              subject: homeworkData.subject ?? '',
-              title: homeworkData.title ?? '',
-              description: homeworkData.description ?? '',
-              due_date: formattedDueDate
-            });
-            setTargetType(homeworkData.target_type || 'class');
-            setSelectedStudentIds(
-              homeworkData.target_student_ids ||
-              homeworkData.student_targets?.map(target => target.student_id).filter(Boolean) ||
-              []
-            );
-
-            // ✅ Fetch attachments using the ID directly (not relying on state yet)
-            await fetchExistingAttachmentsById(homeworkIdFromParams);
-          } else {
-            setError('Homework data not found in response');
-            console.error('No homework data in response:', (homeworkResponse as HomeworkApiResponse).data);
-          }
-        } else {
-          setError('Failed to fetch homework');
-          console.error('API Error:', homeworkResponse);
-        }
-      } catch (err) {
-        setError('Failed to load homework data');
-        console.error('Error fetching data:', err);
-        toast({
-          title: "Error",
-          description: "Failed to load homework data",
-          variant: "error",
-        });
+        const response = await homeworkServices.getHomeworkById(token, id);
+        const found = response.status === 'success' && 'data' in response ? response.data?.homework : undefined;
+        if (cancelled) return;
+        if (found) setHomework(found);
+        else setFailed(true);
+      } catch (error) {
+        console.error('Error fetching homework:', error);
+        if (!cancelled) setFailed(true);
       } finally {
-        if (mountedRef.current) setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    };
-
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unwrappedParams.id, token, user]);
-
-  // Also refetch attachments if homework id changes (e.g., after an update)
-  useEffect(() => {
-    if (homework?.id && token && !loading) {
-      fetchExistingAttachmentsById(homework.id);
-    }
-  }, [homework?.id, token, loading, fetchExistingAttachmentsById]);
-
-  // Refresh attachments when page regains focus
-  useEffect(() => {
-    const handleFocus = () => {
-      if (token && homework?.id) {
-        fetchExistingAttachmentsById(homework.id);
-      }
-    };
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [token, homework?.id, fetchExistingAttachmentsById]);
-
-  // Cleanup blob URLs when component unmounts
-  useEffect(() => {
+    })();
     return () => {
-      cleanupBlobUrls();
+      cancelled = true;
     };
-  }, [cleanupBlobUrls]);
+  }, [id, token]);
 
-
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-          <p className="mt-2 text-gray-600">{t('auth.loading', 'Loading authentication...')}</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated || !token) {
-    return (
-      <ProtectedRoute>
-        <div />
-      </ProtectedRoute>
-    );
-  }
-
-  if (!canManageHomework) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only teachers, admins, and principals can access this page.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show loading state
-  if (loading) {
-    return (
-      <ProtectedRoute>
-        <div className="container max-w-2xl mx-auto py-8">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-          <p className="mt-2 text-gray-600">{t('homeworkTeacher.edit.loading', 'Loading homework...')}</p>
-            </div>
-          </div>
-        </div>
-      </ProtectedRoute>
-    );
-  }
-
-  // Show error state
-  if (error || !homework) {
-    return (
-      <ProtectedRoute>
-        <div className="container max-w-2xl mx-auto py-8">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold mb-2">{t('homeworkTeacher.edit.errorTitle', 'Error Loading Homework')}</h2>
-            <p className="text-gray-600 mb-4">{error || t('homeworkTeacher.edit.notFound', 'Homework not found')}</p>
-            <Button onClick={() => router.back()}>
-              ← Go Back
-            </Button>
-          </div>
-        </div>
-      </ProtectedRoute>
-    );
-  }
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-
-    if (name === 'class_division_id') {
-      setSelectedStudentIds([]);
-    }
-  };
-
-  const handleTargetTypeChange = (value: HomeworkTargetType) => {
-    setTargetType(value);
-    if (value === 'class') {
-      setSelectedStudentIds([]);
-    }
-  };
-
-  const toggleStudentSelection = (studentId: string) => {
-    setSelectedStudentIds(prev =>
-      prev.includes(studentId)
-        ? prev.filter(id => id !== studentId)
-        : [...prev, studentId]
-    );
-  };
-
-  const buildHomeworkPayload = (): CreateHomeworkData => {
-    const dueDate = formData.due_date ? new Date(formData.due_date) : null;
-    if (dueDate) {
-      dueDate.setHours(23, 59, 59, 999);
-    }
-
-    return {
-      class_division_id: formData.class_division_id,
-      subject: formData.subject,
-      title: formData.title,
-      description: formData.description,
-      due_date: dueDate ? dueDate.toISOString() : null,
-      target_type: targetType,
-      ...(targetType === 'students' ? { student_ids: selectedStudentIds } : {}),
-    };
-  };
-
-  const handleUploadFiles = async (files: File[]) => {
-    if (!homework?.id || files.length === 0) return;
-
+  const handleSubmit = async (v: HomeworkFormValues) => {
+    if (!token) return;
+    setSaving(true);
     try {
-      const response = await homeworkServices.uploadAttachments(homework.id, files, token || '');
-      if ((response as ApiResponse)?.status === 'success') {
-        toast({
-          title: "Success",
-          description: `${files.length} file(s) uploaded successfully!`,
-          variant: "success",
-        });
-        await fetchExistingAttachmentsById(homework.id);
-      } else {
-        throw new Error((response as UploadApiResponse)?.message || 'Failed to upload files');
-      }
-    } catch (err) {
-      console.error('Error uploading files:', err);
+      // due dates run to the end of the chosen day
+      const due = v.due_date ? new Date(`${v.due_date}T00:00:00`) : null;
+      due?.setHours(23, 59, 59, 999);
+
+      const response = await homeworkServices.updateHomework(
+        id,
+        {
+          class_division_id: v.class_division_id,
+          subject: v.subject,
+          title: v.title.trim(),
+          description: v.description,
+          due_date: due ? due.toISOString() : null,
+          target_type: v.target_type,
+          ...(v.target_type === 'students' ? { student_ids: v.student_ids } : {}),
+        },
+        token
+      );
+      if (response.status !== 'success') throw new Error('Failed to update homework');
       toast({
-        title: "Error",
-        description: "Failed to upload files. Please try again.",
-        variant: "error",
+        title: t('common.success', 'Success'),
+        description: t('homeworkTeacher.edit.success', 'Homework updated successfully!'),
+        variant: 'success',
       });
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try {
-      setSaving(true);
-      setError(null);
-
-      if (targetType === 'students' && selectedStudentIds.length === 0) {
-        setError('Select at least one student.');
-        return;
-      }
-
-      const response = await homeworkServices.updateHomework(homework!.id, buildHomeworkPayload(), token!);
-      if ((response as ApiResponse)?.status === 'success') {
-        router.push('/homework');
-      } else {
-        setError('Failed to update homework');
-      }
-    } catch (err) {
-      setError('An error occurred while updating homework');
-      console.error('Error updating homework:', err);
+      router.push('/homework');
+    } catch (error) {
+      console.error('Error updating homework:', error);
+      toast({
+        title: t('common.error', 'Error'),
+        description: t('homeworkTeacher.edit.failed', 'Failed to update homework'),
+        variant: 'error',
+      });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleCancel = () => {
-    router.back();
-  };
+  // keep the homework's current class selectable even if it is not in the user's list
+  const classes =
+    homework && !options.classes.some((c) => c.id === homework.class_division_id)
+      ? [
+          { id: homework.class_division_id, label: `${homework.class_division.level.name} · ${homework.class_division.division}` },
+          ...options.classes,
+        ]
+      : options.classes;
 
   return (
-    <ProtectedRoute>
-      <div className="container max-w-2xl mx-auto py-8">
-        <div className="mb-6">
-          <Button 
-            variant="ghost" 
-            onClick={handleCancel}
-            className="mb-4"
-          >
-            ← {t('homeworkTeacher.create.back', 'Back to Homework')}
-          </Button>
-          <h1 className="text-3xl font-bold mb-2">{t('homeworkTeacher.edit.title', 'Edit Homework')}</h1>
-          <p className="text-gray-600 dark:text-gray-300">
-            {t('homeworkTeacher.edit.subtitle', 'Update the homework assignment details')}
-          </p>
-        </div>
-
-        <Card>
-          <form onSubmit={handleSubmit}>
-            <CardHeader>
-                <CardTitle>{t('homeworkTeacher.edit.detailsTitle', 'Edit Homework Assignment')}</CardTitle>
-              <CardDescription>
-                Update the details for the homework assignment
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="class_division_id">Class</Label>
-                  <select
-                    id="class_division_id"
-                    name="class_division_id"
-                    value={formData.class_division_id}
-                    onChange={handleChange}
-                    className="border rounded-md px-3 py-2 w-full"
-                    required
-                  >
-                    <option value="">Select a class</option>
-                    {classDivisions.map((division) => (
-                      <option key={division.id} value={division.id}>
-                        {formatClassName(division)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="subject">Subject</Label>
-                  <Input
-                    id="subject"
-                    name="subject"
-                    value={formData.subject}
-                    onChange={handleChange}
-                    placeholder="Enter subject"
-                    required
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="target_type">Assign to</Label>
-                <select
-                  id="target_type"
-                  value={targetType}
-                  onChange={(e) => handleTargetTypeChange(e.target.value as HomeworkTargetType)}
-                  className="border rounded-md px-3 py-2 w-full"
-                >
-                  <option value="class">Entire class</option>
-                  <option value="students">Selected students</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="title">Title</Label>
-                <Input
-                  id="title"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  placeholder="Enter homework title"
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  placeholder="Enter detailed description of the homework"
-                  rows={4}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="due_date">Due Date</Label>
-                <Input
-                  id="due_date"
-                  name="due_date"
-                  type="date"
-                  value={formData.due_date}
-                  onChange={handleChange}
-                />
-              </div>
-
-              {targetType === 'students' && (
-                <div className="space-y-3 rounded-md border p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <Label>Students</Label>
-                      <p className="text-sm text-muted-foreground">
-                        {formData.class_division_id
-                          ? 'Select one or more students from the chosen class.'
-                          : 'Select a class first to load students.'}
-                      </p>
-                    </div>
-                    {selectedStudentIds.length > 0 && (
-                      <span className="text-sm text-muted-foreground">
-                        {selectedStudentIds.length} selected
-                      </span>
-                    )}
-                  </div>
-
-                  {loadingStudents ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading students...
-                    </div>
-                  ) : classStudents.length === 0 ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Users className="h-4 w-4" />
-                      {formData.class_division_id ? 'No students found for this class.' : 'No class selected.'}
-                    </div>
-                  ) : (
-                    <div className="grid max-h-56 grid-cols-1 gap-2 overflow-y-auto md:grid-cols-2">
-                      {classStudents.map((student) => (
-                        <label
-                          key={student.id}
-                          className="flex cursor-pointer items-start gap-3 rounded-md border p-3 hover:bg-muted/50"
-                        >
-                          <Checkbox
-                            checked={selectedStudentIds.includes(student.id)}
-                            onCheckedChange={() => toggleStudentSelection(student.id)}
-                          />
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-medium">{student.full_name}</span>
-                            <span className="block text-xs text-muted-foreground">{student.admission_number}</span>
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* File Upload Section */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Attachments</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => homework?.id && fetchExistingAttachmentsById(homework.id)}
-                    className="h-8 px-3"
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Refresh
-                  </Button>
-                </div>
-                
-                {/* Hidden file input for editing */}
-                <input
-                  type="file"
-                  ref={setEditFileInput}
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file && editingAttachment) {
-                      const attachment = existingAttachments.find(att => att.id === editingAttachment);
-                      if (attachment) {
-                        handleEditAttachment(attachment, file);
-                      }
-                      setEditingAttachment(null);
-                      if (editFileInput) editFileInput.value = '';
-                    }
-                  }}
-                  accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif"
-                />
-                
-                {/* Existing Attachments */}
-                {existingAttachments.length > 0 && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-muted-foreground">Existing Files:</p>
-                      <span className="text-xs text-muted-foreground">
-                        {existingAttachments.length} file{existingAttachments.length !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-64 overflow-y-auto">
-                      {existingAttachments.map((attachment) => (
-                        <div
-                          key={attachment.id}
-                          className="bg-muted/20 rounded-lg border p-3 hover:bg-muted/30 transition-colors"
-                        >
-                          {/* Image/File Display */}
-                          <div className="relative mb-3">
-                            {attachment.file_type?.startsWith('image/') ? (
-                              <div className="relative">
-                                {imageBlobUrls[attachment.id] ? (
-                                  <Image
-                                    src={imageBlobUrls[attachment.id]}
-                                    alt={attachment.file_name}
-                                    width={400}
-                                    height={96}
-                                    className="w-full h-24 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
-                                    onClick={() => handleThumbnailClick(attachment)}
-                                    title="Click to preview"
-                                    onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                                      console.error('Blob URL failed for:', attachment.file_name);
-                                      // Hide broken img and show fallback
-                                      e.currentTarget.style.display = 'none';
-                                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                                    }}
-                                  />
-                                ) : (
-                                  <div className="w-full h-24 flex items-center justify-center bg-muted rounded border">
-                                    <div className="flex flex-col items-center gap-1">
-                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                                      <span className="text-xs text-muted-foreground">Loading...</span>
-                                    </div>
-                                  </div>
-                                )}
-                                {/* Fallback icon if image fails to load */}
-                                <div className="hidden w-full h-24 flex items-center justify-center bg-muted rounded border">
-                                  <div className="flex flex-col items-center gap-1">
-                                    {getFileIcon(attachment.file_type)}
-                                    <span className="text-xs text-muted-foreground">Failed to load</span>
-                                  </div>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="w-full h-24 flex items-center justify-center bg-muted rounded border">
-                                {getFileIcon(attachment.file_type)}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* File Information */}
-                          <div className="text-center space-y-2">
-                            <p className="text-xs font-medium text-foreground truncate" title={attachment.file_name}>
-                              <a
-                                href={getAttachmentUrl(attachment)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="hover:underline"
-                              >
-                                {attachment.file_name}
-                              </a>
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatFileSize(attachment.file_size)}
-                            </p>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex items-center justify-center gap-1 mt-3">
-                            {attachment.file_type?.startsWith('image/') && homework?.id && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleThumbnailClick(attachment)}
-                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                title="Preview image"
-                              >
-                                <ImageIcon className="h-4 w-4" />
-                              </Button>
-                            )}
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDownload(attachment)}
-                              className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                              title="Open/Download"
-                            >
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setEditingAttachment(attachment.id);
-                                if (editFileInput) editFileInput.click();
-                              }}
-                              className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                              title="Edit file"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteAttachment(attachment)}
-                              className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                              title="Delete file"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* File Uploader */}
-                <FileUploader
-                  onUpload={handleUploadFiles}
-                  accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif"
-                  maxFiles={5}
-                  maxSize={10}
-                  className="border-0 shadow-none"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {t('homeworkTeacher.create.supported', 'Supported formats: PDF, Word documents, text files, and images. Max 5 files, 10MB each.')}
-                </p>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={handleCancel}
-              >
-                {t('actions.cancel', 'Cancel')}
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={saving}
-                className="flex items-center gap-2"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {t('homeworkTeacher.detail.saving', 'Saving...')}
-                  </>
-                ) : (
-                  t('homeworkTeacher.edit.cta', 'Update Homework')
-                )}
-              </Button>
-            </CardFooter>
-          </form>
-        </Card>
-      </div>
-
-      {/* Image Preview Modal */}
-      {previewImage && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-neutral-900 rounded-lg max-w-4xl max-h-[90vh] overflow-hidden w-full">
-            <div className="flex items-center justify-between p-4 border-b dark:border-neutral-800">
-              <h3 className="font-medium">{previewImage.name}</h3>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setPreviewImage(null)}
-                className="h-8 w-8"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="p-4 overflow-auto max-h-[calc(90vh-80px)]">
-              <Image
-                src={previewImage.url}
-                alt={previewImage.name}
-                width={800}
-                height={600}
-                className="max-w-full max-h-full object-contain mx-auto"
-                style={{ maxWidth: '100%', maxHeight: '100%' }}
-                onError={() => {
-                  console.error('Preview image failed to load:', previewImage.name);
-                  setPreviewImage(null);
-                }}
-              />
-            </div>
+    <HomeworkAccess>
+      {loading ? (
+        <div className="mx-auto grid w-full max-w-6xl gap-10 lg:grid-cols-[minmax(0,1fr)_19rem]" aria-busy>
+          <div className="space-y-4">
+            <Skeleton className="h-10 w-2/3" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+          <div className="space-y-4">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
           </div>
         </div>
+      ) : failed || !homework ? (
+        <div className="mx-auto w-full max-w-md py-10">
+          <EmptyState
+            icon={<BookOpen />}
+            title={t('homeworkTeacher.edit.errorTitle', 'Error Loading Homework')}
+            help={t('homeworkTeacher.edit.notFound', 'Homework not found')}
+          />
+          <div className="mt-2 text-center">
+            <Button variant="outline" onClick={() => router.push('/homework')}>
+              {t('homeworkTeacher.create.back', 'Back to Homework')}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <HomeworkForm
+          mode="edit"
+          initial={{
+            class_division_id: homework.class_division_id ?? '',
+            subject: homework.subject ?? '',
+            title: homework.title ?? '',
+            description: homework.description ?? '',
+            due_date: homework.due_date ? toISODate(new Date(homework.due_date)) : '',
+            target_type: homework.target_type || 'class',
+            student_ids:
+              homework.target_student_ids || homework.student_targets?.map((s) => s.student_id).filter(Boolean) || [],
+          }}
+          attachments={token ? <HomeworkAttachments homeworkId={homework.id} token={token} /> : null}
+          {...options}
+          classes={classes}
+          submitting={saving}
+          onSubmit={handleSubmit}
+          onCancel={() => router.push('/homework')}
+        />
       )}
-    </ProtectedRoute>
+    </HomeworkAccess>
   );
 }

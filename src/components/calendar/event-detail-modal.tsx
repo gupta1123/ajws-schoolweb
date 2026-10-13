@@ -1,50 +1,17 @@
 // src/components/calendar/event-detail-modal.tsx
+//
+// Event details shown in a right-hand side panel (kept the original export
+// name so existing call sites keep working).
 
 'use client';
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { 
-  Calendar as CalendarIcon, 
-  BookOpen,
-  CheckCircle,
-  XCircle,
-  Edit,
-  Trash2,
-  Check,
-  X
-} from 'lucide-react';
-import { formatDate } from '@/lib/utils';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Field, Pill } from '@/components/ui/page-kit';
+import { Check, Pencil, Trash2, X, CalendarDays, Clock, User } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/context';
-
-
-// Event type configuration
-const eventTypeConfig = {
-  school: { 
-    label: 'Event', 
-    color: 'event-school', 
-    textColor: 'text-blue-800',
-    darkColor: 'dark:bg-blue-900/50',
-    borderColor: 'border-school',
-    icon: CalendarIcon
-  },
-  class: { 
-    label: 'Class Event', 
-    color: 'event-class', 
-    textColor: 'text-green-800',
-    darkColor: 'dark:bg-green-900/50',
-    borderColor: 'border-class',
-    icon: BookOpen
-  },
-  pending_approval: { 
-    label: 'Pending Approval', 
-    color: 'bg-orange-500', 
-    textColor: 'text-orange-800',
-    darkColor: 'dark:bg-orange-900/50',
-    borderColor: 'border-orange-500',
-    icon: CalendarIcon
-  }
-};
+import { cn } from '@/lib/utils';
+import { type, type Tone } from '@/lib/design/tokens';
 
 interface CalendarEvent {
   id: string;
@@ -53,7 +20,7 @@ interface CalendarEvent {
   date: string;
   startTime: string;
   endTime: string;
-  type: keyof typeof eventTypeConfig;
+  type: 'school' | 'class';
   class?: string;
   teacher?: string;
   requiresApproval?: boolean;
@@ -71,159 +38,137 @@ interface EventDetailModalProps {
   userRole: 'admin' | 'principal' | 'teacher' | 'attendance_staff' | 'student';
 }
 
-export function EventDetailModal({ 
-  event, 
-  onClose, 
-  onEdit, 
-  onDelete, 
-  onApprove, 
-  onReject,
-  userRole 
-}: EventDetailModalProps) {
-  const { t } = useI18n();
-  // Determine if user can edit/delete (admins/principals can always, teachers can for their own events)
-  const canEdit = userRole === 'admin' || userRole === 'principal' || 
-    (userRole === 'teacher' && event.teacher); // Simplified check
-  
-  // Determine if user can approve (only principals for pending events, not for approved events)
-  const canApprove = userRole === 'principal' && 
-    event.requiresApproval && !event.approved;
-  
-  const config = event.requiresApproval && !event.approved 
-    ? eventTypeConfig.pending_approval 
-    : eventTypeConfig[event.type];
-  const Icon = config.icon;
-  
-  // Format date for display
-  const formattedDate = formatDate(event.date);
+const trimTime = (time: string) => (time || '').slice(0, 5);
+
+export function EventDetailModal({ event, onClose, onEdit, onDelete, onApprove, onReject, userRole }: EventDetailModalProps) {
+  const { t, lang } = useI18n();
+
+  // Synthetic entries (e.g. birthdays) carry no approval info and can't be edited here.
+  const isRealEvent = event.requiresApproval !== undefined;
+  const isPending = isRealEvent && !event.approved;
+
+  const canEdit =
+    isRealEvent && (userRole === 'admin' || userRole === 'principal' || (userRole === 'teacher' && !!event.teacher));
+  const canApprove = userRole === 'principal' && !!event.requiresApproval && !event.approved;
+
+  const tone: Tone = isPending ? 'warning' : event.type === 'class' ? 'success' : 'primary';
+  const barClass = isPending ? 'bg-tone-warning' : event.type === 'class' ? 'bg-tone-success' : 'bg-tone-primary';
+
+  const classes = (event.class || '')
+    .split(/\s*,\s*/)
+    .map((c) => c.trim())
+    .filter(Boolean);
+
+  const start = trimTime(event.startTime);
+  const end = trimTime(event.endTime);
+  const allDay = start === '00:00' && end === '23:59';
+  const timeText = allDay ? t('calendar.view.allDay', 'All day') : end ? `${start} – ${end}` : start;
+
+  const date = new Date(`${event.date}T00:00:00`);
+  const dateText = isNaN(date.getTime())
+    ? event.date
+    : date.toLocaleDateString(lang, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  const typeLabel = t(
+    event.type === 'class' ? 'calendar.modal.classEvent' : 'calendar.modal.event',
+    event.type === 'class' ? 'Class event' : 'School event'
+  );
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <CardHeader>
-          <div className="flex justify-between items-start">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Icon className={`h-5 w-5 ${config.color.replace('bg-', 'text-')}`} />
-                <CardTitle>{event.title}</CardTitle>
+    <Sheet open onOpenChange={(open) => !open && onClose()}>
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
+        <div className={cn('h-1 w-full shrink-0', barClass)} />
+
+        <SheetHeader className="space-y-2 border-b p-4 pr-12">
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill tone={event.type === 'class' ? 'success' : 'primary'}>{typeLabel}</Pill>
+            {isRealEvent && (
+              <Pill tone={event.approved ? 'success' : 'warning'}>
+                {event.approved
+                  ? t('calendar.modal.approved', 'Approved')
+                  : t('calendar.modal.pendingApproval', 'Pending approval')}
+              </Pill>
+            )}
+          </div>
+          <SheetTitle className="text-lg leading-snug">{event.title}</SheetTitle>
+          <SheetDescription className="sr-only">{typeLabel}</SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 space-y-5 overflow-y-auto p-4">
+          <dl className="grid grid-cols-1 gap-4">
+            <Field
+              label={t('calendar.modal.date', 'Date')}
+              icon={<CalendarDays />}
+              value={dateText}
+            />
+            <Field label={t('calendar.modal.time', 'Time')} icon={<Clock />} value={timeText} />
+            {classes.length > 0 && (
+              <div className="min-w-0">
+                <dt className={type.label}>
+                  {t('calendar.modal.appliesTo', 'Applies to')}
+                  {classes.length > 1 && <span className="ml-1 tabular-nums">({classes.length})</span>}
+                </dt>
+                <dd className="mt-1.5 flex flex-wrap gap-1.5">
+                  {classes.map((name) => (
+                    <Pill key={name} tone="primary" className="text-xs">
+                      {name}
+                    </Pill>
+                  ))}
+                </dd>
               </div>
-              <CardDescription>
-                {t(
-                  event.requiresApproval && !event.approved
-                    ? 'calendar.modal.pendingApproval'
-                    : event.type === 'class'
-                    ? 'calendar.modal.classEvent'
-                    : 'calendar.modal.event',
-                  config.label
-                )}
-              </CardDescription>
-            </div>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-2 text-sm">
-            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-            <span>{formattedDate}</span>
-          </div>
-          
-          <div className="flex items-center gap-2 text-sm">
-            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-            <span>{event.startTime} - {event.endTime}</span>
-          </div>
-          
+            )}
+            {event.teacher && (
+              <Field label={t('calendar.modal.createdBy', 'Created by')} icon={<User />} value={event.teacher} />
+            )}
+          </dl>
+
           {event.description && (
-            <div className="text-sm">
-              <p className="font-medium mb-1">{t('calendar.modal.description', 'Description:')}</p>
-              <p className="text-gray-600 dark:text-gray-300">{event.description}</p>
+            <div>
+              <p className={type.label}>{t('calendar.modal.descriptionLabel', 'Description')}</p>
+              <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed">{event.description}</p>
             </div>
           )}
-          
-          {event.class && (
-            <div className="flex items-center gap-2 text-sm">
-              <BookOpen className="h-4 w-4 text-muted-foreground" />
-              <span>{event.class}</span>
-            </div>
-          )}
-          
-          {event.teacher && (
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">{t('calendar.modal.createdBy', 'Created by:')}</span>
-              <span>{event.teacher}</span>
-            </div>
-          )}
-          
-          <div className="flex items-center gap-2 text-sm">
-            {event.approved ? (
+        </div>
+
+        {(canApprove || canEdit) && (
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t p-3">
+            {canApprove && (
               <>
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span className="text-green-600">{t('calendar.modal.approved', 'Approved')}</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onReject?.(event.id)}
+                  className="text-tone-danger hover:text-tone-danger"
+                >
+                  <X />
+                  {t('calendar.modal.reject', 'Reject')}
+                </Button>
+                <Button size="sm" onClick={() => onApprove?.(event.id)}>
+                  <Check />
+                  {t('calendar.modal.approve', 'Approve')}
+                </Button>
               </>
-            ) : (
+            )}
+            {canEdit && (
               <>
-                <XCircle className="h-4 w-4 text-orange-500" />
-                <span className="text-orange-600">{t('calendar.modal.pendingApproval', 'Pending Approval')}</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onDelete(event.id)}
+                  className="text-tone-danger hover:text-tone-danger"
+                >
+                  <Trash2 />
+                  {t('actions.delete', 'Delete')}
+                </Button>
+                <Button size="sm" variant={canApprove ? 'outline' : 'default'} onClick={() => onEdit(event.id)}>
+                  <Pencil />
+                  {t('actions.edit', 'Edit')}
+                </Button>
               </>
             )}
           </div>
-        </CardContent>
-        <CardFooter className="flex flex-wrap gap-2">
-          {canApprove && (
-            <>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => onApprove && onApprove(event.id)}
-                className="flex-1"
-              >
-                <Check className="h-4 w-4 mr-2" />
-                {t('calendar.modal.approve', 'Approve')}
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => onReject && onReject(event.id)}
-                className="flex-1"
-              >
-                <X className="h-4 w-4 mr-2" />
-                {t('calendar.modal.reject', 'Reject')}
-              </Button>
-            </>
-          )}
-          {canEdit && (
-            <>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => onEdit(event.id)}
-                className="flex-1"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                {t('actions.edit', 'Edit')}
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => onDelete(event.id)}
-                className="flex-1"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                {t('actions.delete', 'Delete')}
-              </Button>
-            </>
-          )}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={onClose}
-            className="flex-1"
-          >
-            {t('calendar.modal.close', 'Close')}
-          </Button>
-        </CardFooter>
-      </Card>
-    </div>
+        )}
+      </SheetContent>
+    </Sheet>
   );
 }

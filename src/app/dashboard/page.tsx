@@ -6,10 +6,8 @@ import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
 import { WelcomeBanner } from '@/components/dashboard/welcome-banner';
 
-import { Card, CardContent } from '@/components/ui/card';
 import { ErrorBoundary, ApiErrorFallback } from '@/components/ui/error-boundary';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import Link from 'next/link';
 import { Suspense, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import {
@@ -20,7 +18,8 @@ import {
   Key
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/context';
-import { MetricCard } from '@/components/dashboard/metric-card';
+import { ActionTile, StatTile } from '@/components/ui/page-kit';
+import { space, type } from '@/lib/design/tokens';
 import { useSchoolStats } from '@/hooks/use-school-stats';
 
 // Lazy load heavy components to improve initial load performance
@@ -37,7 +36,7 @@ const UpcomingBirthdays = dynamic(() => import('@/components/dashboard/upcoming-
 });
 
 const PrincipalDailyHomework = dynamic(() => import('@/components/homework/principal-daily-homework').then(mod => mod.PrincipalDailyHomework), {
-  loading: () => <div className="h-64 bg-muted animate-pulse rounded-lg" />
+  loading: () => <div className="h-48 bg-muted animate-pulse rounded-lg" />
 });
 
 
@@ -57,124 +56,110 @@ const DashboardPage = () => {
   const adminQuickAccessCards = useMemo(() => [
     {
       title: t('dashboard.cards.students'),
-      icon: <GraduationCap className="h-5 w-5" />,
+      icon: <GraduationCap />,
       href: '/students'
     },
     {
       title: t('dashboard.cards.staff'),
-      icon: <User className="h-5 w-5" />,
+      icon: <User  />,
       href: '/staff'
     },
     {
       title: t('dashboard.cards.academic'),
-      icon: <Building2 className="h-5 w-5" />,
+      icon: <Building2  />,
       href: '/academic/setup'
     },
     {
       title: t('dashboard.cards.passwords', 'Passwords'),
-      icon: <Key className="h-5 w-5" />,
+      icon: <Key  />,
       href: '/passwords'
     }
   ], [t]);
 
+  const skeleton = <div className="h-32 animate-pulse rounded-lg bg-muted" />;
+
+  const events = (
+    <ErrorBoundary fallback={ApiErrorFallback}>
+      <Suspense fallback={skeleton}>
+        <UpcomingEvents />
+      </Suspense>
+    </ErrorBoundary>
+  );
+
+  const birthdays = (
+    <ErrorBoundary fallback={ApiErrorFallback}>
+      <Suspense fallback={skeleton}>
+        <UpcomingBirthdays />
+      </Suspense>
+    </ErrorBoundary>
+  );
+
   return (
     <ProtectedRoute>
-      <div className="container max-w-6xl mx-auto py-8">
+      <div className={space.page}>
         <WelcomeBanner />
-        
+
         {user?.role === 'teacher' ? (
-          <div className="grid grid-cols-1 gap-6">
-            <div className="space-y-6">
-              <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
-                <ClassOverviewCard />
-              </Suspense>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <ErrorBoundary fallback={ApiErrorFallback}>
-                  <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
-                    <UpcomingEvents />
-                  </Suspense>
-                </ErrorBoundary>
-                <ErrorBoundary fallback={ApiErrorFallback}>
-                  <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
-                    <UpcomingBirthdays />
-                  </Suspense>
-                </ErrorBoundary>
-              </div>
+          <>
+            <Suspense fallback={skeleton}>
+              <ClassOverviewCard />
+            </Suspense>
+            <div className={`${space.grid} md:grid-cols-2`}>
+              {events}
+              {birthdays}
             </div>
-          </div>
+          </>
         ) : canViewAdminDashboard ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              {/* Principal Daily Homework Portal */}
-              {user?.role === 'principal' && (
-                <ErrorBoundary fallback={ApiErrorFallback}>
-                  <PrincipalDailyHomework />
-                </ErrorBoundary>
-              )}
+          <>
+            <div className={`${space.grid} grid-cols-2 lg:grid-cols-4`}>
+              <StatTile
+                label={t('common.totalStudents', 'Total Students')}
+                value={totalStudents}
+                icon={<GraduationCap />}
+                loading={statsLoading}
+              />
+              <StatTile
+                label={t('common.totalStaff', 'Total Staff')}
+                value={totalStaff}
+                icon={<UserCheck />}
+                tone="success"
+                loading={statsLoading}
+              />
+            </div>
+            {statsError && (
+              <Alert variant="destructive">
+                <AlertDescription>{statsError}</AlertDescription>
+              </Alert>
+            )}
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <MetricCard
-                    label={t('common.totalStudents', 'Total Students')}
-                    value={totalStudents}
-                    icon={<GraduationCap className="h-5 w-5" />}
-                    loading={statsLoading}
-                  />
-                  <MetricCard
-                    label={t('common.totalStaff', 'Total Staff')}
-                    value={totalStaff}
-                    icon={<UserCheck className="h-5 w-5" />}
-                    loading={statsLoading}
-                  />
-                </div>
-                {statsError && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{statsError}</AlertDescription>
-                  </Alert>
-                )}
+            <section>
+              <h2 className={`${type.sectionTitle} mb-2`}>{t('dashboard.quickActions')}</h2>
+              <div className={`${space.grid} grid-cols-2 lg:grid-cols-4`}>
+                {adminQuickAccessCards.map((card) => (
+                  <ActionTile key={card.href} href={card.href} icon={card.icon} label={card.title} />
+                ))}
               </div>
+            </section>
 
-              {/* Quick Actions */}
-              <div>
-                <h2 className="text-xl font-semibold mb-4">{t('dashboard.quickActions')}</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {adminQuickAccessCards.map((card, index) => (
-                    <Link key={index} href={card.href}>
-                      <Card className="hover:shadow-md transition-all duration-200 hover:scale-105 cursor-pointer h-20 flex items-center justify-center">
-                        <CardContent className="p-4">
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="p-2 rounded-lg bg-primary/10">
-                              {card.icon}
-                            </div>
-                            <div className="text-sm font-medium text-center">{card.title}</div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  ))}
+            {user?.role === 'principal' ? (
+              <div className={`${space.grid} lg:grid-cols-3`}>
+                <div className="lg:col-span-2">
+                  <ErrorBoundary fallback={ApiErrorFallback}>
+                    <PrincipalDailyHomework />
+                  </ErrorBoundary>
+                </div>
+                <div className="space-y-4">
+                  {events}
+                  {birthdays}
                 </div>
               </div>
-
-
-            </div>
-
-            {/* Right Pane - Events and Birthdays */}
-            <div className="space-y-6">
-              {/* Upcoming Events */}
-              <ErrorBoundary fallback={ApiErrorFallback}>
-                <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
-                  <UpcomingEvents />
-                </Suspense>
-              </ErrorBoundary>
-
-              {/* Upcoming Birthdays */}
-              <ErrorBoundary fallback={ApiErrorFallback}>
-                <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
-                  <UpcomingBirthdays />
-                </Suspense>
-              </ErrorBoundary>
-            </div>
-          </div>
+            ) : (
+              <div className={`${space.grid} md:grid-cols-2`}>
+                {events}
+                {birthdays}
+              </div>
+            )}
+          </>
         ) : null}
       </div>
     </ProtectedRoute>

@@ -29,6 +29,9 @@ export const MONTH_NAMES = Array.from({ length: 12 }, (_, index) =>
   new Intl.DateTimeFormat('en-IN', { month: 'long' }).format(new Date(2026, index, 1))
 );
 
+export const monthName = (index: number, lang = 'en') =>
+  new Intl.DateTimeFormat(lang, { month: 'long' }).format(new Date(2026, index, 1));
+
 export function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;

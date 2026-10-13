@@ -6,8 +6,22 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-sans-brand), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
+  --color-tone-primary: var(--tone-primary);
+  --color-tone-primary-soft: var(--tone-primary-soft);
+  --color-tone-success: var(--tone-success);
+  --color-tone-success-soft: var(--tone-success-soft);
+  --color-tone-warning: var(--tone-warning);
+  --color-tone-warning-soft: var(--tone-warning-soft);
+  --color-tone-danger: var(--tone-danger);
+  --color-tone-danger-soft: var(--tone-danger-soft);
+  --color-tone-info: var(--tone-info);
+  --color-tone-info-soft: var(--tone-info-soft);
+  --color-tone-violet: var(--tone-violet);
+  --color-tone-violet-soft: var(--tone-violet-soft);
+  --color-tone-rose: var(--tone-rose);
+  --color-tone-rose-soft: var(--tone-rose-soft);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -51,8 +65,8 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.65 0.15 200); /* Default indigo */
-  --primary-foreground: oklch(0.985 0 0);
+  --primary: #104070; /* Jalna First logo navy */
+  --primary-foreground: #ffffff;
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
@@ -70,13 +84,23 @@
   --chart-5: oklch(0.769 0.188 70.08);
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.65 0.15 200); /* Default indigo */
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: #104070;
+  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
   
+
+  /* Semantic tones (fg + soft background) — used via lib/design/tokens.ts */
+  --tone-primary: #104070;  --tone-primary-soft: #e8eff8;
+  --tone-success: #15803d;  --tone-success-soft: #e7f6ec;
+  --tone-warning: #b45309;  --tone-warning-soft: #fdf3e0;
+  --tone-danger:  #b91c1c;  --tone-danger-soft:  #fdecec;
+  --tone-info:    #0e7490;  --tone-info-soft:    #e3f4f8;
+  --tone-violet:  #6d28d9;  --tone-violet-soft:  #f0eafc;
+  --tone-rose:    #be185d;  --tone-rose-soft:    #fce8f1;
+
   /* Status colors */
   --status-success: oklch(0.8 0.2 140); /* Green */
   --status-warning: oklch(0.8 0.2 80); /* Yellow */
@@ -105,8 +129,8 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.65 0.15 200); /* Default indigo */
-  --primary-foreground: oklch(0.205 0 0);
+  --primary: #6aa3e0;
+  --primary-foreground: #0b2545;
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -124,13 +148,22 @@
   --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.65 0.15 200); /* Default indigo */
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: #6aa3e0;
+  --sidebar-primary-foreground: #0b2545;
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
   
+  /* Semantic tones */
+  --tone-primary: #8dbbee;  --tone-primary-soft: #16294a;
+  --tone-success: #4ade80;  --tone-success-soft: #12301f;
+  --tone-warning: #fbbf24;  --tone-warning-soft: #33260c;
+  --tone-danger:  #f87171;  --tone-danger-soft:  #3a1717;
+  --tone-info:    #22d3ee;  --tone-info-soft:    #0e2f38;
+  --tone-violet:  #a78bfa;  --tone-violet-soft:  #261c47;
+  --tone-rose:    #f472b6;  --tone-rose-soft:    #3b1428;
+
   /* Status colors */
   --status-success: oklch(0.7 0.2 140); /* Green */
   --status-warning: oklch(0.7 0.2 80); /* Yellow */
@@ -155,24 +188,36 @@
 /* Color scheme overrides */
 [data-color-scheme="blue"] {
   --primary: var(--primary-blue);
+  --primary-foreground: #ffffff;
+  --tone-primary: var(--primary-blue);
+  --tone-primary-soft: color-mix(in oklab, var(--primary-blue) 14%, var(--background));
   --sidebar-primary: var(--primary-blue);
   --school: var(--primary-blue);
 }
 
 [data-color-scheme="green"] {
   --primary: var(--primary-green);
+  --primary-foreground: #ffffff;
+  --tone-primary: var(--primary-green);
+  --tone-primary-soft: color-mix(in oklab, var(--primary-green) 14%, var(--background));
   --sidebar-primary: var(--primary-green);
   --school: var(--primary-green);
 }
 
 [data-color-scheme="purple"] {
   --primary: var(--primary-purple);
+  --primary-foreground: #ffffff;
+  --tone-primary: var(--primary-purple);
+  --tone-primary-soft: color-mix(in oklab, var(--primary-purple) 14%, var(--background));
   --sidebar-primary: var(--primary-purple);
   --school: var(--primary-purple);
 }
 
 [data-color-scheme="orange"] {
   --primary: var(--primary-orange);
+  --primary-foreground: #ffffff;
+  --tone-primary: var(--primary-orange);
+  --tone-primary-soft: color-mix(in oklab, var(--primary-orange) 14%, var(--background));
   --sidebar-primary: var(--primary-orange);
   --school: var(--primary-orange);
 }

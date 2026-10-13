@@ -9,35 +9,20 @@ import { classDivisionsServices, ClassDivision } from '@/lib/api/class-divisions
 import { academicServices } from '@/lib/api/academic';
 import { apiClient } from '@/lib/api/client';
 import { AcademicYear } from '@/types/academic';
-import { TimetableGrid } from '@/components/timetable/timetable-grid';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { TimetableGrid, periodStartTime, subjectSoft, subjectText } from '@/components/timetable/timetable-grid';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SearchableSubjectDropdown } from '@/components/ui/searchable-subject-dropdown';
 import { SearchableClassDropdown } from '@/components/ui/searchable-class-dropdown';
 import { SearchableTeacherDropdown } from '@/components/ui/searchable-teacher-dropdown';
-
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Calendar,
-  Plus,
-  Settings,
-  Edit,
-  Save,
-  Clock,
-  BookOpen,
-  User,
-  AlertTriangle,
-
-  CheckCircle,
-  RefreshCw
-} from 'lucide-react';
+import { Calendar, ChevronDown, Plus, Edit, Save, AlertTriangle, RefreshCw } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/context';
 
@@ -101,6 +86,8 @@ export default function TimetablePage() {
     };
   } | null>(null);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [showRoster, setShowRoster] = useState(false);
   const modalCloseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-close modal when teacher conflict error occurs
@@ -244,10 +231,6 @@ export default function TimetablePage() {
 
       if (timetableResponse.status === 'success') {
         setTimetableData(timetableResponse.data.timetable);
-        toast({
-          title: t('timetable.toasts.loadedTitle'),
-          description: `${t('timetable.toasts.loadedDesc')} ${timetableResponse.data.total_entries}`,
-        });
       }
 
       if (teachersResponse.status === 'success') {
@@ -578,791 +561,467 @@ export default function TimetablePage() {
     return <AccessDenied />;
   }
 
+  // Classes of the selected configuration's academic year (fall back to all)
+  const yearDivisions = selectedConfig
+    ? classDivisions.filter((c) => c.academic_year_id === selectedConfig.academic_year_id)
+    : classDivisions;
+  const visibleDivisions = yearDivisions.length > 0 ? yearDivisions : classDivisions;
+
+  const gradeGroups = (() => {
+    const map = new Map<string, { grade: string; seq: number; items: ClassDivision[] }>();
+    visibleDivisions.forEach((d) => {
+      const grade = d.class_level?.name || 'Unknown';
+      const g = map.get(grade) ?? { grade, seq: d.class_level?.sequence_number ?? 999, items: [] };
+      g.items.push(d);
+      map.set(grade, g);
+    });
+    return [...map.values()]
+      .sort((a, b) => a.seq - b.seq)
+      .map((g) => ({ ...g, items: g.items.sort((a, b) => a.division.localeCompare(b.division)) }));
+  })();
+
+  const selectedDivision = classDivisions.find((c) => c.id === selectedClass);
+  const allEntries = Object.values(timetableData).flat();
+  const subjectCount = new Set(allEntries.map((e) => e.subject)).size;
+  const teacherCount = new Set(allEntries.map((e) => e.teacher_id)).size;
+
+  const selectClass = (id: string) => {
+    setSelectedClass(id);
+    if (id) loadTimetableData(id);
+  };
+
+  const openAddEntry = (day?: number, period?: number) => {
+    setEntryError(null);
+    setShowErrorAlert(false);
+    if (modalCloseTimeoutRef.current) clearTimeout(modalCloseTimeoutRef.current);
+    setEntryForm((prev) => ({
+      ...prev,
+      config_id: selectedConfig?.id || '',
+      class_division_id: selectedClass,
+      ...(day ? { day_of_week: day } : null),
+      ...(period ? { period_number: period } : null),
+    }));
+    setShowEntryDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    try {
+      await timetableApi.deleteEntry(pendingDelete, token || '');
+      toast({
+        title: t('timetable.toasts.success'),
+        description: t('timetable.delete.success'),
+      });
+      if (selectedClass) await loadTimetableData(selectedClass);
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+      toast({
+        title: t('timetable.toasts.error'),
+        description: t('timetable.delete.failed'),
+        variant: 'error',
+      });
+    } finally {
+      setPendingDelete(null);
+    }
+  };
+
+  const dayOptions = [
+    ['1', 'Monday'],
+    ['2', 'Tuesday'],
+    ['3', 'Wednesday'],
+    ['4', 'Thursday'],
+    ['5', 'Friday'],
+    ['6', 'Saturday'],
+    ['7', 'Sunday'],
+  ].slice(0, selectedConfig?.days_per_week || 7);
+
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      {/* Page Header */}
-      <Card className="border-0 shadow-none bg-gradient-to-r from-primary/10 to-primary/5">
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Calendar className="h-6 w-6 text-primary" />
-                </div>
-                <h1 className="text-3xl font-bold">{t('timetable.managementTitle')}</h1>
-              </div>
-              <p className="text-muted-foreground">
-                {t('timetable.managementSubtitle')}
+    <div className="mx-auto w-full max-w-7xl space-y-5">
+      {/* Toolbar: config summary on the left, actions on the right */}
+      <div className="flex flex-wrap items-center gap-3">
+        {selectedConfig ? (
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-tone-primary-soft text-tone-primary">
+              <Calendar className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold leading-tight">{selectedConfig.name}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {selectedConfig.academic_year?.year_name ? `${selectedConfig.academic_year.year_name} · ` : ''}
+                {selectedConfig.days_per_week} {t('timetable.daysPerWeek')} · {selectedConfig.total_periods} {t('timetable.periodsPerDay')}
               </p>
             </div>
-
-            <div className="flex gap-2">
-              <Button
-                onClick={loadInitialData}
-                disabled={loading}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                {t('actions.refresh')}
-              </Button>
-            </div>
+            <Button variant="ghost" size="sm" onClick={() => openEditConfig(selectedConfig)} className="shrink-0">
+              <Edit />
+              {t('timetable.editConfig')}
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+        ) : (
+          <p className="flex-1 text-sm text-muted-foreground">{t('timetable.alerts.selectConfig')}</p>
+        )}
 
-      {/* Main Content */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="overview">{t('timetable.tabs.overview')}</TabsTrigger>
-          <TabsTrigger value="entries">{t('timetable.tabs.entries')}</TabsTrigger>
-        </TabsList>
-
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="hover:shadow-md transition-shadow border-l-4 border-l-primary">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{t('timetable.kpi.activeConfigs')}</CardTitle>
-                <Settings className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-primary">
-                  {configs.filter(c => c.is_active).length}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-md transition-shadow border-l-4 border-l-green-500">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{t('timetable.kpi.totalClasses')}</CardTitle>
-                <BookOpen className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">{classDivisions.length}</div>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{t('timetable.kpi.periodsPerDay')}</CardTitle>
-                <Clock className="h-4 w-4 text-blue-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">
-                  {selectedConfig?.total_periods || 0}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-md transition-shadow border-l-4 border-l-purple-500">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{t('timetable.kpi.daysPerWeek')}</CardTitle>
-                <Calendar className="h-4 w-4 text-purple-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-purple-600">
-                  {selectedConfig?.days_per_week || 0}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Current Configuration */}
+        <div className="flex items-center gap-2">
           {selectedConfig && (
-            <Card className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                  {t('timetable.activeConfiguration')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="font-semibold">{selectedConfig.name}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{selectedConfig.description}</p>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      {selectedConfig.days_per_week} {t('timetable.daysPerWeek')} • {selectedConfig.total_periods} {t('timetable.periodsPerDay')}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEditConfig(selectedConfig)}
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      {t('timetable.editConfig')}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <SearchableClassDropdown
+              classes={visibleDivisions}
+              value={selectedClass}
+              onValueChange={selectClass}
+              placeholder={t('timetable.selectClass', 'Select Class')}
+              showAcademicYear={false}
+              className="w-48"
+            />
           )}
-        </TabsContent>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => (selectedClass ? loadTimetableData(selectedClass) : loadInitialData())}
+            disabled={loading}
+            aria-label={t('actions.refresh')}
+            title={t('actions.refresh')}
+          >
+            <RefreshCw className={loading ? 'animate-spin' : ''} />
+          </Button>
+          <Button onClick={() => openAddEntry()} disabled={!selectedClass || !selectedConfig}>
+            <Plus />
+            {t('timetable.addEntry')}
+          </Button>
+        </div>
+      </div>
 
-        {/* Configurations Tab */}
-        <TabsContent value="configurations" className="space-y-6">
-          <div className="flex justify-between items-center">
+      {/* No configuration yet: offer the available ones */}
+      {!selectedConfig && configs.length > 0 && (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {configs.map((config) => (
+            <button
+              key={config.id}
+              type="button"
+              onClick={() => setSelectedConfig(config)}
+              className="rounded-xl border p-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <p className="text-sm font-medium">{config.name}</p>
+              <p className="text-xs text-muted-foreground">{config.academic_year?.year_name}</p>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Class not chosen yet: grade cards with section buttons */}
+      {selectedConfig && !selectedClass && (
+        <section className="space-y-3">
+          <p className="text-sm text-muted-foreground">{t('timetable.selectClassHint', 'Select a class to view and manage its timetable.')}</p>
+          {gradeGroups.length === 0 ? (
+            <p className="rounded-xl border px-4 py-10 text-center text-sm text-muted-foreground">{t('calendar.form.noClasses', 'No classes found.')}</p>
+          ) : (
+            <ul className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+              {gradeGroups.map(({ grade, items }) => (
+                <li key={grade} className="rounded-xl border p-3">
+                  <p className="text-sm font-medium">{grade}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {items.map((d) => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => selectClass(d.id)}
+                        title={`${grade} ${d.division}`}
+                        className="inline-flex h-8 min-w-10 items-center justify-center rounded-md bg-muted/60 px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {d.division}
+                      </button>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {/* Selected class: summary line + weekly grid */}
+      {selectedConfig && selectedClass && (
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <h2 className="text-base font-semibold">
+              {selectedDivision?.class_level.name} · {t('timetable.section')} {selectedDivision?.division}
+            </h2>
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {allEntries.length} {t('timetable.totalEntries')} · {subjectCount} {t('timetable.subjects', 'Subjects')} · {teacherCount} {t('common.staff')}
+            </p>
+          </div>
+
+          {(classDivisionSubjects.length > 0 || classDivisionTeachers.length > 0) && (
             <div>
-              <h2 className="text-xl font-semibold">{t('timetable.configs.title', 'Timetable Configurations')}</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Manage timetable structures for different academic years
-              </p>
-            </div>
-            <Dialog open={showConfigDialog} onOpenChange={setShowConfigDialog}>
-              <DialogTrigger asChild>
-                <Button onClick={() => {
-                  setEditingConfig(null);
-                  setConfigForm({
-                    name: '',
-                    description: '',
-                    academic_year_id: configForm.academic_year_id, // Keep current academic year
-                    total_periods: 8,
-                    days_per_week: 5
-                  });
-                }}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t('timetable.configs.new', 'New Configuration')}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingConfig ? t('timetable.configs.editTitle', 'Edit Configuration') : t('timetable.configs.createTitle', 'Create New Configuration')}
-                  </DialogTitle>
-                  <DialogDescription>
-                    {t('timetable.configs.description', 'Set up the basic structure for your school timetable')}
-                  </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="config-name">{t('timetable.configs.nameLabel', 'Configuration Name')}</Label>
-                    <Input
-                      id="config-name"
-                      value={configForm.name}
-                      onChange={(e) => setConfigForm(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder={t('timetable.configs.namePlaceholder', 'e.g., Primary School Schedule 2025-26')}
-                    />
+              <button
+                type="button"
+                onClick={() => setShowRoster((v) => !v)}
+                aria-expanded={showRoster}
+                className="inline-flex items-center gap-1 rounded-md text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <ChevronDown className={cn('size-3.5 transition-transform', showRoster && 'rotate-180')} />
+                {t('timetable.availableSubjectsTitle', 'Subjects')} ({classDivisionSubjects.length}) · {t('timetable.availableTeachersTitle', 'Teachers')} (
+                {new Set(classDivisionTeachers.filter((x) => x.is_active).map((x) => x.teacher_id)).size})
+              </button>
+              {showRoster && (
+                <div className="mt-2 space-y-2 rounded-xl bg-muted/30 p-3 text-xs">
+                  <div className="flex flex-wrap gap-1.5">
+                    {classDivisionSubjects.map((s) => (
+                      <span key={s.id} className={cn('rounded-full px-2 py-0.5 font-medium', subjectSoft(s.name), subjectText(s.name))}>
+                        {s.name}
+                      </span>
+                    ))}
                   </div>
-
-                  <div>
-                    <Label htmlFor="config-description">{t('timetable.configs.descLabel', 'Description (Optional)')}</Label>
-                    <Textarea
-                      id="config-description"
-                      value={configForm.description}
-                      onChange={(e) => setConfigForm(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder={t('timetable.configs.descPlaceholder', 'Brief description of this timetable configuration')}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="academic-year">{t('timetable.academicYearLabel', 'Academic Year:')}</Label>
-                    <Select
-                      value={configForm.academic_year_id}
-                      onValueChange={(value) => setConfigForm(prev => ({ ...prev, academic_year_id: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={t('timetable.selectAcademicYear', 'Select Academic Year')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {academicYears.map((year) => (
-                          <SelectItem key={year.id} value={year.id}>
-                            {year.year_name} {year.is_active && `(${t('academicSetup.status.active', 'Active')})`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="periods">{t('timetable.kpi.periodsPerDay', 'Periods/Day')}</Label>
-                      <Input
-                        id="periods"
-                        type="number"
-                        min="1"
-                        max="20"
-                        value={configForm.total_periods}
-                        onChange={(e) => setConfigForm(prev => ({ ...prev, total_periods: parseInt(e.target.value) }))}
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="days">{t('timetable.kpi.daysPerWeek', 'Days/Week')}</Label>
-                      <Input
-                        id="days"
-                        type="number"
-                        min="1"
-                        max="7"
-                        value={configForm.days_per_week}
-                        onChange={(e) => setConfigForm(prev => ({ ...prev, days_per_week: parseInt(e.target.value) }))}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowConfigDialog(false)}
-                    >
-                      {t('actions.cancel')}
-                    </Button>
-                    <Button
-                      onClick={editingConfig ? handleUpdateConfig : handleCreateConfig}
-                      disabled={loading || !configForm.name.trim() || !configForm.academic_year_id}
-                    >
-                      {loading ? (
-                        <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <Save className="h-4 w-4 mr-2" />
-                      )}
-                      {editingConfig ? t('actions.update', 'Update') : t('actions.create', 'Create')}
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          <div className="grid gap-4">
-            {configs.map((config) => (
-              <Card key={config.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-semibold">{config.name}</h3>
-                        {config.is_active && (
-                          <Badge className="bg-green-100 text-green-800">Active</Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-2">{config.description}</p>
-                      <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                        <div>
-                          <span className="font-medium">{t('timetable.structureLabel', 'Structure:')}</span> {config.days_per_week} {t('timetable.daysPerWeek')} , {config.total_periods} {t('timetable.periodsPerDay')}
-                        </div>
-                        <div>
-                          <span className="font-medium">{t('timetable.academicYearLabel', 'Academic Year:')}</span> {config.academic_year?.year_name}
-                        </div>
-                      </div>
-                      <div className="mt-2 text-xs text-muted-foreground">
-                        {t('timetable.createdLabel', 'Created:')} {new Date(config.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 ml-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditConfig(config)}
-                        title="Edit configuration"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant={selectedConfig?.id === config.id ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setSelectedConfig(config)}
-                        className={selectedConfig?.id === config.id ? '' : 'hover:bg-primary/10'}
-                      >
-                        {selectedConfig?.id === config.id ? t('common.selected', 'Selected') : t('actions.select', 'Select')}
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-
-            {configs.length === 0 && (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <Settings className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">No timetable configurations found</p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Create your first configuration to get started with timetable management
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-
-            {configs.length > 0 && (
-              <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-start gap-3">
-                  <div className="p-1 bg-blue-100 dark:bg-blue-900/50 rounded">
-                    <Settings className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-blue-900 dark:text-blue-100">Configuration Management</h4>
-                    <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                      Select a configuration to manage timetable entries for that academic year.
-                      You can create multiple configurations for different academic years or school structures.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        {/* Entries Tab */}
-        <TabsContent value="entries" className="space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h2 className="text-xl font-semibold">{t('timetable.entries.title', 'Manage Timetable Entries')}</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                {t('timetable.entries.subtitle', 'Add and manage subjects, teachers, and schedules for each class')}
-              </p>
-            </div>
-
-            {selectedConfig && (
-              <div className="flex gap-2">
-                <SearchableClassDropdown
-                  classes={classDivisions}
-                  value={selectedClass}
-                  onValueChange={(value) => {
-                    setSelectedClass(value);
-                    if (value) {
-                      loadTimetableData(value);
-                    }
-                  }}
-                  placeholder={t('timetable.selectClass', 'Select Class')}
-                  showAcademicYear={false}
-                  className="w-48"
-                />
-
-                <Dialog open={showEntryDialog} onOpenChange={(open) => {
-                  setShowEntryDialog(open);
-                  if (!open) {
-                    // Clear error states and timeout when dialog closes
-                    setEntryError(null);
-                    setShowErrorAlert(false);
-                    if (modalCloseTimeoutRef.current) {
-                      clearTimeout(modalCloseTimeoutRef.current);
-                    }
-                  }
-                }}>
-                  <DialogTrigger asChild>
-                    <Button
-                      disabled={!selectedClass || !selectedConfig}
-                      onClick={() => {
-                        // Clear error states and timeout when opening dialog
-                        setEntryError(null);
-                        setShowErrorAlert(false);
-                        if (modalCloseTimeoutRef.current) {
-                          clearTimeout(modalCloseTimeoutRef.current);
-                        }
-                        setEntryForm(prev => ({
-                          ...prev,
-                          config_id: selectedConfig?.id || '',
-                          class_division_id: selectedClass
-                        }));
-                      }}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Entry
-                    </Button>
-                  </DialogTrigger>
-
-                  <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                      <DialogTitle>Add Timetable Entry</DialogTitle>
-                      <DialogDescription>
-                        Add a new subject entry to the timetable
-                      </DialogDescription>
-                    </DialogHeader>
-
-                    {entryError && showErrorAlert && (
-                      <Alert className="border-red-200 bg-red-50 animate-in fade-in-50 duration-300">
-                        <AlertTriangle className="h-4 w-4 text-red-600" />
-                        <AlertDescription className="text-red-800">
-                          <div className="space-y-3">
-                            <div className="font-semibold text-base">{entryError.title}</div>
-                            <div className="text-sm leading-relaxed">{String(entryError.message)}</div>
-                            {entryError.suggestion && (
-                              <div className="bg-red-100 p-3 rounded-md border border-red-200">
-                                <div className="text-sm font-medium text-red-800 mb-1">
-                                  💡 Suggested Solution:
-                                </div>
-                                <div className="text-sm text-red-700">{String(entryError.suggestion)}</div>
-                              </div>
-                            )}
-                          </div>
-                        </AlertDescription>
-                      </Alert>
-                    )}
-
-
-
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Day of Week</Label>
-                          <Select
-                            value={entryForm.day_of_week.toString()}
-                            onValueChange={(value) => setEntryForm(prev => ({ ...prev, day_of_week: parseInt(value) }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="1">Monday</SelectItem>
-                              <SelectItem value="2">Tuesday</SelectItem>
-                              <SelectItem value="3">Wednesday</SelectItem>
-                              <SelectItem value="4">Thursday</SelectItem>
-                              <SelectItem value="5">Friday</SelectItem>
-                              <SelectItem value="6">Saturday</SelectItem>
-                              <SelectItem value="7">Sunday</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label>Period Number</Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            max={selectedConfig?.total_periods || 8}
-                            value={entryForm.period_number}
-                            onChange={(e) => setEntryForm(prev => ({ ...prev, period_number: parseInt(e.target.value) }))}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label>Subject</Label>
-                        <div className="space-y-2">
-                          <SearchableSubjectDropdown
-                            subjects={classDivisionSubjects}
-                            value={entryForm.subject}
-                            onValueChange={(value) => {
-                              setEntryForm(prev => ({ ...prev, subject: value }));
-                            }}
-                            placeholder={t('timetable.selectSubject')}
-                            showCode={true}
-                            emptyMessage="No subjects assigned to this class"
-                          />
-                          
-                          {classDivisionSubjects.length === 0 && (
-                            <p className="text-sm text-muted-foreground">
-                              {t('timetable.noSubjectsAssigned')}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label>{t('timetable.teacher')}</Label>
-                        <SearchableTeacherDropdown
-                          teachers={classDivisionTeachers
-                            .filter(teacher => teacher.is_active)
-                            .map(teacher => ({
-                              teacher_id: teacher.teacher_id,
-                              full_name: teacher.teacher_info.full_name,
-                              phone_number: teacher.teacher_info.phone_number,
-                              email: teacher.teacher_info.email,
-                              department: teacher.teacher_info.department || '',
-                              designation: '',
-                              is_active: teacher.is_active
-                            }))}
-                          value={entryForm.teacher_id}
-                          onValueChange={(value) => setEntryForm(prev => ({ ...prev, teacher_id: value }))}
-                          placeholder={t('timetable.selectTeacher')}
-                          showPhone={false}
-                          showDepartment={true}
-                          emptyMessage={t('timetable.noTeachersAssigned')}
-                        />
-                      </div>
-
-
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => setShowEntryDialog(false)}>
-                          {t('actions.cancel')}
-                        </Button>
-                        <Button onClick={handleCreateEntry} disabled={loading}>
-                          {loading ? (
-                            <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                          ) : (
-                            <Save className="h-4 w-4 mr-2" />
-                          )}
-                          {t('timetable.createEntry')}
-                        </Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            )}
-          </div>
-
-          {!selectedConfig && (
-            <div className="space-y-4">
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  {t('timetable.alerts.selectConfig')}
-                </AlertDescription>
-              </Alert>
-
-              {configs.length > 0 && (
-                <div className="grid gap-3">
-                  <h3 className="font-medium text-sm">{t('timetable.availableConfigurations')}</h3>
-                  {configs.slice(0, 3).map((config) => (
-                    <Card key={config.id} className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-primary/50" onClick={() => setSelectedConfig(config)}>
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <h4 className="font-medium">{config.name}</h4>
-                            <p className="text-sm text-muted-foreground">{config.academic_year?.year_name}</p>
-                          </div>
-                          <Button variant="outline" size="sm">
-                            {t('actions.select')} {t('common.this', 'This')}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {selectedClass && selectedConfig && (
-            <div className="space-y-6">
-              <Card className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    {t('timetable.forSelectedClass', 'Timetable for Selected Class')}
-                  </CardTitle>
-                  <CardDescription>
-                    {classDivisions.find(c => c.id === selectedClass)?.class_level.name} - {t('timetable.section')} {classDivisions.find(c => c.id === selectedClass)?.division}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => loadTimetableData(selectedClass)}
-                        disabled={loading}
-                      >
-                        <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                        {t('actions.refresh')}
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setEntryForm(prev => ({
-                            ...prev,
-                            config_id: selectedConfig?.id || '',
-                            class_division_id: selectedClass
-                          }));
-                          setShowEntryDialog(true);
-                        }}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        {t('timetable.addEntry')}
-                      </Button>
-                    </div>
-
-                    {/* Timetable Statistics */}
-                    <div className="flex gap-4 text-sm">
-                      <div className="text-center">
-                        <div className="font-semibold text-lg">
-                          {Object.values(timetableData).reduce((total, entries) => total + entries.length, 0)}
-                        </div>
-                        <div className="text-muted-foreground">{t('timetable.totalEntries')}</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="font-semibold text-lg">
-                          {new Set(Object.values(timetableData).flat().map(entry => entry.subject)).size}
-                        </div>
-                        <div className="text-muted-foreground">{t('timetable.subjects', 'Subjects')}</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="font-semibold text-lg">
-                          {new Set(Object.values(timetableData).flat().map(entry => entry.teacher_id)).size}
-                        </div>
-                        <div className="text-muted-foreground">{t('common.staff')}</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Quick Actions */}
-                  {Object.values(timetableData).reduce((total, entries) => total + entries.length, 0) === 0 && (
-                    <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                      <div className="flex items-start gap-3">
-                        <div className="p-1 bg-blue-100 dark:bg-blue-900/50 rounded">
-                          <Plus className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-blue-900 dark:text-blue-100">{t('timetable.noEntriesTitle', 'No Timetable Entries Yet')}</h4>
-                          <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                            {t('timetable.noEntriesYet', `No entries yet. Click "Add Entry" to create the first schedule for this class.`)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Subjects Information */}
-              {classDivisionSubjects.length > 0 && (
-                <Card className="hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <BookOpen className="h-5 w-5" />
-                      {t('timetable.availableSubjectsTitle', 'Available Subjects')}
-                    </CardTitle>
-                    <CardDescription>
-                      {t('timetable.availableSubjectsDesc', 'Subjects assigned to this class division')}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {classDivisionSubjects.map((subject) => (
-                        <div key={subject.id} className="flex items-center gap-3 p-3 border rounded-lg">
-                          <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
-                            <BookOpen className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-medium text-sm">{subject.name}</h4>
-                            <p className="text-xs text-muted-foreground">{subject.code}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Teachers Information */}
-              {classDivisionTeachers.length > 0 && (
-                <Card className="hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <User className="h-5 w-5" />
-                      {t('timetable.availableTeachersTitle', 'Available Teachers')}
-                    </CardTitle>
-                    <CardDescription>
-                      {t('timetable.availableTeachersDesc', 'Teachers assigned to this class division')}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {classDivisionTeachers
-                        .filter(teacher => teacher.is_active)
-                        .map((teacher, index) => (
-                          <div key={teacher.assignment_id || `teacher-card-${teacher.teacher_id}-${index}`} className="flex items-center gap-3 p-3 border rounded-lg">
-                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                              <User className="h-5 w-5 text-primary" />
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="font-medium">{teacher.teacher_info.full_name}</h4>
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                {teacher.assignment_type === 'class_teacher' && (
-                                  <Badge variant="outline" className="text-xs">Class Teacher</Badge>
-                                )}
-                                {teacher.assignment_type === 'subject_teacher' && teacher.subject && (
-                                  <Badge variant="outline" className="text-xs">Subject: {teacher.subject}</Badge>
-                                )}
-                              </div>
-                              {teacher.teacher_info.phone_number && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {teacher.teacher_info.phone_number}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              <TimetableGrid
-                timetableData={timetableData}
-                config={selectedConfig}
-                onEditEntry={(entry) => {
-                  // Handle edit entry
-                  setEntryForm({
-                    config_id: entry.config_id,
-                    class_division_id: entry.class_division_id,
-                    period_number: entry.period_number,
-                    day_of_week: entry.day_of_week,
-                    subject: entry.subject,
-                    teacher_id: entry.teacher_id
-                  });
-                  setShowEntryDialog(true);
-                }}
-                onDeleteEntry={async (entryId) => {
-                  if (confirm(t('timetable.delete.confirm'))) {
-                    try {
-                      await timetableApi.deleteEntry(entryId, token || '');
-                      toast({
-                        title: t('timetable.toasts.success'),
-                        description: t('timetable.delete.success'),
-                      });
-                      if (selectedClass) {
-                        await loadTimetableData(selectedClass);
-                      }
-                    } catch (error) {
-                      console.error('Error deleting entry:', error);
-                      toast({
-                        title: t('timetable.toasts.error'),
-                        description: t('timetable.delete.failed'),
-                        variant: "error",
-                      });
-                    }
-                  }
-                }}
-              />
-            </div>
-          )}
-
-          {!selectedClass && selectedConfig && (
-            <div className="space-y-4">
-              <Alert>
-                <BookOpen className="h-4 w-4" />
-                <AlertDescription>
-                  {t('timetable.selectClassHint', 'Select a class from the dropdown above to view and manage its timetable entries.')}
-                </AlertDescription>
-              </Alert>
-
-              {classDivisions.length > 0 && (
-                <div className="grid gap-3">
-                  <h3 className="font-medium text-sm">{t('timetable.availableClasses', 'Available Classes:')}</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {classDivisions.slice(0, 6).map((division) => (
-                      <Card
-                        key={division.id}
-                        className="cursor-pointer hover:shadow-md transition-shadow hover:border-primary/50"
-                        onClick={() => {
-                          setSelectedClass(division.id);
-                          loadTimetableData(division.id);
-                        }}
-                      >
-                        <CardContent className="p-4 text-center">
-                          <h4 className="font-medium">{division.class_level.name}</h4>
-                          <p className="text-sm text-muted-foreground">{t('timetable.section', 'Section')} {division.division}</p>
-                          <Button variant="outline" size="sm" className="mt-2 w-full">
-                            {t('timetable.viewTimetable', 'View Timetable')}
-                          </Button>
-                        </CardContent>
-                      </Card>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Array.from(
+                      new Map(classDivisionTeachers.filter((x) => x.is_active).map((x) => [x.teacher_id, x])).values()
+                    ).map((x) => (
+                      <span key={x.teacher_id} className="rounded-full bg-background px-2 py-0.5 font-medium ring-1 ring-border">
+                        {x.teacher_info.full_name}
+                        {x.assignment_type === 'class_teacher' && <span className="ml-1 font-normal text-muted-foreground">· Class Teacher</span>}
+                      </span>
                     ))}
                   </div>
                 </div>
               )}
             </div>
           )}
-        </TabsContent>
-      </Tabs>
+
+          {loading && allEntries.length === 0 ? (
+            <Skeleton className="h-96 w-full" />
+          ) : (
+            <TimetableGrid
+              timetableData={timetableData}
+              config={selectedConfig}
+              onAddEntry={openAddEntry}
+              onEditEntry={(entry) => {
+                setEntryForm({
+                  config_id: entry.config_id,
+                  class_division_id: entry.class_division_id,
+                  period_number: entry.period_number,
+                  day_of_week: entry.day_of_week,
+                  subject: entry.subject,
+                  teacher_id: entry.teacher_id,
+                });
+                setShowEntryDialog(true);
+              }}
+              onDeleteEntry={(entryId) => setPendingDelete(entryId)}
+            />
+          )}
+        </section>
+      )}
+
+      {/* Entry dialog */}
+      <Dialog
+        open={showEntryDialog}
+        onOpenChange={(open) => {
+          setShowEntryDialog(open);
+          if (!open) {
+            setEntryError(null);
+            setShowErrorAlert(false);
+            if (modalCloseTimeoutRef.current) clearTimeout(modalCloseTimeoutRef.current);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>Add Timetable Entry</DialogTitle>
+            <DialogDescription>
+              {selectedDivision ? `${selectedDivision.class_level.name} ${selectedDivision.division}` : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          {entryError && showErrorAlert && (
+            <Alert className="border-tone-danger/30 bg-tone-danger-soft">
+              <AlertTriangle className="h-4 w-4 text-tone-danger" />
+              <AlertDescription className="space-y-1 text-foreground">
+                <div className="font-semibold">{entryError.title}</div>
+                <div className="text-sm">{String(entryError.message)}</div>
+                {entryError.suggestion && <div className="text-sm text-muted-foreground">{String(entryError.suggestion)}</div>}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Day</Label>
+                <Select value={entryForm.day_of_week.toString()} onValueChange={(v) => setEntryForm((prev) => ({ ...prev, day_of_week: parseInt(v) }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dayOptions.map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Period</Label>
+                <Select value={entryForm.period_number.toString()} onValueChange={(v) => setEntryForm((prev) => ({ ...prev, period_number: parseInt(v) }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: selectedConfig?.total_periods || 8 }, (_, i) => i + 1).map((p) => (
+                      <SelectItem key={p} value={String(p)}>
+                        P{p} · {periodStartTime(p)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Subject</Label>
+              <SearchableSubjectDropdown
+                subjects={classDivisionSubjects}
+                value={entryForm.subject}
+                onValueChange={(value) => setEntryForm((prev) => ({ ...prev, subject: value }))}
+                placeholder={t('timetable.selectSubject')}
+                showCode={true}
+                emptyMessage="No subjects assigned to this class"
+              />
+              {classDivisionSubjects.length === 0 && <p className="text-xs text-muted-foreground">{t('timetable.noSubjectsAssigned')}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>{t('timetable.teacher')}</Label>
+              <SearchableTeacherDropdown
+                teachers={classDivisionTeachers
+                  .filter((teacher) => teacher.is_active)
+                  .map((teacher) => ({
+                    teacher_id: teacher.teacher_id,
+                    full_name: teacher.teacher_info.full_name,
+                    phone_number: teacher.teacher_info.phone_number,
+                    email: teacher.teacher_info.email,
+                    department: teacher.teacher_info.department || '',
+                    designation: '',
+                    is_active: teacher.is_active,
+                  }))}
+                value={entryForm.teacher_id}
+                onValueChange={(value) => setEntryForm((prev) => ({ ...prev, teacher_id: value }))}
+                placeholder={t('timetable.selectTeacher')}
+                showPhone={false}
+                showDepartment={true}
+                emptyMessage={t('timetable.noTeachersAssigned')}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="ghost" onClick={() => setShowEntryDialog(false)}>
+                {t('actions.cancel')}
+              </Button>
+              <Button onClick={handleCreateEntry} disabled={loading}>
+                {loading ? <RefreshCw className="animate-spin" /> : <Save />}
+                {t('timetable.createEntry')}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <Dialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('timetable.delete.title', 'Remove this entry?')}</DialogTitle>
+            <DialogDescription>{t('timetable.delete.confirm')}</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setPendingDelete(null)}>
+              {t('actions.cancel')}
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete}>
+              {t('actions.delete', 'Delete')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Configuration dialog */}
+      <Dialog open={showConfigDialog} onOpenChange={setShowConfigDialog}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingConfig ? t('timetable.configs.editTitle', 'Edit Configuration') : t('timetable.configs.createTitle', 'Create New Configuration')}
+            </DialogTitle>
+            <DialogDescription>{t('timetable.configs.description', 'Set up the basic structure for your school timetable')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="config-name">{t('timetable.configs.nameLabel', 'Configuration Name')}</Label>
+              <Input
+                id="config-name"
+                value={configForm.name}
+                onChange={(e) => setConfigForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder={t('timetable.configs.namePlaceholder', 'e.g., Primary School Schedule 2025-26')}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="config-description">{t('timetable.configs.descLabel', 'Description (Optional)')}</Label>
+              <Textarea
+                id="config-description"
+                value={configForm.description}
+                onChange={(e) => setConfigForm((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder={t('timetable.configs.descPlaceholder', 'Brief description of this timetable configuration')}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="academic-year">{t('timetable.academicYearLabel', 'Academic Year:')}</Label>
+              <Select value={configForm.academic_year_id} onValueChange={(value) => setConfigForm((prev) => ({ ...prev, academic_year_id: value }))}>
+                <SelectTrigger id="academic-year">
+                  <SelectValue placeholder={t('timetable.selectAcademicYear', 'Select Academic Year')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {academicYears.map((year) => (
+                    <SelectItem key={year.id} value={year.id}>
+                      {year.year_name} {year.is_active && `(${t('academicSetup.status.active', 'Active')})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="periods">{t('timetable.kpi.periodsPerDay', 'Periods/Day')}</Label>
+                <Input
+                  id="periods"
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={configForm.total_periods}
+                  onChange={(e) => setConfigForm((prev) => ({ ...prev, total_periods: parseInt(e.target.value) || 0 }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="days">{t('timetable.kpi.daysPerWeek', 'Days/Week')}</Label>
+                <Input
+                  id="days"
+                  type="number"
+                  min="1"
+                  max="7"
+                  value={configForm.days_per_week}
+                  onChange={(e) => setConfigForm((prev) => ({ ...prev, days_per_week: parseInt(e.target.value) || 0 }))}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="ghost" onClick={() => setShowConfigDialog(false)}>
+                {t('actions.cancel')}
+              </Button>
+              <Button
+                onClick={editingConfig ? handleUpdateConfig : handleCreateConfig}
+                disabled={loading || !configForm.name.trim() || !configForm.academic_year_id}
+              >
+                {loading ? <RefreshCw className="animate-spin" /> : <Save />}
+                {editingConfig ? t('actions.update', 'Update') : t('actions.create', 'Create')}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

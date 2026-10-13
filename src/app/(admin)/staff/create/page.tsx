@@ -2,282 +2,95 @@
 
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Loader2, AlertTriangle, User, Phone, Shield, Key, ArrowLeft, Save } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 import { useI18n } from '@/lib/i18n/context';
 import { staffServices } from '@/lib/api';
-import type { CreateStaffWithUserRequest } from '@/types/staff';
+import { useToast } from '@/hooks/use-toast';
+import { StaffForm, type StaffFormValues } from '@/components/staff/staff-form';
+import type { CreateStaffWithUserRequest, UpdateStaffRequest } from '@/types/staff';
 
 export default function CreateStaffPage() {
   const { user, token } = useAuth();
   const router = useRouter();
   const { t } = useI18n();
-  const [formData, setFormData] = useState({
-    fullName: '',
-    phoneNumber: '',
-    role: 'teacher',
-    department: '',
-    designation: '',
-    password: ''
-  });
-  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Available roles and departments
-  const availableRoles = [
-    { value: 'teacher', label: t('common.teacher', 'Teacher') },
-    { value: 'attendance_staff', label: t('common.attendanceStaff', 'Attendance Staff') },
-    { value: 'principal', label: t('common.principal', 'Principal') },
-    { value: 'admin', label: t('common.admin', 'Admin') },
-  ];
-
-  // Only allow admins and principals to access this page
-  if (user?.role !== 'admin' && user?.role !== 'principal') {
+  if (user && user.role !== 'admin' && user.role !== 'principal') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
-          <p className="text-gray-600">{t('access.adminsOnly', 'Only admins and principals can access this page.')}</p>
+      <div className="flex min-h-[50vh] items-center justify-center text-center">
+        <div>
+          <h2 className="text-xl font-semibold">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t('access.adminsOnly', 'Only admins and principals can access this page.')}</p>
         </div>
       </div>
     );
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submit = async ({ draft, role: rawRole, password }: StaffFormValues) => {
     if (!token) return;
-    
-    setIsLoading(true);
+    setSaving(true);
     setError(null);
-    
+    const role = rawRole.toLowerCase();
+    const defaultDesignation: Record<string, string> = { teacher: 'Teacher', attendance_staff: 'Attendance Staff', principal: 'Principal', admin: 'Admin' };
     try {
-      const createData: CreateStaffWithUserRequest = {
-        full_name: formData.fullName,
-        phone_number: formData.phoneNumber,
-        role: formData.role.toLowerCase(), // API expects lowercase
-        department: formData.role, // Use role as department (e.g., "Mathematics", "Science")
-        designation: formData.role === 'attendance_staff' ? 'Attendance Staff' : 'Teacher',
-        password: formData.password,
-        user_role: formData.role.toLowerCase() // API expects lowercase
+      const data: CreateStaffWithUserRequest = {
+        full_name: draft.fullName,
+        phone_number: draft.phone,
+        role,
+        department: rawRole,
+        designation: draft.designation.trim() || defaultDesignation[role] || 'Teacher',
+        password,
+        user_role: role,
       };
+      const response = await staffServices.createStaffWithUser(data, token);
+      if (response.status !== 'success') throw new Error(response.message || t('staff.create.failed', 'Failed to create staff member'));
+      const created = response.data.staff;
 
-      const response = await staffServices.createStaffWithUser(createData, token);
-      
-      if (response.status === 'success') {
-        router.push('/staff');
-      } else {
-        setError('Failed to create staff member');
+      // the create endpoint only takes the basics, so the optional details go in a follow-up update
+      const extras: UpdateStaffRequest = {};
+      if (draft.email.trim()) extras.email = draft.email.trim();
+      if (draft.joiningDate) extras.joining_date = draft.joiningDate;
+      if (draft.address.trim()) extras.address = draft.address.trim();
+      if (draft.emergencyName.trim()) extras.emergency_contact = draft.emergencyName.trim();
+      if (draft.emergencyPhone.trim()) extras.emergency_contact_phone = draft.emergencyPhone.trim();
+      let extrasFailed = false;
+      try {
+        if (Object.keys(extras).length > 0) {
+          const r = await staffServices.updateStaff(created.id, extras, token);
+          if (r.status !== 'success') extrasFailed = true;
+        }
+        if (draft.dob) {
+          const r = await staffServices.updateStaffDateOfBirth(created.id, draft.dob, token);
+          if ('status' in r && r.status !== 'success') extrasFailed = true;
+        }
+      } catch {
+        extrasFailed = true;
       }
+
+      if (extrasFailed) {
+        toast({
+          title: t('staff.created', 'Staff member added'),
+          description: t('staff.createdExtrasFailed', 'Some optional details could not be saved. Add them from the profile.'),
+          variant: 'error',
+        });
+      } else {
+        toast({ title: t('staff.created', 'Staff member added'), variant: 'success' });
+      }
+      router.push(`/staff/${created.id}`);
     } catch (err) {
-      console.error('Create staff error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create staff member');
-    } finally {
-      setIsLoading(false);
+      setError(err instanceof Error ? err.message : t('staff.create.failed', 'Failed to create staff member'));
+      setSaving(false);
     }
   };
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen p-4 md:p-8">
-        <main className="max-w-2xl mx-auto pt-16">
-          <div className="mb-6">
-            <Button
-              variant="ghost"
-              onClick={() => router.back()}
-              className="mb-4 flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              {t('staff.backToList', 'Back to Staff')}
-            </Button>
-            <h1 className="text-3xl font-bold mb-2">{t('staff.create.title', 'Add New Staff')}</h1>
-            <p className="text-gray-600 dark:text-gray-300">
-              {t('staff.create.subtitle', 'Add a new staff member to the school system')}
-            </p>
-          </div>
-
-          {/* Error Display */}
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex items-center gap-2 text-red-800">
-                <AlertTriangle className="h-5 w-5" />
-                <span>{error}</span>
-                <Button variant="ghost" size="sm" onClick={() => setError(null)} className="ml-auto">
-                  ×
-                </Button>
-              </div>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit}>
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('staff.form.personalInfo', 'Personal Information')}</CardTitle>
-                <CardDescription>
-                  {t('staff.create.personalDetailsDesc', 'Enter the staff member\'s personal details')}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Personal Information Section */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b">
-                    <User className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-semibold text-foreground">{t('staff.form.personalInfo', 'Personal Information')}</h3>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="fullName" className="text-sm font-medium">{t('staff.form.labels.fullName', 'Full Name')} *</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="fullName"
-                          name="fullName"
-                          value={formData.fullName}
-                          onChange={handleInputChange}
-                          placeholder={t("staff.form.placeholders.fullNameStaff", "Enter staff member's full name")}
-                          className="pl-10"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="phoneNumber" className="text-sm font-medium">{t('staff.form.labels.phoneNumber', 'Phone Number')} *</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="phoneNumber"
-                          name="phoneNumber"
-                          value={formData.phoneNumber}
-                          onChange={handleInputChange}
-                          placeholder={t('staff.form.placeholders.phoneNumber', 'e.g., 9876543210')}
-                          className="pl-10"
-                          required
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Professional Information Section */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b">
-                    <Shield className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-semibold text-foreground">{t('staff.form.professionalInfo', 'Professional Information')}</h3>
-                  </div>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="role" className="text-sm font-medium">{t('staff.form.labels.role', 'Role')} *</Label>
-                      <div className="relative">
-                        <Shield className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
-                        <Select
-                          name="role"
-                          value={formData.role}
-                          onValueChange={(value) => handleSelectChange('role', value)}
-                        >
-                          <SelectTrigger className="pl-10">
-                            <SelectValue placeholder={t('staff.form.placeholders.selectRole', 'Select a role')} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableRoles.map(role => (
-                              <SelectItem key={role.value} value={role.value}>
-                                <div className="flex items-center gap-2">
-                                  <Shield className="h-4 w-4" />
-                                  {role.label}
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Account Security Section */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b">
-                    <Key className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-semibold text-foreground">{t('staff.form.accountSecurity', 'Account Security')}</h3>
-                  </div>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="password" className="text-sm font-medium">{t('staff.form.labels.initialPassword', 'Initial Password')} *</Label>
-                      <div className="relative">
-                        <Key className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="password"
-                          name="password"
-                          type="password"
-                          value={formData.password}
-                          onChange={handleInputChange}
-                          placeholder={t('staff.form.placeholders.setInitialPassword', 'Set initial password')}
-                          className="pl-10"
-                          required
-                        />
-                      </div>
-                      <p className="text-sm text-gray-500">
-                        {t('staff.create.passwordHint', "This will be the initial password for the staff member's user account")}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between pt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                  disabled={isLoading}
-                  className="flex items-center gap-2"
-                >
-                  <X className="h-4 w-4" />
-                  {t('actions.cancel', 'Cancel')}
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="flex items-center gap-2"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      {t('actions.adding', 'Adding...')}
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4" />
-                      {t('staff.addStaff', 'Add Staff')}
-                    </>
-                  )}
-                </Button>
-              </CardFooter>
-            </Card>
-          </form>
-        </main>
-      </div>
+      <StaffForm submitting={saving} error={error} onSubmit={submit} onCancel={() => router.push('/staff')} />
     </ProtectedRoute>
   );
 }

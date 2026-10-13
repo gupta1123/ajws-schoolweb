@@ -5,8 +5,10 @@
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RefreshCw, Plus, Calendar as CalendarIcon } from 'lucide-react';
+import { RefreshCw, Plus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
+import { InlineError } from '@/components/ui/page-kit';
 import { useState, useEffect, useCallback } from 'react';
 import { ImprovedCalendarView } from '@/components/calendar/improved-calendar-view';
 import { PendingEventsTable } from '@/components/calendar/pending-events-table';
@@ -19,10 +21,15 @@ import { useToast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/context';
 
 
+const toLocalISO = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 export default function CalendarPage() {
   const { user, token, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const { t } = useI18n();
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'calendar' | 'pending'>('calendar');
   const [selectedEvent, setSelectedEvent] = useState<UICalendarEvent | null>(null);
   const [pendingEvents, setPendingEvents] = useState<CalendarEvent[]>([]);
   const [pendingEventsLoading, setPendingEventsLoading] = useState(false);
@@ -45,8 +52,10 @@ export default function CalendarPage() {
     error: eventsError,
     fetchEventsByDateRange,
     fetchParentEvents,
-    clearError
+    clearError,
+    loading: eventsLoading,
   } = useCalendarEvents();
+  const [initialLoaded, setInitialLoaded] = useState(false);
 
   // Convert API events to UI format
   const uiEvents = events.map(convertApiEventToUI);
@@ -63,8 +72,8 @@ export default function CalendarPage() {
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-      const startDate = startOfMonth.toISOString().split('T')[0];
-      const endDate = endOfMonth.toISOString().split('T')[0];
+      const startDate = toLocalISO(startOfMonth);
+      const endDate = toLocalISO(endOfMonth);
 
       // Fetch events based on user role
       if (user.role === 'teacher') {
@@ -126,7 +135,7 @@ export default function CalendarPage() {
   // Fetch events on component mount
   useEffect(() => {
     if (token && user && !authLoading) {
-      fetchEventsByRole();
+      fetchEventsByRole().finally(() => setInitialLoaded(true));
       // Only principals should see pending approvals
       if (user.role === 'principal') {
         fetchPendingEvents();
@@ -153,11 +162,12 @@ export default function CalendarPage() {
     }
 
     // For birthdays, we need to handle the special ID format
-    const actualEventId = eventId.replace('b-', '');
-    const event = uiEvents.find(e => e.id === actualEventId);
+    const isBirthday = eventId.startsWith('b-');
+    const actualEventId = isBirthday ? eventId.slice(2) : eventId;
+    const event = uiEvents.find(e => e.id === eventId) || uiEvents.find(e => e.id === actualEventId);
     
     if (event) {
-      if (eventId.startsWith('b-')) {
+      if (isBirthday) {
         // For birthday events, create a special birthday event structure
         // Since we don't have access to the original birthday data here,
         // we'll create a generic birthday event
@@ -195,14 +205,8 @@ export default function CalendarPage() {
       return;
     }
 
-    // Debug: log the date being passed
-    console.log('Calendar: handleAddEvent called with date:', date);
-    console.log('Calendar: date type:', typeof date);
-    console.log('Calendar: date value:', date);
-    console.log('Calendar: current timezone offset:', new Date().getTimezoneOffset());
-
     // Navigate to create event page with pre-filled date
-    window.location.href = `/calendar/create?date=${date}`;
+    router.push(`/calendar/create?date=${date}`);
   };
 
   const handleCreateEvent = () => {
@@ -217,8 +221,7 @@ export default function CalendarPage() {
     }
 
     // Navigate to create event page with today's date
-    const today = new Date().toISOString().split('T')[0];
-    window.location.href = `/calendar/create?date=${today}`;
+    router.push(`/calendar/create?date=${toLocalISO(new Date())}`);
   };
 
   const handleEditEvent = (eventId: string) => {
@@ -233,7 +236,7 @@ export default function CalendarPage() {
     }
 
     // Navigate to edit page
-    window.location.href = `/calendar/${eventId}/edit`;
+    router.push(`/calendar/${eventId}/edit`);
   };
 
   const handleDeleteEvent = (eventId: string) => {
@@ -271,7 +274,8 @@ export default function CalendarPage() {
     const event = uiEvents.find(e => e.id === eventId);
     const eventTitle = event?.title || 'this event';
 
-    // Show confirmation modal
+    // Show confirmation modal (close the side panel first so they don't stack)
+    setSelectedEvent(null);
     setDeleteConfirmation({
       isOpen: true,
       eventId,
@@ -284,9 +288,6 @@ export default function CalendarPage() {
 
     try {
       setDeleting(true);
-      console.log('Deleting event with token:', token ? 'Token exists' : 'No token');
-      console.log('Event ID:', deleteConfirmation.eventId);
-
       // Call the delete API
       const response = await calendarServices.deleteEvent(token, deleteConfirmation.eventId);
       
@@ -343,7 +344,7 @@ export default function CalendarPage() {
 
   const handleViewPendingEvent = (event: CalendarEvent) => {
     // Navigate to the pending event detail page
-    window.location.href = `/calendar/pending/${event.id}`;
+    router.push(`/calendar/pending/${event.id}`);
   };
 
   const handleMonthChange = useCallback(async (newDate: Date) => {
@@ -356,10 +357,8 @@ export default function CalendarPage() {
       const startOfMonth = new Date(year, month, 1);
       const endOfMonth = new Date(year, month + 1, 0);
 
-      const startDate = startOfMonth.toISOString().split('T')[0];
-      const endDate = endOfMonth.toISOString().split('T')[0];
-
-      console.log('Month changed, fetching events for:', { startDate, endDate, month: month + 1, year });
+      const startDate = toLocalISO(startOfMonth);
+      const endDate = toLocalISO(endOfMonth);
 
       // Fetch events for the new month
       await fetchEventsByDateRange(startDate, endDate);
@@ -375,86 +374,92 @@ export default function CalendarPage() {
 
 
 
+  const isPrincipal = user?.role === 'principal';
+
+  const createButton = (
+    <Button onClick={handleCreateEvent} size="sm">
+      <Plus />
+      {t('calendar.page.createEvent', 'Create Event')}
+    </Button>
+  );
+
   return (
     <ProtectedRoute>
-      <div className="container max-w-6xl mx-auto py-6">
+      <div className="mx-auto w-full max-w-6xl space-y-3">
         {/* Show loading state while auth is initializing */}
         {authLoading && (
           <div className="flex items-center justify-center py-12">
-            <div className="flex items-center gap-3">
-              <RefreshCw className="h-6 w-6 animate-spin text-blue-500" />
-              <span className="text-lg text-gray-600">{t('calendar.page.loading', 'Loading...')}</span>
-            </div>
+            <RefreshCw className="size-5 animate-spin text-muted-foreground" />
           </div>
         )}
-        
+
         {/* Only show content when auth is ready */}
         {!authLoading && (
           <>
-            {/* Header with Create Event Button */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <CalendarIcon className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold">{t('calendar.page.title', 'School Calendar')}</h1>
-                  <p className="text-sm text-muted-foreground">{t('calendar.page.subtitle', 'Manage and view all school events')}</p>
-                </div>
-              </div>
-              <Button 
-                onClick={handleCreateEvent}
-                size="lg"
-                className="h-11 px-4"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                {t('calendar.page.createEvent', 'Create Event')}
-              </Button>
-            </div>
-
-            {/* Error Display */}
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <p className="text-red-800">{error}</p>
-                  <Button variant="ghost" size="sm" onClick={() => setError(null)}>
-                    ×
-                  </Button>
-                </div>
+            {/* Tabs only exist for principals (pending approvals) */}
+            {isPrincipal && (
+              <div role="tablist" className="flex gap-1 border-b">
+                {(['calendar', 'pending'] as const).map((tab) => {
+                  const active = activeTab === tab;
+                  return (
+                    <button
+                      key={tab}
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setActiveTab(tab)}
+                      className={cn(
+                        '-mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors',
+                        active
+                          ? 'border-primary text-foreground'
+                          : 'border-transparent text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      {tab === 'calendar'
+                        ? t('calendar.page.tabs.calendar', 'Calendar')
+                        : t('calendar.page.tabs.pending', 'Pending Requests')}
+                      {tab === 'pending' && pendingEvents.length > 0 && (
+                        <span className="rounded-full bg-tone-warning-soft px-1.5 text-[11px] font-semibold leading-5 tabular-nums text-tone-warning">
+                          {pendingEvents.length}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
-            
-            <Tabs defaultValue="calendar" className="w-full">
-              <TabsList className={`grid w-full ${user?.role === 'principal' ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                <TabsTrigger value="calendar">{t('calendar.page.tabs.calendar', 'Calendar')}</TabsTrigger>
-                {user?.role === 'principal' && (
-                  <TabsTrigger value="pending">{t('calendar.page.tabs.pending', 'Pending Requests')}</TabsTrigger>
-                )}
-              </TabsList>
-              <TabsContent value="calendar">
-                <ImprovedCalendarView 
-                  events={uiEvents}
-                  onViewEvent={handleViewEvent}
-                  onAddEvent={handleAddEvent}
-                  onMonthChange={handleMonthChange}
+
+            {error && (
+              <section className="rounded-lg border bg-card">
+                <InlineError
+                  title={error}
+                  onRetry={() => setError(null)}
+                  retryLabel={t('common.dismiss', 'Dismiss')}
                 />
-              </TabsContent>
-              {user?.role === 'principal' && (
-                <TabsContent value="pending">
-                  <PendingEventsTable
-                    events={pendingEvents}
-                    loading={pendingEventsLoading}
-                    onViewEvent={handleViewPendingEvent}
-                    onRefresh={fetchPendingEvents}
-                    userRole={user?.role}
-                  />
-                </TabsContent>
-              )}
-            </Tabs>
+              </section>
+            )}
+
+            {activeTab === 'calendar' || !isPrincipal ? (
+              <ImprovedCalendarView
+                events={uiEvents}
+                onViewEvent={handleViewEvent}
+                onAddEvent={handleAddEvent}
+                onMonthChange={handleMonthChange}
+                toolbarEnd={createButton}
+                loading={eventsLoading || !initialLoaded}
+              />
+            ) : (
+              <PendingEventsTable
+                events={pendingEvents}
+                loading={pendingEventsLoading}
+                onViewEvent={handleViewPendingEvent}
+                onRefresh={fetchPendingEvents}
+                userRole={user?.role}
+              />
+            )}
           </>
         )}
       </div>
-      
+
       {selectedEvent && !authLoading && (
         <EventDetailModal
           event={selectedEvent}

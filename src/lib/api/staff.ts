@@ -10,6 +10,26 @@ import type {
   DeleteStaffResponse
 } from '@/types/staff';
 
+
+// The staff and teacher lists are slow, and several parts of a page ask for the
+// same one at once (list, profile, phone-duplicate check). Share the in-flight
+// request and reuse the result briefly; any write below clears it.
+const SHARE_MS = 20_000;
+const shared = new Map<string, { at: number; promise: Promise<unknown> }>();
+const sharedGet = <T>(token: string, key: string, load: () => Promise<T>): Promise<T> => {
+  // Cached authenticated responses must stay within the requesting account.
+  const cacheKey = `${token}:${key}`;
+  const hit = shared.get(cacheKey);
+  if (hit && Date.now() - hit.at < SHARE_MS) return hit.promise as Promise<T>;
+  const promise = load().catch((e) => {
+    shared.delete(cacheKey);
+    throw e;
+  });
+  shared.set(cacheKey, { at: Date.now(), promise });
+  return promise;
+};
+export const invalidateStaffCache = () => shared.clear();
+
 export const staffServices = {
   // List all staff members
   getStaff: async (
@@ -30,8 +50,7 @@ export const staffServices = {
     if (params?.limit) queryParams.append('limit', params.limit.toString());
 
     const url = `/api/lists/staff${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    const response = await apiClient.get(url, token);
-    return response as StaffListResponse;
+    return sharedGet(token, `staff:${url}`, async () => (await apiClient.get(url, token)) as StaffListResponse);
   },
 
   // Get teachers mapping (includes subjects_taught)
@@ -52,7 +71,7 @@ export const staffServices = {
       }>;
     };
   }> => {
-    const response = await apiClient.get('/api/academic/teachers', token);
+    const response = await sharedGet(token, 'teachers', () => apiClient.get('/api/academic/teachers', token));
     return response as {
       status: string;
       data: {
@@ -75,30 +94,45 @@ export const staffServices = {
   // Sync teachers to staff table
   syncTeachersToStaff: async (token: string): Promise<StaffSyncResponse> => {
     const response = await apiClient.post('/api/lists/staff/sync', {}, token);
+    invalidateStaffCache();
     return response as StaffSyncResponse;
   },
 
   // Create staff member with user account
   createStaffWithUser: async (data: CreateStaffWithUserRequest, token: string): Promise<StaffWithUserResponse> => {
     const response = await apiClient.post('/api/lists/staff/with-user', data, token);
+    invalidateStaffCache();
     return response as StaffWithUserResponse;
   },
 
   // Create staff member (without user account)
   createStaff: async (data: CreateStaffRequest, token: string): Promise<StaffResponse> => {
     const response = await apiClient.post('/api/lists/staff', data, token);
+    invalidateStaffCache();
     return response as StaffResponse;
   },
 
   // Update staff member
   updateStaff: async (id: string, data: UpdateStaffRequest, token: string): Promise<StaffResponse> => {
     const response = await apiClient.put(`/api/lists/staff/${id}`, data, token);
+    invalidateStaffCache();
     return response as StaffResponse;
+  },
+
+  // Date of birth lives behind its own admin-only endpoint
+  updateStaffDateOfBirth: async (id: string, dateOfBirth: string, token: string) => {
+    return apiClient.put(`/api/users/staff/${id}/date-of-birth`, { date_of_birth: dateOfBirth }, token).finally(invalidateStaffCache);
+  },
+
+  // Keep the login account in step with the staff record (name, phone, email)
+  updateUserAccount: async (userId: string, data: { full_name?: string; phone_number?: string; email?: string }, token: string) => {
+    return apiClient.put(`/api/users/${userId}`, data, token).finally(invalidateStaffCache);
   },
 
   // Delete staff member
   deleteStaff: async (id: string, token: string): Promise<DeleteStaffResponse> => {
     const response = await apiClient.delete(`/api/lists/staff/${id}`, token);
+    invalidateStaffCache();
     return response as DeleteStaffResponse;
   },
 
@@ -241,6 +275,7 @@ export const staffServices = {
     };
   }> => {
     const response = await apiClient.post(`/api/academic/teachers/${teacherId}/subjects`, data, token);
+    invalidateStaffCache();
     return response as {
       status: string;
       data: {

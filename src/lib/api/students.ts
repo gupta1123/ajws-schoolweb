@@ -13,6 +13,7 @@ export interface Student {
   gender?: string;
   blood_group?: string;
   address?: string;
+  emergency_contact?: string | null;
   student_academic_records: StudentAcademicRecord[];
   parent_mappings?: ParentStudentMapping[];
 }
@@ -62,6 +63,12 @@ export interface CreateStudentRequest {
 
 export interface UpdateStudentRequest {
   full_name?: string;
+  date_of_birth?: string;
+  status?: 'active' | 'inactive' | 'transferred';
+  gender?: string;
+  blood_group?: string;
+  address?: string;
+  emergency_contact?: string;
 }
 
 export interface LinkParentRequest {

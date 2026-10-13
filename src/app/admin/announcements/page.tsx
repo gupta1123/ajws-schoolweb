@@ -2,20 +2,32 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, AlertCircle, CheckCircle, XCircle, Clock, Eye, MessageSquare, BookOpen, Star, Plus, Paperclip } from 'lucide-react';
+import {
+  AlertCircle,
+  BookOpen,
+  Check,
+  ChevronRight,
+  Megaphone,
+  MessageSquare,
+  Paperclip,
+  Plus,
+  Search,
+  Star,
+  X,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState, Pill } from '@/components/ui/page-kit';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth/context';
 import { createAnnouncementsAPI, type Announcement } from '@/lib/api/announcements';
 import { useI18n } from '@/lib/i18n/context';
 import { FormattedText } from '@/components/announcements/formatted-text';
+import { cn } from '@/lib/utils';
+import { surface, type, type Tone } from '@/lib/design/tokens';
 
+type StatusTab = 'all' | 'pending' | 'approved' | 'rejected';
 
 const announcementTypes = [
   { value: 'circular', label: 'Circular', icon: BookOpen },
@@ -26,46 +38,58 @@ const announcementTypes = [
 ];
 
 const priorities = [
-  { value: 'low', label: 'Low', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' },
-  { value: 'medium', label: 'Medium', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' },
-  { value: 'high', label: 'High', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' },
+  { value: 'high', label: 'High' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'low', label: 'Low' },
 ];
 
-const statusConfig = {
-  pending: { color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300', icon: Clock, label: 'Pending' },
-  approved: { color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300', icon: CheckCircle, label: 'Approved' },
-  rejected: { color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300', icon: XCircle, label: 'Rejected' },
+const priorityTone: Record<Announcement['priority'], Tone> = { high: 'danger', medium: 'warning', low: 'info' };
+// Literal classes so Tailwind generates them.
+const priorityBar: Record<Announcement['priority'], string> = {
+  high: 'bg-tone-danger',
+  medium: 'bg-tone-warning',
+  low: 'bg-tone-info',
 };
+const statusTone: Record<Announcement['status'], Tone> = { pending: 'warning', approved: 'success', rejected: 'danger' };
 
+const selectClass =
+  'h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
+/** One-line plain-text preview of formatted announcement content. */
+const preview = (content: string) =>
+  (content || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/[*_`#>~]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 export default function AdminAnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [pendingAnnouncements, setPendingAnnouncements] = useState<Announcement[]>([]);
-  const [announcementsLoading, setAnnouncementsLoading] = useState(true);
-  const [pendingLoading, setPendingLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
+  const [tab, setTab] = useState<StatusTab>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [priorityFilter, setPriorityFilter] = useState<string>('all');
-
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
 
   const { toast } = useToast();
   const { token, user } = useAuth();
   const router = useRouter();
   const { t, lang } = useI18n();
   const api = useMemo(() => (token ? createAnnouncementsAPI(token) : null), [token]);
+  const isPrincipal = user?.role === 'principal';
 
-  const fetchAnnouncements = useCallback(async () => {
+  const fetchAll = useCallback(async () => {
     if (!api) return;
-
     try {
-      setAnnouncementsLoading(true);
-      const response = await api.getAnnouncements();
-      if (response.status === 'success') {
-        setAnnouncements(response.data.announcements);
-      }
+      setLoading(true);
+      const [all, pending] = await Promise.all([
+        api.getAnnouncements(),
+        isPrincipal ? api.getAnnouncements({ status: 'pending' }) : Promise.resolve(null),
+      ]);
+      if (all.status === 'success') setAnnouncements(all.data.announcements);
+      if (pending && pending.status === 'success') setPendingAnnouncements(pending.data.announcements);
     } catch (error) {
       console.error('Error fetching announcements:', error);
       toast({
@@ -74,44 +98,16 @@ export default function AdminAnnouncementsPage() {
         variant: 'error',
       });
     } finally {
-      setAnnouncementsLoading(false);
+      setLoading(false);
     }
-  }, [api, toast, t]);
-
-  const fetchPendingAnnouncements = useCallback(async () => {
-    if (!api) return;
-
-    try {
-      setPendingLoading(true);
-      const response = await api.getAnnouncements({ status: 'pending' });
-      if (response.status === 'success') {
-        setPendingAnnouncements(response.data.announcements);
-      }
-    } catch (error) {
-      console.error('Error fetching pending announcements:', error);
-      toast({
-        title: t('common.error', 'Error'),
-        description: t('announcements.list.fetchPendingFailed', 'Failed to fetch pending announcements'),
-        variant: 'error',
-      });
-    } finally {
-      setPendingLoading(false);
-    }
-  }, [api, toast, t]);
+  }, [api, isPrincipal, toast, t]);
 
   useEffect(() => {
-    if (token) {
-      fetchAnnouncements();
-      // Only principals view/manage pending approvals
-      if (user?.role === 'principal') {
-        fetchPendingAnnouncements();
-      }
-    }
-  }, [token, user?.role, fetchAnnouncements, fetchPendingAnnouncements]);
+    if (token) fetchAll();
+  }, [token, fetchAll]);
 
-  const handleApproveAnnouncement = async (announcementId: string) => {
+  const handleApprove = async (announcementId: string) => {
     if (!api) return;
-
     try {
       const response = await api.approveOrRejectAnnouncement(announcementId, { action: 'approve' });
       if (response.status === 'success') {
@@ -119,9 +115,7 @@ export default function AdminAnnouncementsPage() {
           title: t('common.success', 'Success'),
           description: t('announcements.list.approved', 'Announcement approved successfully'),
         });
-        // Refresh data
-        fetchAnnouncements();
-        fetchPendingAnnouncements();
+        fetchAll();
       }
     } catch (error) {
       console.error('Error approving announcement:', error);
@@ -133,469 +127,235 @@ export default function AdminAnnouncementsPage() {
     }
   };
 
+  // Union of the general list and the principal's pending list (by id)
+  const merged = useMemo(() => {
+    const map = new Map<string, Announcement>();
+    [...announcements, ...pendingAnnouncements].forEach((a) => map.set(a.id, a));
+    return [...map.values()];
+  }, [announcements, pendingAnnouncements]);
 
+  const counts = useMemo(
+    () => ({
+      all: merged.length,
+      pending: merged.filter((a) => a.status === 'pending').length,
+      approved: merged.filter((a) => a.status === 'approved').length,
+      rejected: merged.filter((a) => a.status === 'rejected').length,
+    }),
+    [merged]
+  );
 
+  const visible = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return merged
+      .filter((a) => {
+        const matchesSearch =
+          !q ||
+          a.title.toLowerCase().includes(q) ||
+          a.content.toLowerCase().includes(q) ||
+          a.creator.full_name.toLowerCase().includes(q);
+        return (
+          matchesSearch &&
+          (tab === 'all' || a.status === tab) &&
+          (typeFilter === 'all' || a.announcement_type === typeFilter) &&
+          (priorityFilter === 'all' || a.priority === priorityFilter)
+        );
+      })
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [merged, searchTerm, tab, typeFilter, priorityFilter]);
 
-
-  const filteredAnnouncements = announcements.filter(announcement => {
-    const matchesSearch = announcement.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         announcement.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         announcement.creator.full_name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || announcement.status === statusFilter;
-    const matchesType = typeFilter === 'all' || announcement.announcement_type === typeFilter;
-    const matchesPriority = priorityFilter === 'all' || announcement.priority === priorityFilter;
-
-    return matchesSearch && matchesStatus && matchesType && matchesPriority;
-  }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const day = date.getDate();
-    const month = date.toLocaleDateString(lang, { month: 'short' });
-    const year = date.getFullYear().toString().slice(-2);
-    return `${day} ${month} '${year}`;
-  };
-
-  const getAnnouncementTypeLabel = (type: string) => {
-    return announcementTypes.find(t => t.value === type)?.label || type.charAt(0).toUpperCase() + type.slice(1);
-  };
-
-
+  const typeLabel = (v: string) =>
+    announcementTypes.find((x) => x.value === v)?.label || v.charAt(0).toUpperCase() + v.slice(1);
+  const statusLabel = (s: Announcement['status']) => t(`announcements.common.${s}`, s.charAt(0).toUpperCase() + s.slice(1));
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString(lang, { day: 'numeric', month: 'short', year: 'numeric' });
 
   if (!user || (user.role !== 'admin' && user.role !== 'principal')) {
     return (
-      <div className="container mx-auto px-4 py-6">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only admins and principals can access this section.</p>
-        </div>
+      <div className="mx-auto w-full max-w-6xl">
+        <EmptyState
+          title={t('common.accessDenied', 'Access Denied')}
+          help={t('announcements.accessHelp', 'Only admins and principals can access this section.')}
+        />
       </div>
     );
   }
 
+  const tabs: { key: StatusTab; label: string }[] = [
+    { key: 'all', label: t('announcements.filters.all', 'All') },
+    ...(isPrincipal ? [{ key: 'pending' as const, label: statusLabel('pending') }] : []),
+    { key: 'approved', label: statusLabel('approved') },
+    { key: 'rejected', label: statusLabel('rejected') },
+  ];
+  const filtered = searchTerm.trim() !== '' || typeFilter !== 'all' || priorityFilter !== 'all';
+
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('announcements.list.title', 'Announcements')}</h1>
-          <p className="text-muted-foreground">
-            {t('announcements.list.subtitle', 'Create and manage school announcements')}
-          </p>
+    <div className="mx-auto w-full max-w-6xl space-y-4">
+      {/* Status tabs + primary action */}
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div role="tablist" className="flex flex-wrap gap-1">
+          {tabs.map((item) => {
+            const active = tab === item.key;
+            return (
+              <button
+                key={item.key}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setTab(item.key)}
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                  active ? 'bg-tone-primary-soft text-tone-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+              >
+                {item.label}
+                <span
+                  className={cn(
+                    'rounded-full px-1.5 text-[11px] font-semibold tabular-nums leading-5',
+                    active ? 'bg-background/70' : 'bg-muted',
+                    item.key === 'pending' && counts.pending > 0 && !active && 'bg-tone-warning-soft text-tone-warning'
+                  )}
+                >
+                  {loading && merged.length === 0 ? '–' : counts[item.key]}
+                </span>
+              </button>
+            );
+          })}
         </div>
-        <Button
-          className="flex items-center gap-2"
-          onClick={() => router.push('/admin/announcements/create')}
-        >
-          <Plus className="w-4 h-4" />
+        <Button size="sm" onClick={() => router.push('/admin/announcements/create')}>
+          <Plus />
           {t('announcements.create.cta', 'Create Announcement')}
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {user?.role === 'principal' && (
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
-                  <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">{t('announcements.common.pending', 'Pending')}</p>
-                  <p className="text-2xl font-bold">{pendingAnnouncements.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t('announcements.common.approved', 'Approved')}</p>
-                <p className="text-2xl font-bold">
-                  {announcements.filter(a => a.status === 'approved').length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-100 dark:bg-red-900 rounded-lg">
-                <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t('announcements.common.rejected', 'Rejected')}</p>
-                <p className="text-2xl font-bold">
-                  {announcements.filter(a => a.status === 'rejected').length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                <MessageSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t('announcements.common.total', 'Total')}</p>
-                <p className="text-2xl font-bold">{announcements.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[12rem] flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder={t('announcements.list.search', 'Search announcements...')}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          aria-label={t('announcements.filters.type', 'Type')}
+          className={selectClass}
+        >
+          <option value="all">{t('announcements.filters.allTypes', 'All Types')}</option>
+          {announcementTypes.map((x) => (
+            <option key={x.value} value={x.value}>
+              {x.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={priorityFilter}
+          onChange={(e) => setPriorityFilter(e.target.value)}
+          aria-label={t('announcements.filters.priority', 'Priority')}
+          className={selectClass}
+        >
+          <option value="all">{t('announcements.filters.allPriorities', 'All Priorities')}</option>
+          {priorities.map((x) => (
+            <option key={x.value} value={x.value}>
+              {x.label}
+            </option>
+          ))}
+        </select>
       </div>
 
-      {/* Main Content with Tabs */}
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className={`grid w-full ${user?.role === 'principal' ? 'grid-cols-2' : 'grid-cols-1'}`}>
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <MessageSquare className="w-4 h-4" />
-            {t('announcements.list.tabs.overview', 'Overview')}
-          </TabsTrigger>
-          {user?.role === 'principal' && (
-            <TabsTrigger value="pending" className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              {t('announcements.list.tabs.pending', 'Pending Approvals')} ({pendingAnnouncements.length})
-            </TabsTrigger>
-          )}
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-
-          {/* Filters */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input
-                      placeholder={t('announcements.list.search', 'Search announcements...')}
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
+      {/* List */}
+      <div className={cn(surface.panel, 'overflow-hidden')}>
+        {loading && merged.length === 0 ? (
+          <ul className="divide-y">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <li key={i} className="flex items-center gap-3 px-4 py-3">
+                <Skeleton className="h-10 w-1 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-2/5" />
+                  <Skeleton className="h-3 w-4/5" />
                 </div>
-
-                <div className="flex gap-2">
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-32">
-                      <SelectValue placeholder={t('announcements.filters.status', 'Status')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t('announcements.filters.allStatus', 'All Status')}</SelectItem>
-                      <SelectItem value="pending">{t('announcements.common.pending', 'Pending')}</SelectItem>
-                      <SelectItem value="approved">{t('announcements.common.approved', 'Approved')}</SelectItem>
-                      <SelectItem value="rejected">{t('announcements.common.rejected', 'Rejected')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select value={typeFilter} onValueChange={setTypeFilter}>
-                    <SelectTrigger className="w-32">
-                      <SelectValue placeholder={t('announcements.filters.type', 'Type')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t('announcements.filters.allTypes', 'All Types')}</SelectItem>
-                      {announcementTypes.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                    <SelectTrigger className="w-32">
-                      <SelectValue placeholder={t('announcements.filters.priority', 'Priority')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t('announcements.filters.allPriorities', 'All Priorities')}</SelectItem>
-                      {priorities.map((priority) => (
-                        <SelectItem key={priority.value} value={priority.value}>
-                          {priority.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Announcements Table */}
-          {announcementsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                <p className="text-muted-foreground">{t('announcements.list.loading', 'Loading announcements...')}</p>
-              </div>
-            </div>
-          ) : filteredAnnouncements.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <div className="text-muted-foreground">
-                  <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <h3 className="text-lg font-semibold mb-2">{t('announcements.list.emptyTitle', 'No announcements found')}</h3>
-                  <p>{t('announcements.list.emptyHelp', 'No announcements match your current filters.')}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('announcements.table.title', 'Title')}</TableHead>
-                      <TableHead>Creator</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredAnnouncements.map((announcement) => (
-                      <TableRow key={announcement.id} className="hover:bg-muted/50">
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium"><FormattedText text={announcement.title} format={announcement.title_format} /></span>
-                            {announcement.is_featured && (
-                              <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                            )}
-                            {announcement.attachments?.length > 0 && (
-                              <span className="flex items-center gap-1 text-xs text-muted-foreground" title={`${announcement.attachments.length} attachment(s)`}>
-                                <Paperclip className="h-3.5 w-3.5" />{announcement.attachments.length}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div className="font-medium">{announcement.creator.full_name}</div>
-                            <div className="text-muted-foreground capitalize">
-                              {announcement.creator.role}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={statusConfig[announcement.status].color}>
-                            {statusConfig[announcement.status].label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {getAnnouncementTypeLabel(announcement.announcement_type)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={priorities.find(p => p.value === announcement.priority)?.color}>
-                            {announcement.priority.charAt(0).toUpperCase() + announcement.priority.slice(1)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm text-muted-foreground">
-                            {formatDate(announcement.created_at)}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => router.push(`/admin/announcements/${announcement.id}`)}
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </li>
+            ))}
+          </ul>
+        ) : visible.length === 0 ? (
+          <EmptyState
+            icon={<Megaphone />}
+            title={t('announcements.list.emptyTitle', 'No announcements found')}
+            help={
+              filtered || tab !== 'all'
+                ? t('announcements.list.emptyHelp', 'No announcements match your current filters.')
+                : t('announcements.list.emptyHelpTeacher', 'Create your first announcement to get started.')
+            }
+          />
+        ) : (
+          <ul className="divide-y">
+            {visible.map((a) => {
+              const text = preview(a.content);
+              const canApprove = isPrincipal && a.status === 'pending';
+              return (
+                <li key={a.id} className="group relative flex items-stretch transition-colors hover:bg-muted/50">
+                  <span aria-hidden className={cn('w-1 shrink-0', priorityBar[a.priority])} />
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/admin/announcements/${a.id}`)}
+                    className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate text-sm font-semibold">
+                          <FormattedText text={a.title} format={a.title_format} />
+                        </p>
+                        {a.is_featured && <Star className="size-3.5 shrink-0 fill-current text-tone-warning" />}
+                        {a.attachments?.length > 0 && (
+                          <span
+                            className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground"
+                            title={`${a.attachments.length} attachment(s)`}
                           >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        {user?.role === 'principal' && (
-        <TabsContent value="pending" className="space-y-4">
-          {/* Filters for Pending Tab */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input
-                      placeholder="Search announcements..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Select value={typeFilter} onValueChange={setTypeFilter}>
-                    <SelectTrigger className="w-32">
-                      <SelectValue placeholder="Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      {announcementTypes.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                    <SelectTrigger className="w-32">
-                      <SelectValue placeholder="Priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Priorities</SelectItem>
-                      {priorities.map((priority) => (
-                        <SelectItem key={priority.value} value={priority.value}>
-                          {priority.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Pending Announcements Table */}
-          {pendingLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                <p className="text-muted-foreground">Loading pending announcements...</p>
-              </div>
-            </div>
-          ) : pendingAnnouncements.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <div className="text-muted-foreground">
-                  <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <h3 className="text-lg font-semibold mb-2">No pending announcements</h3>
-                  <p>All announcements have been reviewed.</p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('announcements.table.title', 'Title')}</TableHead>
-                      <TableHead>{t('announcements.table.creator', 'Creator')}</TableHead>
-                      <TableHead>{t('announcements.table.type', 'Type')}</TableHead>
-                      <TableHead>{t('announcements.table.priority', 'Priority')}</TableHead>
-                      <TableHead>{t('announcements.table.created', 'Created')}</TableHead>
-                      <TableHead className="text-right">{t('announcements.table.actions', 'Actions')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pendingAnnouncements
-                      .filter(announcement => {
-                        const matchesSearch = announcement.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                             announcement.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                             announcement.creator.full_name.toLowerCase().includes(searchTerm.toLowerCase());
-                        const matchesType = typeFilter === 'all' || announcement.announcement_type === typeFilter;
-                        const matchesPriority = priorityFilter === 'all' || announcement.priority === priorityFilter;
-                        return matchesSearch && matchesType && matchesPriority;
-                      })
-                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                      .map((announcement) => (
-                        <TableRow key={announcement.id} className="hover:bg-muted/50">
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium"><FormattedText text={announcement.title} format={announcement.title_format} /></span>
-                              {announcement.is_featured && (
-                                <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                              )}
-                              {announcement.attachments?.length > 0 && (
-                                <span className="flex items-center gap-1 text-xs text-muted-foreground" title={`${announcement.attachments.length} attachment(s)`}>
-                                  <Paperclip className="h-3.5 w-3.5" />{announcement.attachments.length}
-                                </span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm">
-                              <div className="font-medium">{announcement.creator.full_name}</div>
-                              <div className="text-muted-foreground capitalize">
-                                {announcement.creator.role}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {getAnnouncementTypeLabel(announcement.announcement_type)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={priorities.find(p => p.value === announcement.priority)?.color}>
-                              {announcement.priority.charAt(0).toUpperCase() + announcement.priority.slice(1)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm text-muted-foreground">
-                              {formatDate(announcement.created_at)}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center gap-2 justify-end">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => router.push(`/admin/announcements/${announcement.id}`)}
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Button>
-
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                onClick={() => handleApproveAnnouncement(announcement.id)}
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+                            <Paperclip className="size-3" />
+                            {a.attachments.length}
+                          </span>
+                        )}
+                      </div>
+                      {text && <p className="mt-0.5 line-clamp-1 text-[13px] text-muted-foreground">{text}</p>}
+                      <p className={cn(type.caption, 'mt-1 flex flex-wrap items-center gap-x-1.5')}>
+                        <span className="font-medium text-foreground/80">{a.creator.full_name}</span>
+                        <span aria-hidden>·</span>
+                        <span className="capitalize">{a.creator.role}</span>
+                        <span aria-hidden>·</span>
+                        <span>{formatDate(a.created_at)}</span>
+                      </p>
+                    </div>
+                    <div className="hidden shrink-0 flex-wrap items-center justify-end gap-1.5 sm:flex">
+                      <Pill>{typeLabel(a.announcement_type)}</Pill>
+                      <Pill tone={priorityTone[a.priority]}>
+                        {a.priority.charAt(0).toUpperCase() + a.priority.slice(1)}
+                      </Pill>
+                      {tab === 'all' && <Pill tone={statusTone[a.status]}>{statusLabel(a.status)}</Pill>}
+                    </div>
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5" />
+                  </button>
+                  {canApprove && (
+                    <div className="flex items-center pr-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-tone-success hover:text-tone-success"
+                        onClick={() => handleApprove(a.id)}
+                      >
+                        <Check />
+                        {t('announcements.common.approve', 'Approve')}
+                      </Button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         )}
-
-
-      </Tabs>
-
-
+      </div>
     </div>
   );
 }

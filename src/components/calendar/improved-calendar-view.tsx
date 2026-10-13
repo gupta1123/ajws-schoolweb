@@ -2,52 +2,27 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Calendar as CalendarIcon, 
-  BookOpen,
-  Plus,
-  List,
-  Grid3X3,
-  Clock
-} from 'lucide-react';
-import { useTheme } from '@/lib/theme/context';
+import { ChevronLeft, ChevronRight, Plus, CalendarX2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/context';
+import { cn } from '@/lib/utils';
+import { Pill } from '@/components/ui/page-kit';
+import { Skeleton } from '@/components/ui/skeleton';
+import { surface, toneClass, type, type Tone } from '@/lib/design/tokens';
 
-// Simplified event type configuration
-const eventTypeConfig = {
-  school: { 
-    label: 'Event', 
-    color: 'bg-blue-500', 
-    textColor: 'text-white',
-    darkColor: 'dark:bg-blue-600',
-    icon: CalendarIcon,
-    borderColor: 'border-l-blue-500',
-    gradient: 'from-blue-500 to-blue-600'
-  },
-  class: { 
-    label: 'Class Event', 
-    color: 'bg-green-500', 
-    textColor: 'text-white',
-    darkColor: 'dark:bg-green-600',
-    icon: BookOpen,
-    borderColor: 'border-l-green-500',
-    gradient: 'from-green-500 to-green-600'
-  },
-  pending: {
-    label: 'Pending Event',
-    color: 'bg-orange-500',
-    textColor: 'text-white',
-    darkColor: 'dark:bg-orange-600',
-    icon: CalendarIcon,
-    borderColor: 'border-l-orange-500',
-    gradient: 'from-orange-500 to-orange-600'
-  }
+type EventKind = 'school' | 'class' | 'pending';
+
+const eventTone: Record<EventKind, Tone> = {
+  school: 'primary',
+  class: 'success',
+  pending: 'warning',
+};
+
+const eventDot: Record<EventKind, string> = {
+  school: 'bg-tone-primary',
+  class: 'bg-tone-success',
+  pending: 'bg-tone-warning',
 };
 
 interface CalendarEvent {
@@ -57,7 +32,7 @@ interface CalendarEvent {
   date: string;
   startTime: string;
   endTime: string;
-  type: keyof typeof eventTypeConfig;
+  type: 'school' | 'class';
   class?: string;
   teacher?: string;
   requiresApproval?: boolean;
@@ -71,519 +46,394 @@ interface ImprovedCalendarViewProps {
   onViewEvent: (eventId: string) => void;
   onAddEvent: (date: string) => void;
   onMonthChange?: (date: Date) => void;
+  /** Rendered at the right end of the toolbar (e.g. the Create Event button). */
+  toolbarEnd?: ReactNode;
+  /** Show skeleton placeholders instead of events. */
+  loading?: boolean;
 }
 
 type ViewMode = 'monthly' | 'weekly' | 'daily';
 
-export function ImprovedCalendarView({ events, onViewEvent, onAddEvent, onMonthChange }: ImprovedCalendarViewProps) {
-  const { colorScheme } = useTheme();
+const MAX_CHIPS = 3;
+
+const toISODate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const kindOf = (event: CalendarEvent): EventKind => (event.status === 'pending' ? 'pending' : event.type) as EventKind;
+const trimTime = (time: string) => (time || '').slice(0, 5);
+
+function EventChip({
+  event,
+  showTime = false,
+  timeLabel,
+  onView,
+}: {
+  event: CalendarEvent;
+  showTime?: boolean;
+  timeLabel: string;
+  onView: (eventId: string) => void;
+}) {
+  const kind = kindOf(event);
+  return (
+    <button
+      type="button"
+      title={event.title}
+      onClick={(e) => {
+        e.stopPropagation();
+        onView(event.id);
+      }}
+      className={cn(
+        'flex w-full items-center gap-1 truncate rounded-sm border-l-2 border-current px-1.5 py-0.5 text-left text-[11px] font-medium leading-4 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        toneClass[eventTone[kind]].chip
+      )}
+    >
+      {showTime && <span className="shrink-0 tabular-nums opacity-80">{timeLabel}</span>}
+      <span className="truncate">{event.title}</span>
+    </button>
+  );
+}
+
+/** Deterministic placeholder bars so the skeleton doesn't jump between renders. */
+function ChipSkeletons({ seed, max = 2 }: { seed: number; max?: number }) {
+  const count = (seed * 7 + 3) % (max + 1);
+  return (
+    <>
+      {Array.from({ length: count }).map((_, i) => (
+        <Skeleton key={i} className={cn('h-4 rounded-sm', i % 2 ? 'w-2/3' : 'w-full')} />
+      ))}
+    </>
+  );
+}
+
+export function ImprovedCalendarView({ events, onViewEvent, onAddEvent, onMonthChange, toolbarEnd, loading = false }: ImprovedCalendarViewProps) {
   const { t, lang } = useI18n();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('monthly');
 
-  
-  // Generate calendar days for monthly view
-  const getDaysInMonth = (year: number, month: number) => {
-    return new Date(year, month + 1, 0).getDate();
+  const today = new Date();
+  const todayStr = toISODate(today);
+
+  const eventsByDate = (date: Date) => events.filter((event) => event.date === toISODate(date));
+  const hasPending = events.some((e) => e.status === 'pending');
+
+  const moveTo = (next: Date) => {
+    const monthChanged =
+      next.getMonth() !== currentDate.getMonth() || next.getFullYear() !== currentDate.getFullYear();
+    setCurrentDate(next);
+    if (monthChanged) onMonthChange?.(next);
   };
-  
-  const getFirstDayOfMonth = (year: number, month: number) => {
-    return new Date(year, month, 1).getDay();
+
+  const navigate = (direction: -1 | 1) => {
+    const next = new Date(currentDate);
+    if (viewMode === 'monthly') next.setMonth(next.getMonth() + direction, 1);
+    else next.setDate(next.getDate() + direction * (viewMode === 'weekly' ? 7 : 1));
+    moveTo(next);
   };
-  
-  const generateCalendarDays = () => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const daysInMonth = getDaysInMonth(year, month);
-    const firstDayOfMonth = getFirstDayOfMonth(year, month);
-    
-    const days = [];
-    
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < firstDayOfMonth; i++) {
-      days.push(null);
-    }
-    
-    // Add cells for each day of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      days.push(new Date(year, month, day));
-    }
-    
-    return days;
+
+  const openDay = (date: Date) => {
+    moveTo(date);
+    setViewMode('daily');
   };
-  
-  const formatDate = (date: Date) => {
-    // Use local date formatting to avoid timezone conversion issues
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-  
-  const getEventsForDate = (date: Date) => {
-    const dateStr = formatDate(date);
-    return events.filter(event => event.date === dateStr);
-  };
-  
-  const getFilteredEventsForDate = (date: Date) => {
-    // No filtering - show all events
-    return getEventsForDate(date);
-  };
-  
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    const newDate = new Date(currentDate);
-    if (direction === 'prev') {
-      newDate.setMonth(newDate.getMonth() - 1);
-    } else {
-      newDate.setMonth(newDate.getMonth() + 1);
-    }
-    setCurrentDate(newDate);
-    // Notify parent component about month change
-    onMonthChange?.(newDate);
-  };
-  
-  const navigateWeek = (direction: 'prev' | 'next') => {
-    const newDate = new Date(currentDate);
-    if (direction === 'prev') {
-      newDate.setDate(newDate.getDate() - 7);
-    } else {
-      newDate.setDate(newDate.getDate() + 7);
-    }
-    setCurrentDate(newDate);
-    
-    // Check if month changed and notify parent
-    const currentMonth = currentDate.getMonth();
-    const currentYear = currentDate.getFullYear();
-    const newMonth = newDate.getMonth();
-    const newYear = newDate.getFullYear();
-    
-    if (currentMonth !== newMonth || currentYear !== newYear) {
-      onMonthChange?.(newDate);
-    }
-  };
-  
-  const navigateDay = (direction: 'prev' | 'next') => {
-    const newDate = new Date(currentDate);
-    if (direction === 'prev') {
-      newDate.setDate(newDate.getDate() - 1);
-    } else {
-      newDate.setDate(newDate.getDate() + 1);
-    }
-    setCurrentDate(newDate);
-    
-    // Check if month changed and notify parent
-    const currentMonth = currentDate.getMonth();
-    const currentYear = currentDate.getFullYear();
-    const newMonth = newDate.getMonth();
-    const newYear = newDate.getFullYear();
-    
-    if (currentMonth !== newMonth || currentYear !== newYear) {
-      onMonthChange?.(newDate);
-    }
-  };
-  
-  const goToToday = () => {
-    const today = new Date();
-    setCurrentDate(today);
-    // Notify parent component about month change if it's different
-    const currentMonth = currentDate.getMonth();
-    const currentYear = currentDate.getFullYear();
-    const todayMonth = today.getMonth();
-    const todayYear = today.getFullYear();
-    
-    if (currentMonth !== todayMonth || currentYear !== todayYear) {
-      onMonthChange?.(today);
-    }
-  };
-  
-  // Get theme color classes
-  const getThemeClasses = () => {
-    switch (colorScheme) {
-      case 'blue':
-        return {
-          primary: 'bg-blue-500 hover:bg-blue-600',
-          secondary: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300'
-        };
-      case 'green':
-        return {
-          primary: 'bg-green-500 hover:bg-green-600',
-          secondary: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-300'
-        };
-      case 'purple':
-        return {
-          primary: 'bg-purple-500 hover:bg-purple-600',
-          secondary: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300'
-        };
-      case 'orange':
-        return {
-          primary: 'bg-orange-500 hover:bg-orange-600',
-          secondary: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-300'
-        };
-      default:
-        return {
-          primary: 'bg-indigo-500 hover:bg-indigo-600',
-          secondary: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300'
-        };
-    }
-  };
-  
-  const themeClasses = getThemeClasses();
-  // Localized day names using current language
+
   const dayNames = Array.from({ length: 7 }, (_, i) =>
     new Date(2021, 7, i + 1).toLocaleDateString(lang, { weekday: 'short' })
   );
-  const calendarDays = generateCalendarDays();
-  const monthYear = currentDate.toLocaleDateString(lang, { year: 'numeric', month: 'long' });
-  const today = new Date();
 
-  return (
-    <div className="flex flex-col gap-6">
-      {/* Main Calendar Area */}
-      <div>
-        {/* Calendar Header */}
-        <Card className="mb-6 shadow-sm border-0">
-          <CardHeader className="pb-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  className="rounded-full h-10 w-10"
-                  onClick={() => {
-                    if (viewMode === 'monthly') navigateMonth('prev');
-                    else if (viewMode === 'weekly') navigateWeek('prev');
-                    else navigateDay('prev');
-                  }}
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-                <h2 className="text-xl font-bold min-w-[180px] text-center text-gray-800 dark:text-white">
-                  {viewMode === 'monthly'
-                    ? monthYear
-                    : viewMode === 'weekly'
-                    ? `${t('calendar.view.weekOf', 'Week of')} ${formatDate(currentDate)}`
-                    : formatDate(currentDate)
-                  }
-                </h2>
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  className="rounded-full h-10 w-10"
-                  onClick={() => {
-                    if (viewMode === 'monthly') navigateMonth('next');
-                    else if (viewMode === 'weekly') navigateWeek('next');
-                    else navigateDay('next');
-                  }}
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="ml-2 rounded-full px-4"
-                  onClick={goToToday}
-                >
-                  {t('calendar.view.today', 'Today')}
-                </Button>
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
-                <div className="flex rounded-lg overflow-hidden border shadow-sm">
-                  <Button
-                    variant={viewMode === 'monthly' ? 'default' : 'outline'}
-                    size="sm"
-                    className={`rounded-none border-0 px-4 ${viewMode === 'monthly' ? 'shadow-inner' : ''}`}
-                    onClick={() => setViewMode('monthly')}
-                  >
-                    <CalendarIcon className="h-4 w-4 mr-1" />
-                    <span className="hidden sm:inline">{t('calendar.view.month', 'Month')}</span>
-                  </Button>
-                  <Button
-                    variant={viewMode === 'weekly' ? 'default' : 'outline'}
-                    size="sm"
-                    className={`rounded-none border-0 border-l px-4 ${viewMode === 'weekly' ? 'shadow-inner' : ''}`}
-                    onClick={() => setViewMode('weekly')}
-                  >
-                    <List className="h-4 w-4 mr-1" />
-                    <span className="hidden sm:inline">{t('calendar.view.week', 'Week')}</span>
-                  </Button>
-                  <Button
-                    variant={viewMode === 'daily' ? 'default' : 'outline'}
-                    size="sm"
-                    className={`rounded-none border-0 border-l px-4 ${viewMode === 'daily' ? 'shadow-inner' : ''}`}
-                    onClick={() => setViewMode('daily')}
-                  >
-                    <Grid3X3 className="h-4 w-4 mr-1" />
-                    <span className="hidden sm:inline">{t('calendar.view.day', 'Day')}</span>
-                  </Button>
-                </div>
-              </div>
+  const timeLabel = (event: CalendarEvent) =>
+    trimTime(event.startTime) === '00:00' && trimTime(event.endTime) === '23:59'
+      ? t('calendar.view.allDay', 'All day')
+      : trimTime(event.startTime);
+
+  // Title for the toolbar, depends on the view
+  const startOfWeek = new Date(currentDate);
+  startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+  const title =
+    viewMode === 'monthly'
+      ? currentDate.toLocaleDateString(lang, { year: 'numeric', month: 'long' })
+      : viewMode === 'weekly'
+      ? `${startOfWeek.toLocaleDateString(lang, { day: 'numeric', month: 'short' })} – ${endOfWeek.toLocaleDateString(lang, {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        })}`
+      : currentDate.toLocaleDateString(lang, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  // ---- Month view ----
+  const renderMonth = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const lead = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells: (Date | null)[] = [
+      ...Array.from({ length: lead }, () => null),
+      ...Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1)),
+    ];
+    while (cells.length % 7 !== 0) cells.push(null);
+
+    return (
+      <>
+        <div className="grid grid-cols-7 border-b bg-muted/40">
+          {dayNames.map((day) => (
+            <div
+              key={day}
+              className="px-2 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+            >
+              {day}
             </div>
-          </CardHeader>
-        </Card>
-        
-        {/* Calendar Grid */}
-        <Card className="shadow-sm border-0">
-          <CardContent className="p-0">
-            {viewMode === 'monthly' ? (
-              <>
-                {/* Day Headers */}
-                <div className="grid grid-cols-7 gap-0 border-b">
-                  {dayNames.map(day => (
-                    <div key={day} className="text-center p-2 font-semibold text-sm text-gray-700 dark:text-gray-300">
-                      {day}
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Calendar Days */}
-                <div className="grid grid-cols-7 gap-0">
-                  {calendarDays.map((day, index) => {
-                    const isToday = day && formatDate(day) === formatDate(today);
-                    const dayEvents = day ? getFilteredEventsForDate(day) : [];
-                    
-                    return (
-                      <div 
-                        key={index} 
-                        className={`min-h-24 p-1 border ${
-                          day ? 'bg-card' : 'bg-muted'
-                        } ${index % 7 === 0 ? 'border-l' : ''} ${
-                          Math.floor(index / 7) === 0 ? 'border-t' : ''
-                        } ${isToday ? `border-2 border-primary` : 'border-border'}`}
-                        onClick={() => day && onAddEvent(formatDate(day))}
-                      >
-                        {day && (
-                          <>
-                            <div className={`font-medium text-sm mb-1 p-1 rounded-full w-6 h-6 flex items-center justify-center mx-auto ${
-                              isToday ? 'bg-primary text-primary-foreground' : ''
-                            }`}>
-                              {day.getDate()}
-                            </div>
-                            <div className="space-y-1 max-h-20 overflow-y-auto pr-1">
-                              {dayEvents.slice(0, 2).map(event => {
-                                // Determine event type based on status
-                                let eventType: keyof typeof eventTypeConfig = event.type;
-                                if (event.status === 'pending') {
-                                  eventType = 'pending';
-                                }
-                                
-                                const config = eventTypeConfig[eventType] || eventTypeConfig.school;
-                                const Icon = config.icon;
-                                return (
-                                  <div 
-                                    key={event.id} 
-                                    className={`text-xs p-1.5 rounded truncate flex items-center gap-1 ${config.color} text-white dark:text-white cursor-pointer hover:opacity-90 transition-all duration-150 shadow-sm`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onViewEvent(event.id.replace('b-', ''));
-                                    }}
-                                  >
-                                    <Icon className="h-3 w-3 flex-shrink-0" />
-                                    <div className="flex-grow truncate">
-                                      <div className="font-medium truncate text-xs">{event.title}</div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                              {dayEvents.length > 2 && (
-                                <div className="text-xs text-gray-600 dark:text-gray-300 p-1 font-medium">
-                                  +{dayEvents.length - 2} more
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            ) : viewMode === 'weekly' ? (
-              // Weekly view implementation
-              (() => {
-                // Get the start of the week (Sunday)
-                const startOfWeek = new Date(currentDate);
-                startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
-                
-                // Generate 7 days for the week
-                const weekDays = [];
-                for (let i = 0; i < 7; i++) {
-                  const day = new Date(startOfWeek);
-                  day.setDate(startOfWeek.getDate() + i);
-                  weekDays.push(day);
-                }
-                
-                return (
+          ))}
+        </div>
+        <div className="grid grid-cols-7">
+          {cells.map((day, index) => {
+            const isToday = !!day && toISODate(day) === todayStr;
+            const dayEvents = day ? eventsByDate(day) : [];
+            return (
+              <div
+                key={index}
+                onClick={() => day && onAddEvent(toISODate(day))}
+                className={cn(
+                  'min-h-[6.5rem] border-b border-r p-1.5 [&:nth-child(7n)]:border-r-0',
+                  day ? 'cursor-pointer bg-card hover:bg-muted/30' : 'bg-muted/30'
+                )}
+              >
+                {day && (
                   <>
-                    {/* Week day headers */}
-                    <div className="grid grid-cols-7 gap-0 border-b bg-gray-50 dark:bg-gray-800">
-                      {weekDays.map((day, index) => {
-                        const isToday = formatDate(day) === formatDate(today);
-                        return (
-                          <div 
-                            key={index} 
-                            className={`text-center p-2 font-semibold text-sm ${
-                              isToday 
-                                ? `${themeClasses.primary} text-white rounded-t-lg` 
-                                : 'text-gray-700 dark:text-gray-300'
-                            }`}
-                          >
-                            <div>{dayNames[day.getDay()]}</div>
-                            <div className={`text-base font-bold ${isToday ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
-                              {day.getDate()}
-                            </div>
-                          </div>
-                        );
-                      })}
+                    <div className="mb-1 flex">
+                      <span
+                        className={cn(
+                          'flex size-6 items-center justify-center rounded-full text-xs font-medium tabular-nums',
+                          isToday ? 'bg-primary text-primary-foreground' : 'text-foreground'
+                        )}
+                      >
+                        {day.getDate()}
+                      </span>
                     </div>
-                    
-                    {/* Week events */}
-                    <div className="grid grid-cols-7 gap-0">
-                      {weekDays.map((day, dayIndex) => {
-                        const isToday = formatDate(day) === formatDate(today);
-                        const dayEvents = getFilteredEventsForDate(day);
-                        
-                        return (
-                          <div 
-                            key={dayIndex} 
-                            className={`min-h-80 p-2 border rounded-b-lg ${
-                              day ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-900/20'
-                            } ${dayIndex === 0 ? 'border-l' : ''} border-t ${
-                              isToday ? `border-2 ${themeClasses.primary.replace(' ', '').replace('hover:bg-', 'border-')}` : 'border-gray-200 dark:border-gray-700'
-                            }`}
-                            onClick={() => onAddEvent(formatDate(day))}
-                          >
-                            <div className="space-y-1.5">
-                              {dayEvents.map(event => {
-                                // Determine event type based on status
-                                let eventType: keyof typeof eventTypeConfig = event.type;
-                                if (event.status === 'pending') {
-                                  eventType = 'pending';
-                                }
-                                
-                                const config = eventTypeConfig[eventType] || eventTypeConfig.school;
-                                const Icon = config.icon;
-                                return (
-                                  <div 
-                                    key={event.id} 
-                                    className={`text-sm p-2 rounded truncate flex items-center gap-2 ${config.color} text-white dark:text-white cursor-pointer hover:opacity-90 transition-all duration-150 shadow-sm`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onViewEvent(event.id.replace('b-', ''));
-                                    }}
-                                  >
-                                    <Icon className="h-3.5 w-3.5 flex-shrink-0" />
-                                    <div className="flex-grow truncate">
-                                      <div className="font-medium truncate text-sm">{event.title}</div>
-                                      <div className="opacity-90 text-xs truncate">{event.startTime}</div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                );
-              })()
-            ) : (
-              // Daily view implementation
-              (() => {
-                const dayEvents = getFilteredEventsForDate(currentDate);
-                
-                return (
-                  <div className="p-4 min-h-96">
-                    <div className="mb-4">
-                      <h3 className="text-xl font-bold">
-                        {currentDate.toLocaleDateString('default', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-                      </h3>
-                    </div>
-                    
-                    {dayEvents.length > 0 ? (
-                      <div className="space-y-3">
-                        {dayEvents.map(event => {
-                          // Determine event type based on status
-                          let eventType: keyof typeof eventTypeConfig = event.type;
-                          if (event.status === 'pending') {
-                            eventType = 'pending';
-                          }
-                          
-                          const config = eventTypeConfig[eventType] || eventTypeConfig.school;
-                          const Icon = config.icon;
-                          return (
-                            <div 
-                              key={event.id} 
-                              className={`p-4 rounded-xl shadow-md transition-all duration-200 hover:shadow-lg border-l-4 ${config.borderColor} bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 relative overflow-hidden`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onViewEvent(event.id.replace('b-', ''));
-                              }}
-                            >
-                              <div className="flex items-start gap-3">
-                                <div className={`flex-shrink-0 mt-0.5 p-2 rounded-lg ${config.color} text-white`}>
-                                  <Icon className="h-4 w-4" />
-                                </div>
-                                <div className="flex-grow">
-                                  <div className="flex justify-between items-start">
-                                    <h3 className="font-semibold text-base">{event.title}</h3>
-                                    <span className="text-xs font-medium bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">
-                                      {event.startTime}
-                                    </span>
-                                  </div>
-                                  
-                                  <div className="flex items-center gap-2 mt-2 text-xs">
-                                    <Clock className="h-3.5 w-3.5 text-gray-500" />
-                                    <span className="text-gray-600 dark:text-gray-300">
-                                      {event.startTime} - {event.endTime}
-                                    </span>
-                                  </div>
-                                  
-                                  {event.description && (
-                                    <p className="mt-2 text-gray-600 dark:text-gray-300 text-sm line-clamp-2">
-                                      {event.description}
-                                    </p>
-                                  )}
-                                  
-                                  {event.class && (
-                                    <div className="flex flex-wrap gap-1 mt-2">
-                                      <span className="inline-flex items-center gap-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full">
-                                        <BookOpen className="h-3 w-3" />
-                                        {event.class}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                        <CalendarIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                        <p className="text-base mb-2">{t('calendar.view.noEventsToday', 'No events scheduled for today')}</p>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="h-8 px-3 text-sm"
+                    <div className="space-y-0.5">
+                      {loading && <ChipSkeletons seed={index} />}
+                      {!loading && dayEvents.slice(0, MAX_CHIPS).map((event) => (
+                        <EventChip key={event.id} event={event} timeLabel={timeLabel(event)} onView={onViewEvent} />
+                      ))}
+                      {!loading && dayEvents.length > MAX_CHIPS && (
+                        <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            onAddEvent(formatDate(currentDate));
+                            openDay(day);
                           }}
+                          className="px-1.5 text-[11px] font-medium text-primary hover:underline"
                         >
-                          <Plus className="h-4 w-4 mr-1" />
-                          {t('calendar.view.addEvent', 'Add Event')}
-                        </Button>
-                      </div>
-                    )}
+                          +{dayEvents.length - MAX_CHIPS} {t('calendar.view.more', 'more')}
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </>
+    );
+  };
+
+  // ---- Week view ----
+  const renderWeek = () => {
+    const weekDays = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + i);
+      return d;
+    });
+    return (
+      <div className="grid grid-cols-7">
+        {weekDays.map((day, i) => {
+          const isToday = toISODate(day) === todayStr;
+          const dayEvents = eventsByDate(day);
+          return (
+            <div
+              key={i}
+              onClick={() => onAddEvent(toISODate(day))}
+              className="min-h-64 cursor-pointer border-r last:border-r-0 hover:bg-muted/30"
+            >
+              <div className="flex flex-col items-center gap-0.5 border-b bg-muted/40 py-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {dayNames[day.getDay()]}
+                </span>
+                <span
+                  className={cn(
+                    'flex size-6 items-center justify-center rounded-full text-xs font-medium tabular-nums',
+                    isToday ? 'bg-primary text-primary-foreground' : 'text-foreground'
+                  )}
+                >
+                  {day.getDate()}
+                </span>
+              </div>
+              <div className="space-y-1 p-1.5">
+                {loading && <ChipSkeletons seed={i} max={3} />}
+                {!loading && dayEvents.map((event) => (
+                  <EventChip key={event.id} event={event} showTime timeLabel={timeLabel(event)} onView={onViewEvent} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // ---- Day view ----
+  const renderDay = () => {
+    const dayEvents = eventsByDate(currentDate);
+    if (loading) {
+      return (
+        <ul className="divide-y">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <li key={i} className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3 px-4 py-3">
+              <Skeleton className="h-4 w-16" />
+              <div className="space-y-1.5">
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-3 w-3/4" />
+              </div>
+            </li>
+          ))}
+        </ul>
+      );
+    }
+    if (dayEvents.length === 0) {
+      return (
+        <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+          <CalendarX2 className="size-6 text-muted-foreground/60" />
+          <p className="text-sm font-medium text-muted-foreground">
+            {t('calendar.view.noEventsToday', 'No events scheduled for today')}
+          </p>
+          <Button variant="outline" size="sm" onClick={() => onAddEvent(toISODate(currentDate))}>
+            <Plus />
+            {t('calendar.view.addEvent', 'Add Event')}
+          </Button>
+        </div>
+      );
+    }
+    return (
+      <ul className="divide-y">
+        {dayEvents.map((event) => {
+          const kind = kindOf(event);
+          return (
+            <li key={event.id}>
+              <button
+                type="button"
+                onClick={() => onViewEvent(event.id)}
+                className={cn('grid w-full grid-cols-[5.5rem_minmax(0,1fr)] items-start gap-3 px-4 py-3 text-left', surface.rowHover)}
+              >
+                <div className="flex items-center gap-1.5 text-xs tabular-nums text-muted-foreground">
+                  <span className={cn('size-2 rounded-full', eventDot[kind])} />
+                  {timeLabel(event)}
+                  {trimTime(event.endTime) &&
+                    timeLabel(event) !== t('calendar.view.allDay', 'All day') &&
+                    ` – ${trimTime(event.endTime)}`}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className={type.rowTitle}>{event.title}</p>
+                    {event.class &&
+                      (() => {
+                        const names = event.class.split(/\s*,\s*/).filter(Boolean);
+                        return (
+                          <>
+                            {names.slice(0, 2).map((name) => (
+                              <Pill key={name} tone="primary">
+                                {name}
+                              </Pill>
+                            ))}
+                            {names.length > 2 && <Pill>+{names.length - 2}</Pill>}
+                          </>
+                        );
+                      })()}
+                    {kind === 'pending' && <Pill tone="warning">{t('calendar.legend.pending', 'Pending')}</Pill>}
                   </div>
-                );
-              })()
-            )}
-          </CardContent>
-        </Card>
+                  {event.description && (
+                    <p className={cn(type.caption, 'mt-0.5 line-clamp-2')}>{event.description}</p>
+                  )}
+                </div>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  };
+
+  const modes: { key: ViewMode; label: string }[] = [
+    { key: 'monthly', label: t('calendar.view.month', 'Month') },
+    { key: 'weekly', label: t('calendar.view.week', 'Week') },
+    { key: 'daily', label: t('calendar.view.day', 'Day') },
+  ];
+
+  return (
+    <div className="space-y-3">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="icon" className="size-8" onClick={() => navigate(-1)} aria-label="Previous">
+            <ChevronLeft />
+          </Button>
+          <Button variant="outline" size="icon" className="size-8" onClick={() => navigate(1)} aria-label="Next">
+            <ChevronRight />
+          </Button>
+          <Button variant="outline" size="sm" className="ml-1" onClick={() => moveTo(new Date())}>
+            {t('calendar.view.today', 'Today')}
+          </Button>
+        </div>
+        <h2 className="ml-1 text-base font-semibold tracking-tight">{title}</h2>
+
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div role="tablist" className="inline-flex rounded-md bg-muted p-0.5">
+            {modes.map((mode) => (
+              <button
+                key={mode.key}
+                role="tab"
+                aria-selected={viewMode === mode.key}
+                onClick={() => setViewMode(mode.key)}
+                className={cn(
+                  'rounded-[5px] px-3 py-1 text-xs font-medium transition-colors',
+                  viewMode === mode.key
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+          {toolbarEnd}
+        </div>
+      </div>
+
+      {/* Grid */}
+      <section className={cn(surface.panel, 'overflow-hidden')}>
+        {viewMode === 'monthly' ? renderMonth() : viewMode === 'weekly' ? renderWeek() : renderDay()}
+      </section>
+
+      {/* Legend */}
+      <div className={cn(type.caption, 'flex flex-wrap items-center gap-x-4 gap-y-1')}>
+        <span className="inline-flex items-center gap-1.5">
+          <span className={cn('size-2 rounded-full', eventDot.school)} />
+          {t('calendar.legend.event', 'School event')}
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className={cn('size-2 rounded-full', eventDot.class)} />
+          {t('calendar.legend.classEvent', 'Class event')}
+        </span>
+        {hasPending && (
+          <span className="inline-flex items-center gap-1.5">
+            <span className={cn('size-2 rounded-full', eventDot.pending)} />
+            {t('calendar.legend.pending', 'Pending')}
+          </span>
+        )}
       </div>
     </div>
   );

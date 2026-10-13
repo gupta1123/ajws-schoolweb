@@ -2,13 +2,14 @@
 
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { BookOpen, Home, Users, Clipboard, FileText,AlertCircle, User, School, Calendar, Cake, LogOut, CheckSquare, Clock, MessageCircle, Utensils } from 'lucide-react';
+import { BookOpen, User, LogOut, ChevronsUpDown, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
-import { useRouter } from 'next/navigation';
 import { useI18n } from '@/lib/i18n/context';
+import { getSidebarNav, isNavActive } from '@/lib/nav/sidebar-nav';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,237 +20,20 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-interface NavItem {
-  title: string; // i18n key
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
+interface SidebarContentProps {
+  collapsed?: boolean;
+  onNavigate?: () => void;
+  onToggleCollapse?: () => void;
 }
 
-interface NavCategory {
-  category: string; // i18n key
-  items: NavItem[];
-}
-
-
-const teacherNavItems: NavCategory[] = [
-  {
-    category: 'sidebar.category.dashboard',
-    items: [
-      {
-        title: 'common.dashboard',
-        href: '/dashboard',
-        icon: Home,
-      }
-    ]
-  },
-  {
-    category: 'sidebar.category.academics',
-    items: [
-      {
-        title: 'common.myClasses',
-        href: '/classes',
-        icon: Users,
-      },
-      {
-        title: 'common.timetable',
-        href: '/timetable',
-        icon: Calendar,
-      },
-      {
-        title: 'common.attendance',
-        href: '/attendance',
-        icon: CheckSquare,
-      },
-      {
-        title: 'common.homework',
-        href: '/homework',
-        icon: Clipboard,
-      }
-    ]
-  },
-  {
-    category: 'sidebar.category.management',
-    items: [
-      {
-        title: 'common.messaging',
-        href: '/messaging',
-        icon: MessageCircle,
-      },
-      {
-        title: 'common.announcements',
-        href: '/announcements',
-        icon: AlertCircle,
-      },
-      {
-        title: 'common.leaveRequests',
-        href: '/leave-requests',
-        icon: FileText,
-      },
-      {
-        title: 'common.calendar',
-        href: '/calendar',
-        icon: Calendar,
-      },
-      {
-        title: 'common.birthdays',
-        href: '/birthdays',
-        icon: Cake,
-      }
-    ]
-  }
-];
-
-
-const adminNavItems = [
-  {
-    category: 'sidebar.category.dashboard',
-    items: [
-      {
-        title: 'common.dashboard',
-        href: '/dashboard',
-        icon: Home,
-      }
-    ]
-  },
-  {
-    category: 'sidebar.category.academics',
-    items: [
-      {
-        title: 'common.academicSetup',
-        href: '/academic/setup',
-        icon: School,
-      },
-      {
-        title: 'common.students',
-        href: '/students',
-        icon: Users,
-      },
-      {
-        title: 'common.staff',
-        href: '/staff',
-        icon: User,
-      },
-      {
-        title: 'common.attendance',
-        href: '/admin/attendance',
-        icon: CheckSquare,
-      },
-      {
-        title: 'common.homework',
-        href: '/homework',
-        icon: Clipboard,
-      },
-      {
-        title: 'common.timetable',
-        href: '/admin/timetable',
-        icon: Clock,
-      },
-
-    ]
-  },
-  {
-    category: 'sidebar.category.management',
-    items: [
-      {
-        title: 'common.announcements',
-        href: '/admin/announcements',
-        icon: AlertCircle,
-      },
-      {
-        title: 'common.leaveRequests',
-        href: '/leave-requests',
-        icon: FileText,
-      },
-      {
-        title: 'common.calendar',
-        href: '/calendar',
-        icon: Calendar,
-      },
-      {
-        title: 'common.birthdays',
-        href: '/birthdays',
-        icon: Cake,
-      },
-      {
-        title: 'common.foodMenu',
-        href: '/admin/food-menu',
-        icon: Utensils,
-      }
-    ]
-  }
-];
-
-
-const principalNavItems: NavItem[] = [
-  {
-    title: 'common.messaging',
-    href: '/admin/messaging',
-    icon: MessageCircle,
-  },
-  // Approvals section removed/hidden
-];
-
-const attendanceStaffNavItems: NavCategory[] = [
-  {
-    category: 'sidebar.category.management',
-    items: [
-      {
-        title: 'common.attendance',
-        href: '/attendance',
-        icon: CheckSquare,
-      },
-    ],
-  },
-];
-
-const parentNavItems: NavCategory[] = [
-  {
-    category: 'sidebar.category.dashboard',
-    items: [
-      { title: 'common.dashboard', href: '/dashboard', icon: Home },
-    ],
-  },
-  {
-    category: 'sidebar.category.management',
-    items: [
-      { title: 'common.calendar', href: '/calendar', icon: Calendar },
-      { title: 'common.birthdays', href: '/birthdays', icon: Cake },
-      { title: 'common.foodMenu', href: '/admin/food-menu/monthly', icon: Utensils },
-    ],
-  },
-];
-
-export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
+function SidebarContent({ collapsed = false, onNavigate, onToggleCollapse }: SidebarContentProps) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
   const router = useRouter();
+  const { user, logout } = useAuth();
   const { t } = useI18n();
 
-
-  if (typeof window !== 'undefined' && 
-      (pathname.startsWith('/login') || pathname.startsWith('/register'))) {
-    return null;
-  }
-
-  let navConfig: NavCategory[];
-  if (user?.role === 'teacher') {
-    navConfig = teacherNavItems;
-  } else if (user?.role === 'admin') {
-    navConfig = adminNavItems;
-  } else if (user?.role === 'principal') {
-    navConfig = adminNavItems.map(category => ({ ...category }));
-    
-    const managementCategory = navConfig.find(category => category.category === 'sidebar.category.management');
-    if (managementCategory) {
-      managementCategory.items = [...managementCategory.items, ...principalNavItems];
-    }
-  } else if (user?.role === 'attendance_staff') {
-    navConfig = attendanceStaffNavItems;
-  } else if (user?.role === 'parent') {
-    navConfig = parentNavItems;
-  } else {
-    navConfig = [];
-  }
+  const groups = getSidebarNav(user?.role);
+  const homeHref = user?.role === 'attendance_staff' ? '/attendance' : '/dashboard';
 
   const handleLogout = () => {
     logout();
@@ -257,194 +41,185 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
   };
 
   return (
-    <>
-   
-      <div className="hidden md:block w-64 border-r bg-background fixed h-screen top-0 left-0 z-30">
-        <div className="flex h-full flex-col">
-          {/* Product Branding Header */}
-          <div className="flex h-16 items-center px-6 border-b bg-gradient-to-r from-primary/10 to-primary/5">
-            <Link href={user?.role === 'attendance_staff' ? '/attendance' : '/dashboard'} className="flex items-center gap-3 group">
-              <div className="bg-primary rounded-xl w-9 h-9 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300">
-                <BookOpen className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-bold text-lg text-primary group-hover:text-primary/80 transition-colors">{t('brand.name')}</span>
-                <span className="text-xs text-muted-foreground font-medium">{t('brand.tagline')}</span>
-              </div>
-            </Link>
+    <div className="flex h-full flex-col">
+      {/* Brand */}
+      <div className={cn('flex h-16 shrink-0 items-center border-b', collapsed ? 'justify-center px-2' : 'px-4')}>
+        <Link href={homeHref} onClick={onNavigate} className="flex items-center gap-3" title={t('brand.name')}>
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary">
+            <BookOpen className="size-5 text-primary-foreground" />
           </div>
-          <div className="flex-1 overflow-y-auto py-4">
-            <nav className="space-y-1 px-2">
-              {navConfig.map((category) => (
-                <div key={category.category} className="mb-2">
-                  <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-3 py-2">
-                    {t(category.category)}
-                  </h3>
-                  <div className="space-y-1">
-                    {category.items.map((item) => {
-                      const Icon = item.icon;
-                    
-                      if (!Icon) {
-                        return null;
-                      }
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          className={cn(
-                            'flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-50 dark:hover:bg-gray-800',
-                            pathname === item.href && 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-50'
-                          )}
-                        >
-                          <Icon className="h-4 w-4" />
-                          <span className="text-sm">{t(item.title)}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </nav>
-          </div>
-          <div className="p-4 border-t">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-50 dark:hover:bg-gray-800 cursor-pointer">
-                  <div className="bg-muted rounded-full w-8 h-8 flex items-center justify-center">
-                    <User className="h-4 w-4" />
-                  </div>
-                  <div className="flex flex-col items-start">
-                    <div className="text-sm font-medium truncate max-w-[120px]">{user?.full_name}</div>
-                    <div className="text-xs text-muted-foreground capitalize truncate max-w-[120px]">
-                      {user?.role}
-                    </div>
-                  </div>
-                </div>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-64" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user?.full_name}</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {user?.email}
-                    </p>
-                    <p className="text-xs capitalize leading-none text-muted-foreground">
-                      {user?.role}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile" className="flex items-center">
-                      <User className="mr-2 h-4 w-4" />
-                      <span>{t('common.profile')}</span>
-                    </Link>
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="flex items-center">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>{t('common.logout')}</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
+          {!collapsed && (
+            <div className="flex flex-col">
+              <span className="text-base font-semibold leading-tight text-primary">{t('brand.name')}</span>
+              <span className="text-[11px] leading-tight text-muted-foreground">{t('brand.tagline')}</span>
+            </div>
+          )}
+        </Link>
       </div>
 
-      {/* Mobile Sidebar */}
-      <div className={cn(
-        "md:hidden fixed inset-y-0 left-0 z-40 w-64 bg-background border-r transform transition-transform duration-300 ease-in-out",
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
-        <div className="flex h-full flex-col">
-          {/* Product Branding Header */}
-          <div className="flex h-16 items-center px-6 border-b bg-gradient-to-r from-primary/10 to-primary/5">
-            <Link href={user?.role === 'attendance_staff' ? '/attendance' : '/dashboard'} className="flex items-center gap-3 group">
-              <div className="bg-primary rounded-xl w-9 h-9 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300">
-                <BookOpen className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-bold text-lg text-primary group-hover:text-primary/80 transition-colors">{t('brand.name')}</span>
-                <span className="text-xs text-muted-foreground font-medium">{t('brand.tagline')}</span>
-              </div>
-            </Link>
-          </div>
-          <div className="flex-1 overflow-y-auto py-4">
-            <nav className="space-y-1 px-2">
-              {navConfig.map((category) => (
-                <div key={category.category} className="mb-2">
-                  <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-3 py-2">{t(category.category)}</h3>
-                  <div className="space-y-1">
-                    {category.items.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          onClick={onClose}
-                          className={cn(
-                            'flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-50 dark:hover:bg-gray-800',
-                            pathname === item.href && 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-50'
-                          )}
-                        >
-                          <Icon className="h-4 w-4" />
-                          <span className="text-sm">{t(item.title)}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
+      {/* Navigation */}
+      <nav aria-label={t('sidebar.mainNav', 'Main navigation')} className="flex-1 overflow-y-auto px-2 py-3">
+        {groups.map((group, index) => (
+          <div key={group.label ?? `group-${index}`} className={cn(index > 0 && 'mt-4')}>
+            {group.label &&
+              (collapsed ? (
+                <div className="mx-3 mb-1.5 border-t" aria-hidden />
+              ) : (
+                <h3 className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {t(group.label)}
+                </h3>
               ))}
-            </nav>
-          </div>
-          <div className="p-4 border-t">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-50 dark:hover:bg-gray-800 cursor-pointer">
-                  <div className="bg-muted rounded-full w-8 h-8 flex items-center justify-center">
-                    <User className="h-4 w-4" />
-                  </div>
-                  <div className="flex flex-col items-start">
-                    <div className="text-sm font-medium truncate max-w-[120px]">{user?.full_name}</div>
-                    <div className="text-xs text-muted-foreground capitalize truncate max-w-[120px]">
-                      {user?.role}
-                    </div>
-                  </div>
-                </div>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-64" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user?.full_name}</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {user?.email}
-                    </p>
-                    <p className="text-xs capitalize leading-none text-muted-foreground">
-                      {user?.role}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile" className="flex items-center">
-                      <User className="mr-2 h-4 w-4" />
-                      <span>{t('common.profile')}</span>
+            <ul className="space-y-0.5">
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const active = isNavActive(pathname, item.href);
+                const label = t(item.title);
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={onNavigate}
+                      aria-current={active ? 'page' : undefined}
+                      title={collapsed ? label : undefined}
+                      className={cn(
+                        'flex items-center gap-3 rounded-md py-2 text-sm transition-colors',
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        collapsed ? 'justify-center px-0' : 'px-3',
+                        active
+                          ? 'bg-tone-primary-soft font-medium text-primary'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      )}
+                    >
+                      <Icon className="size-4 shrink-0" />
+                      {collapsed ? <span className="sr-only">{label}</span> : <span className="truncate">{label}</span>}
                     </Link>
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="flex items-center">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>{t('common.logout')}</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
-        </div>
+        ))}
+      </nav>
+
+      {/* Footer: collapse toggle (desktop) + user menu */}
+      <div className="shrink-0 space-y-1 border-t p-2">
+        {onToggleCollapse && (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            title={collapsed ? t('sidebar.expand', 'Expand sidebar') : t('sidebar.collapse', 'Collapse sidebar')}
+            aria-label={collapsed ? t('sidebar.expand', 'Expand sidebar') : t('sidebar.collapse', 'Collapse sidebar')}
+            className={cn(
+              'flex w-full items-center gap-3 rounded-md py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+              collapsed ? 'justify-center px-0' : 'px-3'
+            )}
+          >
+            {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+            {!collapsed && <span>{t('sidebar.collapse', 'Collapse sidebar')}</span>}
+          </button>
+        )}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                'flex w-full items-center gap-3 rounded-md py-2 text-left transition-colors hover:bg-muted',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                collapsed ? 'justify-center px-0' : 'px-3'
+              )}
+            >
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-tone-primary-soft text-primary">
+                <User className="size-4" />
+              </span>
+              {!collapsed && (
+                <>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{user?.full_name}</span>
+                    <span className="block truncate text-xs capitalize text-muted-foreground">{user?.role}</span>
+                  </span>
+                  <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+                </>
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-64" side={collapsed ? 'right' : 'top'} align="end" forceMount>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{user?.full_name}</p>
+                <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                <p className="text-xs capitalize leading-none text-muted-foreground">{user?.role}</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem asChild>
+                <Link href="/profile" onClick={onNavigate} className="flex items-center">
+                  <User className="mr-2 size-4" />
+                  <span>{t('common.profile')}</span>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} className="flex items-center">
+              <LogOut className="mr-2 size-4" />
+              <span>{t('common.logout')}</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+    </div>
+  );
+}
+
+export function Sidebar({
+  isOpen,
+  onClose,
+  collapsed = false,
+  onToggleCollapse,
+}: {
+  isOpen?: boolean;
+  onClose?: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+}) {
+  const pathname = usePathname();
+
+  // Close the mobile drawer on Escape.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose?.();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
+  if (pathname.startsWith('/login') || pathname.startsWith('/register')) {
+    return null;
+  }
+
+  return (
+    <>
+      {/* Desktop */}
+      <aside
+        className={cn(
+          'fixed left-0 top-0 z-30 hidden h-screen border-r bg-background transition-[width] duration-200 md:block',
+          collapsed ? 'w-16' : 'w-56'
+        )}
+      >
+        <SidebarContent collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
+      </aside>
+
+      {/* Mobile drawer */}
+      <aside
+        aria-hidden={!isOpen}
+        inert={!isOpen}
+        className={cn(
+          'fixed inset-y-0 left-0 z-40 w-64 transform border-r bg-background transition-transform duration-300 ease-in-out md:hidden',
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        )}
+      >
+        <SidebarContent onNavigate={onClose} />
+      </aside>
     </>
   );
 }

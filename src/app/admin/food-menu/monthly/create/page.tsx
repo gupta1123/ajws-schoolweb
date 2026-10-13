@@ -3,58 +3,70 @@
 import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, CalendarDays, Eye, FileUp, Loader2, Upload } from 'lucide-react';
+import { Eye, FileImage, FileText, FileUp, Loader2, Upload, X } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
+import { useI18n } from '@/lib/i18n/context';
 import { foodMenuServices } from '@/lib/api';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { IconChip } from '@/components/ui/page-kit';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   MONTHLY_MENU_ACCEPT,
   MONTHLY_MENU_MAX_SIZE,
   MONTHLY_MENU_TYPES,
-  MONTH_NAMES,
   MonthlyMenuPreviewDialog,
+  monthName,
   type MonthlyMenuPreview,
   formatFileSize,
 } from '@/components/food-menu/monthly-menu-preview-dialog';
+import { cn } from '@/lib/utils';
+import { type } from '@/lib/design/tokens';
 
 export default function CreateMonthlyMenuPage() {
   const { user, token } = useAuth();
+  const { t, lang } = useI18n();
   const router = useRouter();
   const now = useMemo(() => new Date(), []);
   const inputRef = useRef<HTMLInputElement>(null);
+
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [preview, setPreview] = useState<MonthlyMenuPreview | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canManage = user?.role === 'admin' || user?.role === 'principal';
+  const years = [now.getFullYear() + 1, now.getFullYear(), now.getFullYear() - 1];
 
-  const selectFile = (selected: File | null) => {
+  const selectFile = (selected: File | null | undefined) => {
     setError(null);
-    if (!selected) {
-      setFile(null);
-      return;
-    }
-    if (selected.size > MONTHLY_MENU_MAX_SIZE) {
-      setError(`${selected.name} exceeds the 10 MB file limit.`);
+    if (!selected) return;
+    const reset = () => {
       if (inputRef.current) inputRef.current.value = '';
+    };
+    if (selected.size > MONTHLY_MENU_MAX_SIZE) {
+      setError(t('foodMenu.upload.tooBig', '{name} exceeds the 10 MB file limit.').replace('{name}', selected.name));
+      reset();
       return;
     }
     if (!MONTHLY_MENU_TYPES.has(selected.type)) {
-      setError('Unsupported file type. Use JPG, PNG, PDF, TXT, CSV, DOC, or DOCX.');
-      if (inputRef.current) inputRef.current.value = '';
+      setError(t('foodMenu.upload.badType', 'Unsupported file type. Use JPG, PNG, PDF, TXT, CSV, DOC or DOCX.'));
+      reset();
       return;
     }
     setFile(selected);
+  };
+
+  const clearFile = () => {
+    setFile(null);
+    if (inputRef.current) inputRef.current.value = '';
   };
 
   const previewFile = async () => {
@@ -63,106 +75,148 @@ export default function CreateMonthlyMenuPage() {
       setPreview({ name: file.name, type: file.type, size: file.size, text: await file.text() });
       return;
     }
-    setPreview({
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      url: URL.createObjectURL(file),
-      revokeOnClose: true,
-    });
+    setPreview({ name: file.name, type: file.type, size: file.size, url: URL.createObjectURL(file), revokeOnClose: true });
   };
 
   const upload = async () => {
     if (!token || !file || !canManage) return;
-    if (year < 2000 || year > 2100) {
-      setError('Year must be between 2000 and 2100.');
-      return;
-    }
     setSaving(true);
     setError(null);
     try {
       const response = await foodMenuServices.uploadMonthlyAttachment(token, { file, month, year, title });
-      if (response instanceof Blob) throw new Error('Unexpected response from monthly menu API');
-      if (response.status === 'error') throw new Error(response.message || 'Failed to upload monthly menu');
-      router.push(`/admin/food-menu/monthly?month=${month}&year=${year}&created=1`);
-    } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : 'Failed to upload monthly menu');
-    } finally {
+      if (response instanceof Blob) throw new Error(t('foodMenu.upload.failed', 'Failed to upload monthly menu'));
+      if (response.status === 'error') throw new Error(response.message || t('foodMenu.upload.failed', 'Failed to upload monthly menu'));
+      router.push(`/admin/food-menu?month=${month}&year=${year}&created=1`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('foodMenu.upload.failed', 'Failed to upload monthly menu'));
       setSaving(false);
     }
   };
 
   if (user && !canManage) {
     return (
-      <ProtectedRoute>
-        <div className="flex min-h-[60vh] items-center justify-center text-center">
-          <div><h2 className="text-2xl font-bold">Access Denied</h2><p className="mt-2 text-muted-foreground">Only administrators and principals can upload monthly menus.</p></div>
+      <div className="flex min-h-[50vh] items-center justify-center text-center">
+        <div>
+          <h2 className="text-xl font-semibold">{t('access.deniedTitle', 'Access Denied')}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t('foodMenu.upload.adminsOnly', 'Only administrators and principals can upload monthly menus.')}</p>
         </div>
-      </ProtectedRoute>
+      </div>
     );
   }
 
+  const isImage = file?.type.startsWith('image/');
+
   return (
     <ProtectedRoute>
-      <div className="mx-auto max-w-3xl space-y-6">
-        <div>
-          <Button variant="ghost" asChild className="mb-3 -ml-3"><Link href="/admin/food-menu/monthly"><ArrowLeft className="mr-2 h-4 w-4" />Back to Monthly Menus</Link></Button>
-          <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-primary/10 p-3"><FileUp className="h-7 w-7 text-primary" /></div>
-            <div><h1 className="text-3xl font-bold">Upload Monthly Menu</h1><p className="text-muted-foreground">Publish one complete food-menu file for a selected month.</p></div>
-          </div>
-        </div>
-
-        {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-primary" />Menu Details</CardTitle>
-            <CardDescription>The uploaded menu will be available to administrators, principals, and parents.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="menu-month">Month *</Label>
-                <select id="menu-month" value={month} onChange={(event) => setMonth(Number(event.target.value))} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]">
-                  {MONTH_NAMES.map((name, index) => <option key={name} value={index + 1}>{name}</option>)}
-                </select>
+      <div className="mx-auto grid w-full max-w-5xl gap-8 lg:grid-cols-[minmax(0,1fr)_19rem]">
+        {/* File */}
+        <div className="space-y-3">
+          {file ? (
+            <div className="flex items-center gap-3 rounded-xl border px-4 py-4">
+              <IconChip tone={isImage ? 'violet' : 'primary'} className="size-10">
+                {isImage ? <FileImage /> : <FileText />}
+              </IconChip>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{file.name}</p>
+                <p className={type.caption}>{formatFileSize(file.size)}</p>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="menu-year">Year *</Label>
-                <Input id="menu-year" type="number" min={2000} max={2100} value={year} onChange={(event) => setYear(Number(event.target.value))} />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="menu-title">Display title</Label>
-              <Input id="menu-title" maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`${MONTH_NAMES[month - 1]} Food Menu`} />
-              <p className="text-xs text-muted-foreground">Optional. If omitted, the file name will identify the menu.</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="menu-file">Menu attachment *</Label>
-              <div className="rounded-lg border border-dashed p-5">
-                <Input ref={inputRef} id="menu-file" type="file" accept={MONTHLY_MENU_ACCEPT} onChange={(event) => selectFile(event.target.files?.[0] || null)} />
-                <p className="mt-2 text-xs text-muted-foreground">Maximum 10 MB. JPG, PNG, PDF, TXT, CSV, DOC, and DOCX.</p>
-                {file && (
-                  <div className="mt-4 flex flex-col gap-3 rounded-md border bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0"><p className="truncate font-medium">{file.name}</p><p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p></div>
-                    <Button type="button" variant="outline" size="sm" onClick={previewFile}><Eye className="mr-2 h-4 w-4" />Preview</Button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-col-reverse gap-2 border-t pt-5 sm:flex-row sm:justify-end">
-              <Button variant="outline" asChild><Link href="/admin/food-menu/monthly">Cancel</Link></Button>
-              <Button onClick={upload} disabled={saving || !file || year < 2000 || year > 2100}>
-                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                {saving ? 'Uploading...' : 'Upload Monthly Menu'}
+              <Button type="button" variant="outline" size="sm" onClick={previewFile}>
+                <Eye />
+                {t('foodMenu.upload.preview', 'Preview')}
+              </Button>
+              <Button type="button" variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-tone-danger" onClick={clearFile} aria-label={t('foodMenu.upload.remove', 'Remove file')} title={t('foodMenu.upload.remove', 'Remove file')}>
+                <X />
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          ) : (
+            <label
+              htmlFor="menu-file"
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                selectFile(e.dataTransfer.files?.[0]);
+              }}
+              className={cn(
+                'flex min-h-64 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 text-center transition-colors focus-within:ring-2 focus-within:ring-ring',
+                dragging ? 'border-tone-primary bg-tone-primary-soft' : 'hover:bg-muted/40'
+              )}
+            >
+              <span className="text-muted-foreground/70 [&_svg]:size-8">
+                <FileUp />
+              </span>
+              <p className="text-sm font-medium">
+                {t('foodMenu.upload.drop', 'Drop the menu file here, or')} <span className="text-tone-primary underline underline-offset-2">{t('foodMenu.upload.browse', 'browse')}</span>
+              </p>
+              <p className={type.caption}>{t('foodMenu.upload.hint', 'JPG, PNG, PDF, TXT, CSV, DOC or DOCX · up to 10 MB')}</p>
+            </label>
+          )}
+          <input ref={inputRef} id="menu-file" type="file" className="sr-only" accept={MONTHLY_MENU_ACCEPT} onChange={(e) => selectFile(e.target.files?.[0])} />
+          {error && (
+            <p role="alert" className="text-sm text-tone-danger">
+              {error}
+            </p>
+          )}
+        </div>
+
+        {/* Details */}
+        <aside className="space-y-5 lg:border-l lg:pl-8">
+          <div className="grid grid-cols-[1fr_auto] gap-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="menu-month">{t('foodMenu.monthlyPage.month', 'Month')}</Label>
+              <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
+                <SelectTrigger id="menu-month" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <SelectItem key={i} value={String(i + 1)}>
+                      {monthName(i, lang)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="menu-year">{t('foodMenu.monthlyPage.year', 'Year')}</Label>
+              <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+                <SelectTrigger id="menu-year" className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {years.map((y) => (
+                    <SelectItem key={y} value={String(y)}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="menu-title">
+              {t('foodMenu.upload.title', 'Display title')} <span className="font-normal text-muted-foreground">· {t('foodMenu.form.optional', 'optional')}</span>
+            </Label>
+            <Input id="menu-title" maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('foodMenu.monthlyPage.defaultTitle', '{month} Food Menu').replace('{month}', monthName(month - 1, lang))} />
+          </div>
+
+          <p className={type.caption}>{t('foodMenu.upload.visibleTo', 'Visible to admins, principals and parents.')}</p>
+
+          <div className="flex flex-col gap-2 border-t pt-4">
+            <Button onClick={upload} disabled={saving || !file}>
+              {saving ? <Loader2 className="animate-spin" /> : <Upload />}
+              {saving ? t('foodMenu.upload.uploading', 'Uploading...') : t('foodMenu.upload.submit', 'Upload menu')}
+            </Button>
+            <Button variant="ghost" asChild disabled={saving}>
+              <Link href="/admin/food-menu">{t('actions.cancel', 'Cancel')}</Link>
+            </Button>
+          </div>
+        </aside>
       </div>
       <MonthlyMenuPreviewDialog preview={preview} onClose={() => setPreview(null)} />
     </ProtectedRoute>

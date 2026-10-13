@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth/context';
+import { toISODate } from '@/components/calendar/event-pickers';
 import { 
   attendanceApi, 
   PrincipalAllClassesSummaryResponse,
@@ -39,7 +40,7 @@ export function usePrincipalAttendance(): UsePrincipalAttendanceReturn {
   const [selectedClassAttendance, setSelectedClassAttendance] = useState<AttendanceStatusResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(toISODate(new Date()));
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
 
   // Load all classes summary

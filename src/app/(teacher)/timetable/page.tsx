@@ -2,213 +2,197 @@
 
 'use client';
 
+import { useMemo, useState } from 'react';
+import { AlertCircle, CalendarDays, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import {
-  Clock,
-  BookOpen,
-  User,
-  RefreshCw,
-  AlertCircle,
-  Calendar,
-  Loader2
-} from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/page-kit';
 import { useTimetable } from '@/hooks/use-timetable';
 import { useI18n } from '@/lib/i18n/context';
+import { periodStartTime, subjectBar, subjectSoft, subjectText } from '@/components/timetable/timetable-grid';
+import { surface, type } from '@/lib/design/tokens';
+import { cn } from '@/lib/utils';
 
 const DAY_KEYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
 
 export default function TimetablePage() {
   const { user } = useAuth();
   const { timetableData, loading, error, refreshTimetable } = useTimetable();
-  const [selectedDay, setSelectedDay] = useState('Monday');
   const { t } = useI18n();
 
-  const dayLabels = useMemo(
-    () => DAY_KEYS.map((d) => ({ key: d, label: t(`days.${d.toLowerCase()}`, d) })),
-    [t]
-  );
+  const todayKey = DAY_KEYS[(new Date().getDay() || 7) - 1] ?? 'Monday';
+  const [selectedDay, setSelectedDay] = useState<string>(todayKey);
 
-  // Only allow teachers to access this page
+  const timetable = timetableData?.timetable;
+
+  // Show Saturday only if the teacher actually teaches on it
+  const days = useMemo(
+    () => DAY_KEYS.filter((d) => d !== 'Saturday' || (timetable?.Saturday?.length ?? 0) > 0),
+    [timetable]
+  );
+  const periodCount = useMemo(() => {
+    const all = Object.values(timetable ?? {}).flat();
+    return Math.max(6, ...all.map((e) => e.period_number));
+  }, [timetable]);
+  const total = useMemo(() => Object.values(timetable ?? {}).flat().length, [timetable]);
+
   if (user?.role !== 'teacher') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
-          <p className="text-gray-600">{t('access.teachersOnlyPage', 'Only teachers can access this page.')}</p>
-        </div>
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <EmptyState
+          title={t('access.deniedTitle', 'Access Denied')}
+          help={t('access.teachersOnlyPage', 'Only teachers can access this page.')}
+        />
       </div>
     );
   }
 
-  const currentDayTimetable = timetableData?.timetable[selectedDay] || [];
+  const dayLabel = (d: string) => t(`days.${d.toLowerCase()}`, d);
+  const classLabel = (e: { class_division?: { class_level: { name: string }; division: string }; class_division_id: string }) =>
+    e.class_division ? `${e.class_division.class_level.name} ${e.class_division.division}` : `Class ${e.class_division_id}`;
 
-  const formatTime = (periodNumber: number) => {
-    // Simple time calculation based on period number
-    const startHour = 8 + Math.floor((periodNumber - 1) * 0.75);
-    const startMinute = ((periodNumber - 1) * 45) % 60;
-    const endHour = 8 + Math.floor(periodNumber * 0.75);
-    const endMinute = (periodNumber * 45) % 60;
-    
-    return `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')} - ${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+  const renderCell = (day: string, period: number) => {
+    const entry = (timetable?.[day] || []).find((e) => e.period_number === period);
+    if (!entry) return <div className="h-full min-h-[3.75rem]" />;
+    return (
+      <div className={cn('flex h-full min-h-[3.75rem] overflow-hidden rounded-lg', subjectSoft(entry.subject))}>
+        <span aria-hidden className={cn('w-1 shrink-0', subjectBar(entry.subject))} />
+        <div className="min-w-0 px-2.5 py-1.5">
+          <p className={cn('truncate text-sm font-semibold leading-tight', subjectText(entry.subject))}>{entry.subject}</p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">{classLabel(entry)}</p>
+        </div>
+      </div>
+    );
   };
 
-  if (loading) {
-    return (
-      <ProtectedRoute>
-        <div className="container max-w-6xl mx-auto py-8">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-              <p className="text-gray-600">{t('timetableTeacher.loading', 'Loading your timetable...')}</p>
-            </div>
-          </div>
+  const body = () => {
+    if (loading) return <Skeleton className="h-96 w-full" />;
+    if (error) {
+      return (
+        <div className={surface.panel}>
+          <EmptyState
+            icon={<AlertCircle />}
+            title={t('timetableTeacher.errorTitle', 'Error Loading Timetable')}
+            help={
+              <span className="flex flex-col items-center gap-3">
+                {error}
+                <Button onClick={refreshTimetable} variant="outline" size="sm">
+                  <RefreshCw />
+                  {t('timetableTeacher.tryAgain', 'Try Again')}
+                </Button>
+              </span>
+            }
+          />
         </div>
-      </ProtectedRoute>
-    );
-  }
+      );
+    }
+    if (total === 0) {
+      return (
+        <div className={surface.panel}>
+          <EmptyState
+            icon={<CalendarDays />}
+            title={t('timetableTeacher.noClasses', 'No Classes Scheduled')}
+            help={t('timetableTeacher.subtitle', 'Your weekly teaching schedule')}
+          />
+        </div>
+      );
+    }
 
-  if (error) {
+    const periods = Array.from({ length: periodCount }, (_, i) => i + 1);
     return (
-      <ProtectedRoute>
-        <div className="container max-w-6xl mx-auto py-8">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <AlertCircle className="h-8 w-8 mx-auto mb-4 text-destructive" />
-              <h2 className="text-xl font-semibold mb-2">{t('timetableTeacher.errorTitle', 'Error Loading Timetable')}</h2>
-              <p className="text-gray-600 mb-4">{error}</p>
-              <Button onClick={refreshTimetable} variant="outline">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                {t('timetableTeacher.tryAgain', 'Try Again')}
-              </Button>
-            </div>
-          </div>
+      <>
+        {/* Desktop: full week */}
+        <div className="hidden overflow-x-auto rounded-xl border md:block">
+          <table className="w-full table-fixed border-collapse">
+            <thead>
+              <tr className="border-b bg-muted/40">
+                <th className="w-24 px-3 py-2 text-left text-xs font-medium text-muted-foreground">{t('timetableTeacher.table.period', 'Period')}</th>
+                {days.map((d) => (
+                  <th key={d} className={cn('px-2 py-2 text-center text-xs font-semibold', d === todayKey ? 'text-tone-primary' : 'text-muted-foreground')}>
+                    {dayLabel(d)}
+                    {d === todayKey && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-primary align-middle" />}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {periods.map((p) => (
+                <tr key={p}>
+                  <th scope="row" className="px-3 text-left align-middle">
+                    <span className="block text-sm font-semibold">P{p}</span>
+                    <span className="block text-[11px] font-normal text-muted-foreground">{periodStartTime(p)}</span>
+                  </th>
+                  {days.map((d) => (
+                    <td key={d} className={cn('p-1 align-top', d === todayKey && 'bg-tone-primary-soft/30')}>
+                      {renderCell(d, p)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </ProtectedRoute>
+
+        {/* Mobile: one day at a time */}
+        <div className="space-y-3 md:hidden">
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            {days.map((d) => {
+              const count = timetable?.[d]?.length ?? 0;
+              const active = selectedDay === d;
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setSelectedDay(d)}
+                  className={cn(
+                    'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    active ? 'bg-primary font-medium text-primary-foreground' : 'bg-muted/60 text-muted-foreground'
+                  )}
+                >
+                  {dayLabel(d).slice(0, 3)}
+                  <span className="text-xs tabular-nums opacity-70">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+          {(timetable?.[selectedDay]?.length ?? 0) === 0 ? (
+            <p className="rounded-xl border px-4 py-8 text-center text-sm text-muted-foreground">
+              {t('timetableTeacher.noClassesDesc', 'You have no classes scheduled for {day}').replace('{day}', dayLabel(selectedDay))}
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {[...(timetable?.[selectedDay] ?? [])]
+                .sort((a, b) => a.period_number - b.period_number)
+                .map((e) => (
+                  <li key={e.id} className="flex items-stretch gap-3">
+                    <div className="w-16 shrink-0 pt-1.5">
+                      <p className="text-sm font-semibold">P{e.period_number}</p>
+                      <p className="text-[11px] text-muted-foreground">{periodStartTime(e.period_number)}</p>
+                    </div>
+                    <div className="min-w-0 flex-1">{renderCell(selectedDay, e.period_number)}</div>
+                  </li>
+                ))}
+            </ul>
+          )}
+        </div>
+      </>
     );
-  }
+  };
 
   return (
     <ProtectedRoute>
-      <div className="container max-w-6xl mx-auto py-8">
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">{t('timetableTeacher.title', 'My Timetable')}</h1>
-              <p className="text-gray-600 dark:text-gray-300">
-                {t('timetableTeacher.subtitle', 'Your weekly teaching schedule')}
-              </p>
-            </div>
-            <Button onClick={refreshTimetable} variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              {t('actions.refresh', 'Refresh')}
-            </Button>
-          </div>
+      <div className="mx-auto w-full max-w-6xl space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className={type.pageSubtitle}>
+            {(timetableData?.teacher?.full_name || t('common.teacher', 'Teacher')) + ' · ' + t('timetableTeacher.weekly', 'Weekly Schedule')}
+          </p>
+          <Button onClick={refreshTimetable} variant="outline" size="icon" aria-label={t('actions.refresh', 'Refresh')} title={t('actions.refresh', 'Refresh')} disabled={loading}>
+            <RefreshCw className={loading ? 'animate-spin' : ''} />
+          </Button>
         </div>
-
-        <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                {t('timetableTeacher.weekly', 'Weekly Schedule')}
-              </CardTitle>
-              <CardDescription>
-                {(timetableData?.teacher?.full_name || t('common.teacher', 'Teacher')) + ' ' + t('timetableTeacher.forWeek', "teaching timetable for the week")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2 mb-6">
-                {dayLabels.map(({ key, label }) => {
-                  const hasClasses = timetableData?.timetable && timetableData.timetable[key]?.length > 0;
-                  return (
-                    <Button
-                      key={key}
-                      variant={selectedDay === key ? 'default' : 'outline'}
-                      onClick={() => setSelectedDay(key)}
-                      className={`relative ${hasClasses ? 'border-green-200' : ''}`}
-                    >
-                      {label}
-                      {hasClasses && (
-                        <Badge variant="secondary" className="ml-2 h-5 w-5 p-0 text-xs">
-                          {timetableData?.timetable[key]?.length}
-                        </Badge>
-                      )}
-                    </Button>
-                  );
-                })}
-              </div>
-              
-              {currentDayTimetable.length === 0 ? (
-                <div className="text-center py-12">
-                  <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">{t('timetableTeacher.noClasses', 'No Classes Scheduled')}</h3>
-                  <p className="text-gray-600">{t('timetableTeacher.noClassesDesc', 'You have no classes scheduled for {day}').replace('{day}', t(`days.${selectedDay.toLowerCase()}`, selectedDay))}</p>
-                </div>
-              ) : (
-                <div className="rounded-md border">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b bg-muted/50">
-                        <th className="text-left p-4 font-medium">{t('timetableTeacher.table.period', 'Period')}</th>
-                        <th className="text-left p-4 font-medium">{t('timetableTeacher.table.time', 'Time')}</th>
-                        <th className="text-left p-4 font-medium">{t('timetableTeacher.table.subject', 'Subject')}</th>
-                        <th className="text-left p-4 font-medium">{t('timetableTeacher.table.class', 'Class')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {currentDayTimetable
-                        .sort((a, b) => a.period_number - b.period_number)
-                        .map((entry) => (
-                        <tr 
-                          key={entry.id} 
-                          className="border-b hover:bg-muted/50 transition-colors"
-                        >
-                          <td className="p-4">
-                            <Badge variant="outline" className="font-mono">
-                              P{entry.period_number}
-                            </Badge>
-                          </td>
-                          <td className="p-4">
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-mono text-sm">
-                                {formatTime(entry.period_number)}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <div className="flex items-center gap-2">
-                              <BookOpen className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">{entry.subject}</span>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <div className="flex items-center gap-2">
-                              <User className="h-4 w-4 text-muted-foreground" />
-                              <span>
-                                {entry.class_division
-                                  ? `${entry.class_division.class_level.name} ${entry.class_division.division}`
-                                  : `Class ${entry.class_division_id}`
-                                }
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-
-        </div>
+        {body()}
       </div>
     </ProtectedRoute>
   );

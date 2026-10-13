@@ -2,307 +2,227 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
+import { CalendarOff, ClipboardList, RefreshCw, Search, Users } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
-import { attendanceApi, AttendanceStatusResponse } from '@/lib/api/attendance';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { attendanceApi, type AttendanceStatusResponse, type StudentAttendanceRecord } from '@/lib/api/attendance';
+import { parseISODate, toISODate } from '@/components/calendar/event-pickers';
+import { useTopbarSlot } from '@/components/layout/topbar-slot';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import {
-  ArrowLeft,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Users,
-  RefreshCw,
-  Search,
-  FileText
-} from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState, InlineError, Pill } from '@/components/ui/page-kit';
 import { useI18n } from '@/lib/i18n/context';
+import { cn } from '@/lib/utils';
+import { surface, type, type Tone } from '@/lib/design/tokens';
 
-export default function AttendanceDetailsPage() {
-  const params = useParams();
-  const router = useRouter();
+type Status = StudentAttendanceRecord['status'];
+type Filter = 'all' | Status;
+
+// exceptions first: those are what an admin opens this page to find
+const ORDER: Status[] = ['absent', 'late', 'half_day', 'full_day'];
+const TONE: Record<Status, Tone> = { full_day: 'success', absent: 'danger', late: 'warning', half_day: 'info' };
+const DOT: Record<Status, string> = { full_day: 'bg-tone-success', absent: 'bg-tone-danger', late: 'bg-tone-warning', half_day: 'bg-tone-info' };
+
+function Details() {
+  const { classId } = useParams<{ classId: string }>();
   const searchParams = useSearchParams();
-  const { user, token } = useAuth();
-  const { t } = useI18n();
+  const { token } = useAuth();
+  const { t, lang } = useI18n();
 
-  const classId = params.classId as string;
-  const dateParam = searchParams.get('date');
+  const date = searchParams.get('date') || toISODate(new Date());
+  const className = searchParams.get('name');
 
-  const [attendanceData, setAttendanceData] = useState<AttendanceStatusResponse | null>(null);
+  const [data, setData] = useState<AttendanceStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<Filter>('all');
 
-  const loadAttendanceData = useCallback(async () => {
-    if (!token || !dateParam) return;
-
+  const load = useCallback(async () => {
+    if (!token || !classId) return;
     try {
       setLoading(true);
       setError(null);
-
-      const response = await attendanceApi.getAttendanceStatus(classId, dateParam, token);
-
-      // Handle Blob response (shouldn't happen for this endpoint)
+      const response = await attendanceApi.getAttendanceStatus(classId, date, token);
       if (response instanceof Blob) {
-        console.error('Unexpected Blob response');
-        setError('Unexpected response format');
-        return;
-      }
-
-      if (response.status === 'success') {
-        setAttendanceData(response.data);
+        setError(t('attendanceMgmt.details.failed', 'Failed to load attendance data'));
+      } else if (response.status === 'success') {
+        setData(response.data);
       } else {
-        setError(response.message || 'Failed to load attendance data');
+        setError(response.message || t('attendanceMgmt.details.failed', 'Failed to load attendance data'));
       }
     } catch (err) {
-      setError('Failed to load attendance data');
       console.error('Error loading attendance:', err);
+      setError(t('attendanceMgmt.details.failed', 'Failed to load attendance data'));
     } finally {
       setLoading(false);
     }
-  }, [token, classId, dateParam]);
+  }, [token, classId, date, t]);
 
   useEffect(() => {
-    if (token && classId && dateParam) {
-      loadAttendanceData();
-    }
-  }, [token, classId, dateParam, loadAttendanceData]);
+    load();
+  }, [load]);
 
-  // Only allow admins and principals to access this page
-  if (user && user.role !== 'admin' && user.role !== 'principal') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
-          <p className="text-gray-600">{t('attendanceMgmt.accessDetails', 'Only admins and principals can access attendance details.')}</p>
-        </div>
-      </div>
-    );
-  }
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = date.toLocaleDateString('en-US', { month: 'short' });
-    const year = date.getFullYear().toString().slice(-2);
-    return `${day} ${month} '${year}`;
+  const label: Record<Status, string> = {
+    full_day: t('attendanceMgmt.status.present', 'Present'),
+    absent: t('attendanceMgmt.status.absent', 'Absent'),
+    late: t('attendanceMgmt.status.late', 'Late'),
+    half_day: t('attendanceMgmt.status.halfDay', 'Half Day'),
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'full_day':
-        return <Badge className="bg-green-100 text-green-800">{t('attendanceMgmt.status.present', 'Present')}</Badge>;
-      case 'absent':
-        return <Badge className="bg-red-100 text-red-800">{t('attendanceMgmt.status.absent', 'Absent')}</Badge>;
-      case 'late':
-        return <Badge className="bg-yellow-100 text-yellow-800">{t('attendanceMgmt.status.late', 'Late')}</Badge>;
-      case 'half_day':
-        return <Badge className="bg-orange-100 text-orange-800">{t('attendanceMgmt.status.halfDay', 'Half Day')}</Badge>;
-      default:
-        return <Badge variant="secondary">{t('attendanceMgmt.status.unknown', 'Unknown')}</Badge>;
-    }
-  };
+  // the API reports a present student as 'present' in some responses and 'full_day' in others
+  const records = useMemo(
+    () => (data?.student_records ?? []).map((r) => ({ ...r, status: ((r.status as string) === 'present' ? 'full_day' : r.status) as Status })),
+    [data]
+  );
+  const counts = useMemo(() => {
+    const c: Record<Filter, number> = { all: records.length, full_day: 0, absent: 0, late: 0, half_day: 0 };
+    records.forEach((r) => {
+      if (r.status in c) c[r.status] += 1;
+    });
+    return c;
+  }, [records]);
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'full_day':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'absent':
-        return <XCircle className="h-4 w-4 text-red-500" />;
-      case 'late':
-      case 'half_day':
-        return <AlertTriangle className="h-4 w-4 text-orange-500" />;
-      default:
-        return <AlertTriangle className="h-4 w-4 text-gray-500" />;
-    }
-  };
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return records
+      .filter((r) => (filter === 'all' || r.status === filter) && (!q || r.student?.full_name.toLowerCase().includes(q) || r.student?.admission_number.toLowerCase().includes(q)))
+      .sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status) || (a.student?.full_name ?? '').localeCompare(b.student?.full_name ?? ''));
+  }, [records, filter, query]);
 
-  // Filter students based on search term
-  const filteredStudents = attendanceData?.student_records.filter(record =>
-    record.student?.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.student?.admission_number.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const dateLabel = (parseISODate(date) ?? new Date()).toLocaleDateString(lang, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const tabs: Filter[] = ['all', ...ORDER.filter((s) => counts[s] > 0)];
+  useTopbarSlot({
+    title: `${t('topbar.attendanceDetails.title', 'Attendance Details')}: ${className || t('attendanceMgmt.details.title', 'Class attendance')}`,
+    subtitle: dateLabel,
+    actions: (
+      <Button variant="ghost" size="icon" className="size-9 text-muted-foreground" onClick={load} disabled={loading} aria-label={t('actions.refresh', 'Refresh')} title={t('actions.refresh', 'Refresh')}>
+        <RefreshCw className={cn(loading && 'animate-spin')} />
+      </Button>
+    ),
+  });
 
-  // Calculate attendance statistics
-  const totalStudents = attendanceData?.student_records.length || 0;
-  const presentCount = attendanceData?.student_records.filter(r => r.status === 'full_day').length || 0;
-  const absentCount = attendanceData?.student_records.filter(r => r.status === 'absent').length || 0;
+  const cell = 'space-y-1 px-5 py-3.5';
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          onClick={() => router.back()}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Attendance Overview
-        </Button>
-      </div>
-
-      {/* Page Header */}
-      <Card className="border-0 shadow-none bg-gradient-to-r from-primary/10 to-primary/5">
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <FileText className="h-6 w-6 text-primary" />
-                </div>
-                <h1 className="text-3xl font-bold">Attendance Details</h1>
-              </div>
-              <p className="text-muted-foreground">
-                Detailed attendance information for {attendanceData?.daily_attendance.attendance_date ?
-                  formatDate(attendanceData.daily_attendance.attendance_date) : dateParam}
-              </p>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={loadAttendanceData}
-                disabled={loading}
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Error Display */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* Attendance Statistics */}
-      {attendanceData && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="hover:shadow-md transition-shadow border-l-4 border-l-primary">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">{t('attendanceMgmt.details.totalStudents', 'Total Students')}</CardTitle>
-              <Users className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">{totalStudents}</div>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow border-l-4 border-l-green-500">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">{t('attendanceMgmt.status.present', 'Present')}</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{presentCount}</div>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow border-l-4 border-l-red-500">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">{t('attendanceMgmt.status.absent', 'Absent')}</CardTitle>
-              <XCircle className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">{absentCount}</div>
-            </CardContent>
-          </Card>
+    <div className="mx-auto w-full max-w-6xl space-y-4">
+      {error ? (
+        <div className="rounded-xl border">
+          <InlineError title={error} onRetry={load} retryLabel={t('actions.refresh', 'Refresh')} />
         </div>
-      )}
+      ) : loading && !data ? (
+        <div className="space-y-4" aria-busy>
+          <Skeleton className="h-20 w-full rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-xl" />
+        </div>
+      ) : data?.is_holiday ? (
+        <div className={surface.panel}>
+          <EmptyState
+            icon={<CalendarOff />}
+            title={t('attendanceMgmt.status.holiday', 'Holiday')}
+            help={data.holiday_reason || t('attendanceMgmt.details.noReason', 'No reason specified')}
+          />
+        </div>
+      ) : records.length === 0 ? (
+        <div className={surface.panel}>
+          <EmptyState
+            icon={<ClipboardList />}
+            title={t('attendanceMgmt.details.notMarked', 'Attendance not marked')}
+            help={t('attendanceMgmt.details.empty', 'No attendance records found for this date.')}
+          />
+        </div>
+      ) : (
+        <>
+          <div className={cn(surface.panel, 'grid grid-cols-2 divide-x divide-y sm:grid-cols-5 sm:divide-y-0 [&>*:nth-child(odd)]:border-l-0')}>
+            {([['all', t('attendanceMgmt.details.totalStudents', 'Total Students')], ...ORDER.map((s) => [s, label[s]])] as [Filter, string][]).map(([key, text]) => (
+              <div key={key} className={cell}>
+                <p className={type.label}>{text}</p>
+                <p
+                  className={cn(
+                    'text-2xl font-semibold tabular-nums leading-none',
+                    key === 'absent' && counts.absent > 0 && 'text-tone-danger',
+                    key === 'late' && counts.late > 0 && 'text-tone-warning'
+                  )}
+                >
+                  {counts[key]}
+                </p>
+              </div>
+            ))}
+          </div>
 
-      {/* Student Attendance List */}
-      <Card className="hover:shadow-md transition-shadow">
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <CardTitle className="text-lg font-semibold">{t('attendanceMgmt.details.recordsTitle', 'Student Attendance Records')}</CardTitle>
-
-            <div className="flex gap-2 w-full sm:w-auto">
-              <div className="relative flex-1 sm:flex-none">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <section className={cn(surface.panel, 'overflow-hidden')}>
+            <header className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2.5">
+              <div role="tablist" className="flex flex-wrap items-center gap-1">
+                {tabs.map((key) => {
+                  const active = filter === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setFilter(key)}
+                      className={cn(
+                        'inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        active ? 'bg-tone-primary-soft font-medium text-tone-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      )}
+                    >
+                      {key === 'all' ? t('attendanceMgmt.filters.all', 'All') : label[key]}
+                      <span className="text-xs tabular-nums">{counts[key]}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="relative w-full sm:w-56">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
                   placeholder={t('attendanceMgmt.details.searchStudents', 'Search students...')}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-full sm:w-64"
+                  className="h-8 pl-8"
                 />
               </div>
-            </div>
-          </div>
-        </CardHeader>
+            </header>
 
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2 text-muted-foreground">{t('attendanceMgmt.details.loading', 'Loading attendance data...')}</span>
-            </div>
-          ) : attendanceData && filteredStudents.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('attendanceMgmt.details.admissionNo', 'Admission No.')}</TableHead>
-                    <TableHead>{t('attendanceMgmt.details.studentName', 'Student Name')}</TableHead>
-                    <TableHead>{t('attendanceMgmt.cols.status', 'Status')}</TableHead>
-                    <TableHead>{t('attendanceMgmt.details.remarks', 'Remarks')}</TableHead>
-                    <TableHead>{t('attendanceMgmt.details.markedBy', 'Marked By')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredStudents.map((record) => (
-                    <TableRow key={record.id}>
-                      <TableCell className="font-medium">
-                        {record.student?.admission_number}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(record.status)}
-                          {record.student?.full_name}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {getStatusBadge(record.status)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {record.remarks || '-'}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {record.marked_by_name || record.marked_by_user?.full_name || record.marked_by || '-'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-              <p>{t('attendanceMgmt.details.empty', 'No attendance records found for this date.')}</p>
-            </div>
-          )}
-
-          {filteredStudents.length > 0 && (
-            <div className="mt-4 text-sm text-muted-foreground text-center">
-              {t('pagination.showing', 'Showing')} {filteredStudents.length} {t('pagination.of', 'of')} {attendanceData?.student_records.length || 0} {t('attendanceMgmt.details.studentsLower', 'students')}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-
+            {rows.length === 0 ? (
+              <EmptyState icon={<Users />} title={t('attendanceMgmt.details.noMatch', 'No students match.')} />
+            ) : (
+              <ul className={cn('divide-y transition-opacity', loading && 'opacity-60')}>
+                {rows.map((r) => (
+                  <li
+                    key={r.id}
+                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-0.5 px-4 py-2.5 md:grid-cols-[4.5rem_minmax(0,1.2fr)_5.5rem_minmax(0,1fr)_9rem]"
+                  >
+                    <p className="order-2 text-xs tabular-nums text-muted-foreground md:order-none md:text-sm">{r.student?.admission_number}</p>
+                    <p className="order-1 flex min-w-0 items-center gap-2 text-sm font-medium md:order-none">
+                      <span className={cn('size-2 shrink-0 rounded-full', DOT[r.status] ?? 'bg-muted-foreground')} aria-hidden />
+                      <span className="truncate">{r.student?.full_name || t('attendanceMgmt.details.unknown', 'Unknown student')}</span>
+                    </p>
+                    <span className="order-3 justify-self-end md:order-none md:justify-self-start">
+                      <Pill tone={TONE[r.status] ?? 'neutral'}>{label[r.status] ?? r.status}</Pill>
+                    </span>
+                    <p className="order-4 col-span-2 truncate text-xs text-muted-foreground empty:hidden md:order-none md:col-span-1">{r.remarks}</p>
+                    <p className="hidden truncate text-xs text-muted-foreground md:block">
+                      {r.marked_by_name || r.marked_by_user?.full_name || ''}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
+      )}
     </div>
+  );
+}
+
+export default function AttendanceDetailsPage() {
+  // useSearchParams needs a Suspense boundary in the App Router
+  return (
+    <Suspense fallback={null}>
+      <Details />
+    </Suspense>
   );
 }

@@ -1,43 +1,27 @@
 // src/components/calendar/event-creation-wizard.tsx
+//
+// Create / edit form for calendar events. Same props and submit payload as
+// before; layout is a single column of compact sections with a sticky footer.
 
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import {
-  Calendar,
-  Clock,
-  BookOpen,
-  School,
-  Loader2,
-  Check,
-  Users,
-  Info,
-  Hash,
-  FileText,
-  Edit3,
-  User,
-  Search,
-  X
-} from 'lucide-react';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { academicServices } from '@/lib/api/academic';
+import { Switch } from '@/components/ui/switch';
+import { DateField, TimeField } from '@/components/calendar/event-pickers';
+import { ClassPicker } from '@/components/shared/class-picker';
+import { Loader2, Check, School, BookOpen, User, Info } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
-import type { ClassDivision } from '@/types/academic';
 import type { CalendarEvent } from '@/lib/api/calendar';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n/context';
+import { surface, type } from '@/lib/design/tokens';
 
+type EventType = 'school_wide' | 'class_specific' | 'teacher_specific';
+type EventCategory = 'general' | 'academic' | 'sports' | 'cultural' | 'holiday' | 'exam' | 'meeting' | 'other';
 
 interface EventFormData {
   title: string;
@@ -46,9 +30,9 @@ interface EventFormData {
   startTime: string;
   endTime: string;
   isFullDay: boolean;
-  eventType: 'school_wide' | 'class_specific' | 'teacher_specific';
+  eventType: EventType;
   classDivisionIds: string[];
-  eventCategory: 'general' | 'academic' | 'sports' | 'cultural' | 'holiday' | 'exam' | 'meeting' | 'other';
+  eventCategory: EventCategory;
 }
 
 interface EventCreationWizardProps {
@@ -59,28 +43,53 @@ interface EventCreationWizardProps {
   isLoading: boolean;
 }
 
-export function EventCreationWizard({ 
-  initialDate, 
-  event, // Event prop for edit mode
-  onSubmit, 
-  onCancel, 
-  isLoading 
-}: EventCreationWizardProps) {
-  const { token, user } = useAuth();
-  const { t } = useI18n();
-  const [classDivisions, setClassDivisions] = useState<ClassDivision[]>([]);
-  const [loadingClassDivisions, setLoadingClassDivisions] = useState(false);
-  const [classSearchTerm, setClassSearchTerm] = useState('');
-  
-  
+const CATEGORIES: EventCategory[] = ['general', 'academic', 'sports', 'cultural', 'holiday', 'exam', 'meeting', 'other'];
 
-  
+const timeToMin = (hhmm: string) => {
+  const [h, m] = hhmm.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
+const minToTime = (mins: number) =>
+  `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
 
-  
-  // Get default form data based on edit mode or initial values
+const fmtTime = (hhmm: string, lang: string) =>
+  new Date(2000, 0, 1, Math.floor(timeToMin(hhmm) / 60), timeToMin(hhmm) % 60).toLocaleTimeString(lang, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+
+function Section({
+  title,
+  hint,
+  className,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className={cn(surface.panel, 'overflow-hidden', className)}>
+      <header className="flex items-baseline justify-between gap-2 border-b px-4 py-2.5">
+        <h2 className={type.sectionTitle}>{title}</h2>
+        {hint && <p className={type.caption}>{hint}</p>}
+      </header>
+      <div className="space-y-4 p-4">{children}</div>
+    </section>
+  );
+}
+
+export function EventCreationWizard({ initialDate, event, onSubmit, onCancel, isLoading }: EventCreationWizardProps) {
+  const { user } = useAuth();
+  const { t, lang } = useI18n();
+
+  const isEditMode = !!event;
+  const autoApproved = user?.role === 'admin' || user?.role === 'principal';
+
+  // Default form data based on edit mode or initial values
   const defaultFormData = useMemo((): EventFormData => {
     if (event) {
-      // Edit mode - populate form with existing event data
       return {
         title: event.title || '',
         description: event.description || '',
@@ -88,655 +97,283 @@ export function EventCreationWizard({
         startTime: event.start_time ? event.start_time.substring(0, 5) : '09:00',
         endTime: event.end_time ? event.end_time.substring(0, 5) : '10:00',
         isFullDay: !event.start_time && !event.end_time,
-        eventType: (event.event_type as 'school_wide' | 'class_specific' | 'teacher_specific') || 'school_wide',
-        classDivisionIds: event.class_division_ids && event.class_division_ids.length > 0 
-          ? event.class_division_ids 
-          : event.class_division_id 
-            ? [event.class_division_id] 
+        eventType: (event.event_type as EventType) || 'school_wide',
+        classDivisionIds:
+          event.class_division_ids && event.class_division_ids.length > 0
+            ? event.class_division_ids
+            : event.class_division_id
+            ? [event.class_division_id]
             : [],
-        eventCategory: (event.event_category as 'general' | 'academic' | 'sports' | 'cultural' | 'holiday' | 'exam' | 'meeting' | 'other') || 'general'
-      };
-    } else {
-      // Create mode - set default values
-      return {
-        title: '',
-        description: '',
-        date: initialDate || '',
-        startTime: '09:00',
-        endTime: '10:00',
-        isFullDay: false,
-        eventType: 'school_wide' as 'school_wide' | 'class_specific' | 'teacher_specific',
-        classDivisionIds: [],
-        eventCategory: 'general' as const
+        eventCategory: (event.event_category as EventCategory) || 'general',
       };
     }
+    return {
+      title: '',
+      description: '',
+      date: initialDate || '',
+      startTime: '09:00',
+      endTime: '10:00',
+      isFullDay: false,
+      eventType: 'school_wide',
+      classDivisionIds: [],
+      eventCategory: 'general',
+    };
   }, [event, initialDate]);
 
-  // Set form data when defaultFormData changes
+  const [formData, setFormData] = useState<EventFormData>(defaultFormData);
   useEffect(() => {
     setFormData(defaultFormData);
   }, [defaultFormData]);
 
-  const [formData, setFormData] = useState<EventFormData>(defaultFormData);
+  const setField = <K extends keyof EventFormData>(key: K, value: EventFormData[K]) =>
+    setFormData((prev) => ({ ...prev, [key]: value }));
 
-  // Update form data when event or initialDate changes (for edit mode)
-  useEffect(() => {
-    if (event || initialDate) {
-      console.log('Setting form data for edit mode:', defaultFormData);
-      setFormData(defaultFormData);
-    }
-  }, [event, initialDate, defaultFormData]);
-
-  // Fetch class divisions on component mount
-  useEffect(() => {
-    const fetchClassDivisions = async () => {
-      if (!token) {
-        return;
-      }
-      
-      try {
-        setLoadingClassDivisions(true);
-        const response = await academicServices.getClassDivisions(token);
-        
-        if (response.status === 'success' && response.data) {
-          setClassDivisions(response.data.class_divisions);
-        }
-      } catch (err) {
-        console.error('Error fetching class divisions:', err);
-      } finally {
-        setLoadingClassDivisions(false);
-      }
-    };
-
-    fetchClassDivisions();
-  }, [token]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
-    const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
-    
-    setFormData(prev => ({
+  const setEventType = (value: EventType) =>
+    setFormData((prev) => ({
       ...prev,
-      [name]: val
+      eventType: value,
+      classDivisionIds: value === 'class_specific' ? prev.classDivisionIds : [],
     }));
-  };
 
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => {
-      const newData = {
-        ...prev,
-        [name]: value
-      };
-      
-      // If event type changes away from class_specific, clear class selections
-      if (name === 'eventType' && value !== 'class_specific') {
-        newData.classDivisionIds = [];
-      }
-      
-      return newData;
-    });
-  };
-
-  const handleClassDivisionChange = (divisionId: string) => {
-    setFormData(prev => {
-      const newClassDivisionIds = prev.classDivisionIds.includes(divisionId)
-        ? prev.classDivisionIds.filter(id => id !== divisionId)
-        : [...prev.classDivisionIds, divisionId];
-      
-      return {
-        ...prev,
-        classDivisionIds: newClassDivisionIds
-      };
-    });
-  };
-
-
-
-  // Select all divisions for a specific grade
-  const handleSelectAllGradeDivisions = (grade: string) => {
-    const gradeDivisions = classDivisions.filter(d => d.class_level?.name === grade);
-    const allGradeDivisionIds = gradeDivisions.map(d => d.id);
-    
-    // Check if all divisions of this grade are already selected
-    const allSelected = allGradeDivisionIds.every(id => formData.classDivisionIds.includes(id));
-    
-    if (allSelected) {
-      // Deselect all divisions of this grade
-      setFormData(prev => ({
-        ...prev,
-        classDivisionIds: prev.classDivisionIds.filter(id => !allGradeDivisionIds.includes(id))
-      }));
-    } else {
-      // Select all divisions of this grade
-      setFormData(prev => ({
-        ...prev,
-        classDivisionIds: [...new Set([...prev.classDivisionIds, ...allGradeDivisionIds])]
-      }));
-    }
-  };
-
-  // Select all divisions
-  const handleSelectAllDivisions = () => {
-    if (formData.classDivisionIds.length === classDivisions.length) {
-      // Deselect all
-      setFormData(prev => ({
-        ...prev,
-        classDivisionIds: []
-      }));
-    } else {
-      // Select all
-      setFormData(prev => ({
-        ...prev,
-        classDivisionIds: classDivisions.map(d => d.id)
-      }));
-    }
-  };
-
-  // Select all filtered divisions
-  const handleSelectAllFilteredDivisions = () => {
-    const filteredIds = filteredClassDivisions.map(d => d.id);
-    const allFilteredSelected = filteredIds.every(id => formData.classDivisionIds.includes(id));
-    
-    if (allFilteredSelected) {
-      // Deselect all filtered
-      setFormData(prev => ({
-        ...prev,
-        classDivisionIds: prev.classDivisionIds.filter(id => !filteredIds.includes(id))
-      }));
-    } else {
-      // Select all filtered
-      setFormData(prev => ({
-        ...prev,
-        classDivisionIds: [...new Set([...prev.classDivisionIds, ...filteredIds])]
-      }));
-    }
-  };
+  // Validation
+  const needsClasses = formData.eventType === 'class_specific' && formData.classDivisionIds.length === 0;
+  const badTimeRange = !formData.isFullDay && !!formData.startTime && !!formData.endTime && formData.endTime <= formData.startTime;
+  const canSubmit = !isLoading && !!formData.title.trim() && !!formData.date && !needsClasses && !badTimeRange;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Set requiresApproval to true by default for all events
+    if (!canSubmit) return;
     onSubmit({
       ...formData,
-      classDivisionIds: formData.eventType === 'class_specific' ? formData.classDivisionIds : []
+      classDivisionIds: formData.eventType === 'class_specific' ? formData.classDivisionIds : [],
     });
   };
 
-  // Filter class divisions based on search term
-  const filteredClassDivisions = classDivisions.filter(division => {
-    if (!classSearchTerm.trim()) return true;
-    
-    const searchLower = classSearchTerm.toLowerCase();
-    const gradeName = division.class_level?.name?.toLowerCase() || '';
-    const divisionName = division.division?.toLowerCase() || '';
-    const fullName = `${gradeName} ${divisionName}`.toLowerCase();
-    
-    return gradeName.includes(searchLower) || 
-           divisionName.includes(searchLower) || 
-           fullName.includes(searchLower);
-  });
-
-  // Group filtered class divisions by grade level
-  const groupedClassDivisions = filteredClassDivisions.reduce((acc, division) => {
-    const grade = division.class_level?.name || 'Unknown';
-    if (!acc[grade]) {
-      acc[grade] = [];
+  // Summary line for the footer
+  const summary = useMemo(() => {
+    const parts: string[] = [];
+    if (formData.date) {
+      const d = new Date(`${formData.date}T00:00:00`);
+      if (!isNaN(d.getTime())) {
+        parts.push(d.toLocaleDateString(lang, { weekday: 'short', day: 'numeric', month: 'short' }));
+      }
     }
-    acc[grade].push(division);
-    return acc;
-  }, {} as Record<string, ClassDivision[]>);
+    parts.push(
+      formData.isFullDay
+        ? t('calendar.form.labels.fullDay', 'Full day')
+        : `${fmtTime(formData.startTime, lang)} – ${fmtTime(formData.endTime, lang)}`
+    );
+    parts.push(
+      formData.eventType === 'class_specific'
+        ? `${formData.classDivisionIds.length} ${t('calendar.form.summary.classesShort', 'classes')}`
+        : t(
+            `calendar.form.eventType.${formData.eventType}`,
+            formData.eventType === 'school_wide' ? 'School wide' : 'Teacher specific'
+          )
+    );
+    return parts.join(' · ');
+  }, [formData, lang, t]);
 
-
-  // Check if all divisions of a grade are selected
-  const isGradeFullySelected = (grade: string) => {
-    const gradeDivisions = filteredClassDivisions.filter(d => d.class_level?.name === grade);
-    const allGradeDivisionIds = gradeDivisions.map(d => d.id);
-    return allGradeDivisionIds.length > 0 && allGradeDivisionIds.every(id => formData.classDivisionIds.includes(id));
-  };
-
-  // Format time for display
-  const formatTime = (time: string) => {
-    if (!time) return '';
-    const [hours, minutes] = time.split(':');
-    const hour = parseInt(hours, 10);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const formattedHour = hour % 12 || 12;
-    return `${formattedHour}:${minutes} ${ampm}`;
-  };
-
-  // Determine if we're in edit mode
-  const isEditMode = !!event;
-
-
+  const typeOptions: { value: EventType; icon: React.ReactNode; label: string; desc: string }[] = [
+    {
+      value: 'school_wide',
+      icon: <School />,
+      label: t('calendar.form.eventType.school_wide', 'School Wide'),
+      desc: t('calendar.form.eventTypeDesc.school_wide', 'Everyone in the school'),
+    },
+    {
+      value: 'class_specific',
+      icon: <BookOpen />,
+      label: t('calendar.form.eventType.class_specific', 'Class Specific'),
+      desc: t('calendar.form.eventTypeDesc.class_specific', 'Only selected classes'),
+    },
+    {
+      value: 'teacher_specific',
+      icon: <User />,
+      label: t('calendar.form.eventType.teacher_specific', 'Teacher Specific'),
+      desc: t('calendar.form.eventTypeDesc.teacher_specific', 'Teachers and staff only'),
+    },
+  ];
 
   return (
-    <form onSubmit={handleSubmit}>
-      <Card className="border-0 shadow-lg">
-        <CardHeader className="border-b bg-gradient-to-r from-primary/5 to-primary/10">
-          <CardTitle className="text-2xl flex items-center gap-2">
-            {isEditMode ? (
-              <>
-                <Edit3 className="h-6 w-6" />
-                {t('calendar.form.editTitle', 'Edit Event')}
-              </>
-            ) : (
-              t('calendar.form.createTitle', 'Create New Event')
-            )}
-          </CardTitle>
-          <CardDescription>
-            {isEditMode 
-              ? t('calendar.form.editSubtitle', 'Update the details for this event') 
-              : t('calendar.form.createSubtitle', 'Fill in the details for your new event')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="py-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main Form Content - Title, Description, and Class Selection */}
-            <div className="lg:col-span-2 space-y-6">
-              <div className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="title" className="text-base font-medium flex items-center gap-2">
-                    <Hash className="h-4 w-4" />
-                    {t('calendar.form.labels.title', 'Event Title')}
-                  </Label>
-                  <Input
-                    id="title"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleInputChange}
-                    placeholder={t('calendar.form.placeholders.title', 'e.g., School Assembly, Sports Day, etc.')}
-                    required
-                    className="h-12 text-base"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description" className="text-base font-medium flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    {t('calendar.form.labels.description', 'Description')}
-                  </Label>
-                  <Textarea
-                    id="description"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    placeholder={t('calendar.form.placeholders.description', 'Enter event description')}
-                    rows={4}
-                    className="text-base min-h-[120px]"
-                  />
-                </div>
-
-                {/* Class Selection (only for class_specific events) */}
-                {formData.eventType === 'class_specific' && (
-                  <div className="space-y-4 pt-2">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-base font-medium flex items-center gap-2">
-                        <Users className="h-5 w-5" />
-                        {t('calendar.form.labels.selectClassDivisions', 'Select Class Divisions')}
-                      </Label>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm"
-                        onClick={classSearchTerm ? handleSelectAllFilteredDivisions : handleSelectAllDivisions}
-                        className="h-9 px-3"
-                      >
-                        {classSearchTerm ? (
-                          filteredClassDivisions.every(d => formData.classDivisionIds.includes(d.id)) 
-                            ? t('calendar.form.actions.deselectFiltered', 'Deselect Filtered') 
-                            : t('calendar.form.actions.selectFiltered', 'Select Filtered')
-                        ) : (
-                          formData.classDivisionIds.length === classDivisions.length 
-                            ? t('calendar.form.actions.deselectAll', 'Deselect All') 
-                            : t('calendar.form.actions.selectAll', 'Select All')
-                        )}
-                      </Button>
-                    </div>
-                    
-                    {/* Search Bar */}
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="text"
-                        placeholder={t('calendar.form.placeholders.searchClasses', 'Search classes...')}
-                        value={classSearchTerm}
-                        onChange={(e) => setClassSearchTerm(e.target.value)}
-                        className="pl-10 pr-10 h-10"
-                      />
-                      {classSearchTerm && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setClassSearchTerm('')}
-                          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                    
-                    {loadingClassDivisions ? (
-                      <div className="flex items-center justify-center p-6">
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> {t('calendar.form.loadingClasses', 'Loading classes...')}
-                      </div>
-                    ) : classDivisions.length === 0 ? (
-                      <div className="text-center p-6 text-muted-foreground border rounded-lg">
-                        {t('calendar.form.noClasses', 'No classes found.')}
-                      </div>
-                    ) : filteredClassDivisions.length === 0 ? (
-                      <div className="text-center p-6 text-muted-foreground border rounded-lg">
-                        <div className="flex flex-col items-center gap-2">
-                          <Search className="h-8 w-8 text-muted-foreground" />
-                          <p>{t('calendar.form.noSearchResults', 'No classes match your search.')}</p>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setClassSearchTerm('')}
-                            className="mt-2"
-                          >
-                            {t('calendar.form.clearSearch', 'Clear Search')}
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-4 max-h-96 overflow-y-auto p-1 rounded-lg border bg-muted/30 dark:bg-muted/10">
-                        {Object.entries(groupedClassDivisions).map(([grade, divisions]) => {
-                          const isGradeSelected = isGradeFullySelected(grade);
-                          return (
-                            <div key={grade} className="space-y-2 bg-background dark:bg-muted/10 rounded-lg p-3 shadow-sm">
-                              <div 
-                                className="flex justify-between items-center cursor-pointer p-2 rounded-md hover:bg-muted/50 dark:hover:bg-muted/20 transition-colors"
-                                onClick={() => handleSelectAllGradeDivisions(grade)}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <Users className="h-4 w-4 text-muted-foreground" />
-                                  <h3 className="font-semibold text-base">{grade}</h3>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-muted-foreground">
-                                    {divisions.filter(d => formData.classDivisionIds.includes(d.id)).length}/{divisions.length} selected
-                                  </span>
-                                  <div className={cn(
-                                    "w-5 h-5 rounded border flex items-center justify-center",
-                                    isGradeSelected 
-                                      ? "bg-primary border-primary" 
-                                      : "border-gray-300 dark:border-gray-600"
-                                  )}>
-                                    {isGradeSelected && (
-                                      <Check className="h-3.5 w-3.5 text-white" />
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pl-2">
-                                {divisions.map(division => (
-                                  <div 
-                                    key={division.id} 
-                                    className={cn(
-                                      "flex items-center space-x-2 p-2 rounded-md cursor-pointer transition-all",
-                                      formData.classDivisionIds.includes(division.id)
-                                        ? "bg-primary/10 border border-primary shadow-sm dark:bg-primary/20"
-                                        : "border hover:bg-muted dark:border-gray-700 dark:hover:bg-muted/20"
-                                    )}
-                                    onClick={() => handleClassDivisionChange(division.id)}
-                                  >
-                                    <div className={cn(
-                                      "w-4 h-4 rounded border flex items-center justify-center flex-shrink-0",
-                                      formData.classDivisionIds.includes(division.id)
-                                        ? "bg-primary border-primary dark:bg-primary dark:border-primary"
-                                        : "border-gray-300 dark:border-gray-600"
-                                    )}>
-                                      {formData.classDivisionIds.includes(division.id) && (
-                                        <Check className="h-3 w-3 text-white" />
-                                      )}
-                                    </div>
-                                    <span className="text-sm font-medium">Section {division.division}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+    <form onSubmit={handleSubmit} className="mx-auto w-full max-w-6xl">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_21rem]">
+        {/* Details */}
+        <Section title={t('calendar.form.section.basics', 'Details')} className="lg:col-start-1">
+          <div className="space-y-1.5">
+            <Label htmlFor="title">{t('calendar.form.labels.title', 'Event Title')}</Label>
+            <Input
+              id="title"
+              value={formData.title}
+              onChange={(e) => setField('title', e.target.value)}
+              placeholder={t('calendar.form.placeholders.title', 'e.g., School Assembly, Sports Day, etc.')}
+              required
+              autoFocus={!isEditMode}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="description">{t('calendar.form.labels.description', 'Description')}</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setField('description', e.target.value)}
+              placeholder={t('calendar.form.placeholders.description', 'Enter event description')}
+              rows={3}
+              className="min-h-20 resize-y"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label id="category-label">{t('calendar.form.labels.category', 'Event Category')}</Label>
+            <div role="radiogroup" aria-labelledby="category-label" className="flex flex-wrap gap-1.5">
+              {CATEGORIES.map((c) => {
+                const active = formData.eventCategory === c;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setField('eventCategory', c)}
+                    className={cn(
+                      'inline-flex h-8 items-center gap-1 rounded-full border px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      active
+                        ? 'border-primary bg-tone-primary-soft font-medium text-tone-primary'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     )}
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {/* Sidebar with Key-Value Fields */}
-            <div className="space-y-6">
-              <Card className="bg-muted/30 dark:bg-muted/10">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Info className="h-5 w-5" />
-                    {t('calendar.form.section.details', 'Event Details')}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-5">
-                  {/* Date Field */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      {t('calendar.form.labels.date', 'Date')}
-                    </Label>
-                    <Input
-                      type="date"
-                      name="date"
-                      value={formData.date}
-                      onChange={handleInputChange}
-                      className="h-10"
-                      required
-                    />
-                  </div>
-                  
-                  {/* Time Fields */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        {t('calendar.form.labels.time', 'Time')}
-                      </Label>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          id="sidebar-isFullDay"
-                          name="isFullDay"
-                          type="checkbox"
-                          checked={formData.isFullDay}
-                          onChange={handleInputChange}
-                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-600"
-                        />
-                        <Label htmlFor="sidebar-isFullDay" className="text-sm">{t('calendar.form.labels.fullDay', 'Full Day')}</Label>
-                      </div>
-                    </div>
-                    
-                    {!formData.isFullDay && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-xs text-muted-foreground">{t('calendar.form.labels.start', 'Start')}</Label>
-                          <Input
-                            type="time"
-                            name="startTime"
-                            value={formData.startTime}
-                            onChange={handleInputChange}
-                            className="h-10"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs text-muted-foreground">{t('calendar.form.labels.end', 'End')}</Label>
-                          <Input
-                            type="time"
-                            name="endTime"
-                            value={formData.endTime}
-                            onChange={handleInputChange}
-                            className="h-10"
-                            required
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Event Type */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">{t('calendar.form.labels.eventType', 'Event Type')}</Label>
-                    <Select 
-                      value={formData.eventType} 
-                      onValueChange={(value) => handleSelectChange('eventType', value)}
-                    >
-                      <SelectTrigger className="h-10 text-base">
-                        <SelectValue placeholder={t('calendar.form.placeholders.eventType', 'Select event type')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="school_wide">
-                          <div className="flex items-center gap-2">
-                            <School className="h-4 w-4" />
-                            <span>{t('calendar.form.eventType.school_wide', 'School Wide')}</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="class_specific">
-                          <div className="flex items-center gap-2">
-                            <BookOpen className="h-4 w-4" />
-                            <span>{t('calendar.form.eventType.class_specific', 'Class Specific')}</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="teacher_specific">
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4" />
-                            <span>{t('calendar.form.eventType.teacher_specific', 'Teacher Specific')}</span>
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  {/* Event Category */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">{t('calendar.form.labels.category', 'Event Category')}</Label>
-                    <Select 
-                      value={formData.eventCategory} 
-                      onValueChange={(value) => handleSelectChange('eventCategory', value)}
-                    >
-                      <SelectTrigger className="h-10 text-base">
-                        <SelectValue placeholder={t('calendar.form.placeholders.category', 'Select category')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="general">{t('calendar.form.category.general', 'General')}</SelectItem>
-                        <SelectItem value="academic">{t('calendar.form.category.academic', 'Academic')}</SelectItem>
-                        <SelectItem value="sports">{t('calendar.form.category.sports', 'Sports')}</SelectItem>
-                        <SelectItem value="cultural">{t('calendar.form.category.cultural', 'Cultural')}</SelectItem>
-                        <SelectItem value="holiday">{t('calendar.form.category.holiday', 'Holiday')}</SelectItem>
-                        <SelectItem value="exam">{t('calendar.form.category.exam', 'Exam')}</SelectItem>
-                        <SelectItem value="meeting">{t('calendar.form.category.meeting', 'Meeting')}</SelectItem>
-                        <SelectItem value="other">{t('calendar.form.category.other', 'Other')}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  {/* Event Summary */}
-                  <div className="space-y-3 pt-2 border-t dark:border-gray-700">
-                    <h3 className="text-sm font-medium text-muted-foreground">{t('calendar.form.summary.title', 'Event Summary')}</h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">{t('calendar.form.summary.date', 'Date:')}</span>
-                        <span className="font-medium">
-                          {formData.date 
-                            ? new Date(formData.date).toLocaleDateString(undefined, { 
-                                weekday: 'short', 
-                                month: 'short', 
-                                day: 'numeric' 
-                              })
-                            : t('calendar.form.summary.notSelected', 'Not selected')}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">{t('calendar.form.summary.time', 'Time:')}</span>
-                        <span className="font-medium">
-                          {formData.isFullDay ? t('calendar.form.labels.fullDay', 'Full Day') : `${formatTime(formData.startTime)} - ${formatTime(formData.endTime)}`}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">{t('calendar.form.summary.type', 'Type:')}</span>
-                        <span className="font-medium">
-                          {formData.eventType === 'school_wide' ? t('calendar.form.eventType.school_wide', 'School Wide') : formData.eventType === 'class_specific' ? t('calendar.form.eventType.class_specific', 'Class Specific') : t('calendar.form.eventType.teacher_specific', 'Teacher Specific')}
-                        </span>
-                      </div>
-                      {formData.eventType === 'class_specific' && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">{t('calendar.form.summary.classes', 'Classes:')}</span>
-                          <span className="font-medium text-right max-w-[60%]">
-                            {formData.classDivisionIds.length > 0 ? (
-                              <div className="space-y-1">
-                                {formData.classDivisionIds.map(classId => {
-                                  const classDivision = classDivisions.find(d => d.id === classId);
-                                  return classDivision ? (
-                                    <div key={classId} className="text-xs">
-                                      {classDivision.class_level?.name} {classDivision.division}
-                                    </div>
-                                  ) : null;
-                                })}
-                              </div>
-                            ) : (
-                              t('calendar.form.summary.noClasses', 'No classes selected')
-                            )}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">{t('calendar.form.summary.category', 'Category:')}</span>
-                        <span className="font-medium capitalize">
-                          {t(`calendar.form.category.${formData.eventCategory}`, formData.eventCategory)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/30 rounded-lg p-4">
-                <div className="flex items-start gap-2">
-                  <div className="mt-0.5 w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></div>
-                  <div>
-                    <p className="text-sm font-medium">{t('calendar.form.approvalRequiredTitle', 'Approval Required')}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t('calendar.form.approvalRequiredDesc', 'All events require approval from the Principal before they appear on the calendar.')}
-                    </p>
-                  </div>
-                </div>
-              </div>
+                  >
+                    {active && <Check className="size-3.5" />}
+                    {t(`calendar.form.category.${c}`, c)}
+                  </button>
+                );
+              })}
             </div>
           </div>
-        </CardContent>
-        <CardFooter className="flex justify-between border-t bg-muted/30 dark:bg-muted/10 py-4">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={onCancel}
-            disabled={isLoading}
-            className="h-11 px-6"
-          >
-            {t('actions.cancel', 'Cancel')}
-          </Button>
-          
-          <Button 
-            type="submit" 
-            disabled={isLoading}
-            className="h-11 px-6"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? t('calendar.form.updating', 'Updating...') : t('calendar.form.creating', 'Creating...')}
-              </>
-            ) : (
-              isEditMode ? t('calendar.form.update', 'Update Event') : t('calendar.form.create', 'Create Event')
+        </Section>
+
+        {/* Schedule + actions (right column on desktop) */}
+        <div className="space-y-4 lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          <Section title={t('calendar.form.section.when', 'When')}>
+            <div className="space-y-1.5">
+              <Label htmlFor="date">{t('calendar.form.labels.date', 'Date')}</Label>
+              <DateField id="date" value={formData.date} onChange={(v) => setField('date', v)} invalid={!formData.date} />
+            </div>
+
+            <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+              <Label htmlFor="isFullDay" className="cursor-pointer font-normal">
+                {t('calendar.form.labels.fullDay', 'Full Day')}
+              </Label>
+              <Switch id="isFullDay" checked={formData.isFullDay} onCheckedChange={(v) => setField('isFullDay', v)} />
+            </div>
+
+            <div className={cn('grid grid-cols-2 gap-3 transition-opacity', formData.isFullDay && 'pointer-events-none opacity-50')}>
+              <div className="space-y-1.5">
+                <Label htmlFor="startTime">{t('calendar.form.labels.start', 'Start')}</Label>
+                <TimeField
+                  id="startTime"
+                  value={formData.startTime}
+                  onChange={(v) => {
+                    // keep the same duration when the start moves
+                    setFormData((prev) => {
+                      const dur = Math.max(15, timeToMin(prev.endTime) - timeToMin(prev.startTime));
+                      const end = Math.min(23 * 60 + 45, timeToMin(v) + dur);
+                      return { ...prev, startTime: v, endTime: minToTime(end) };
+                    });
+                  }}
+                  disabled={formData.isFullDay}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="endTime">{t('calendar.form.labels.end', 'End')}</Label>
+                <TimeField
+                  id="endTime"
+                  value={formData.endTime}
+                  onChange={(v) => setField('endTime', v)}
+                  disabled={formData.isFullDay}
+                  invalid={badTimeRange}
+                  after={formData.startTime}
+                />
+              </div>
+            </div>
+            {badTimeRange && (
+              <p className="text-xs font-medium text-tone-danger">
+                {t('calendar.form.errors.endBeforeStart', 'End time must be after the start time.')}
+              </p>
             )}
-          </Button>
-        </CardFooter>
-      </Card>
+          </Section>
+
+          {/* Summary + actions */}
+          <div className={cn(surface.panel, 'space-y-3 p-4 max-lg:fixed max-lg:inset-x-3 max-lg:bottom-3 max-lg:z-30 max-lg:space-y-2 max-lg:p-3 max-lg:shadow-lg')}>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{formData.title.trim() || t('calendar.form.untitled', 'Untitled event')}</p>
+              <p className={cn(type.caption, 'mt-0.5')}>{summary}</p>
+              {!autoApproved && (
+                <p className="mt-1.5 flex items-start gap-1 text-[11px] leading-snug text-tone-warning max-lg:hidden">
+                  <Info className="mt-0.5 size-3 shrink-0" />
+                  {t('calendar.form.needsApproval', 'Needs principal approval before it appears on the calendar')}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2 lg:flex-col-reverse lg:items-stretch">
+              <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading} className="max-lg:flex-1">
+                {t('actions.cancel', 'Cancel')}
+              </Button>
+              <Button type="submit" disabled={!canSubmit} className="max-lg:flex-1">
+                {isLoading ? (
+                  <>
+                    <Loader2 className="animate-spin" />
+                    {isEditMode ? t('calendar.form.updating', 'Updating...') : t('calendar.form.creating', 'Creating...')}
+                  </>
+                ) : isEditMode ? (
+                  t('calendar.form.update', 'Update Event')
+                ) : (
+                  t('calendar.form.create', 'Create Event')
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Audience */}
+        <Section title={t('calendar.form.section.audience', 'Who is it for?')} className="lg:col-start-1">
+          <div role="radiogroup" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {typeOptions.map((opt) => {
+              const active = formData.eventType === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setEventType(opt.value)}
+                  className={cn(
+                    'flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    active ? 'border-primary bg-tone-primary-soft' : 'hover:bg-muted/50'
+                  )}
+                >
+                  <span className={cn('mt-0.5 [&_svg]:size-4', active ? 'text-tone-primary' : 'text-muted-foreground')}>
+                    {opt.icon}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium leading-tight">{opt.label}</span>
+                    <span className={cn(type.caption, 'mt-0.5 block')}>{opt.desc}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {formData.eventType === 'class_specific' && (
+            <ClassPicker
+              selected={formData.classDivisionIds}
+              onChange={(ids) => setField('classDivisionIds', ids)}
+              required
+            />
+          )}
+        </Section>
+      </div>
+
+      {/* room so the floating mobile action bar never covers content */}
+      <div className="h-24 lg:hidden" aria-hidden />
     </form>
   );
 }

@@ -4,18 +4,9 @@
 
 import { useAuth } from '@/lib/auth/context';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { Search, Plus, Loader2, GraduationCap, UserCheck } from 'lucide-react';
+import { Search, Plus, Users, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -23,9 +14,17 @@ import { studentServices, Student } from '@/lib/api/students';
 import { classDivisionsServices, ClassDivision as ApiClassDivision } from '@/lib/api/class-divisions';
 import { useI18n } from '@/lib/i18n/context';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { MetricCard } from '@/components/dashboard/metric-card';
-import { useSchoolStats } from '@/hooks/use-school-stats';
+import { EmptyState, IconChip, InlineError, Pill } from '@/components/ui/page-kit';
+import { surface, type } from '@/lib/design/tokens';
+import { cn } from '@/lib/utils';
+
+const initialsOf = (name?: string) =>
+  (name || '?')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
 
 export default function StudentsPage() {
   const { user, token } = useAuth();
@@ -33,14 +32,6 @@ export default function StudentsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const canAccess = user?.role === 'admin' || user?.role === 'principal';
-  const {
-    totalStaff,
-    loading: staffStatsLoading,
-    error: staffStatsError
-  } = useSchoolStats({
-    enabled: canAccess,
-    fetchStudents: false
-  });
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -250,214 +241,210 @@ export default function StudentsPage() {
   // Only allow admins and principals to access this page
   if (!canAccess) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">{t('access.deniedTitle', 'Access Denied')}</h2>
-          <p className="text-gray-600">{t('access.adminsOnly', 'Only admins and principals can access this page.')}</p>
-        </div>
-      </div>
+      <EmptyState
+        title={t('access.deniedTitle', 'Access Denied')}
+        help={t('access.adminsOnly', 'Only admins and principals can access this page.')}
+      />
     );
   }
 
-  if (loading && students.length === 0) {
-    return (
-      <ProtectedRoute>
-        <div className="container max-w-6xl mx-auto py-8">
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin" />
-            <span className="ml-2">{t('students.loading', 'Loading students...')}</span>
-          </div>
-        </div>
-      </ProtectedRoute>
-    );
-  }
+  const classLabelOf = (record?: Student['student_academic_records'][number]) => {
+    const division = record?.class_division;
+    if (!division) return null;
+    return division.class_level?.name
+      ? `${division.class_level.name} - ${t('timetable.section')} ${division.division}`
+      : `${t('timetable.section')} ${division.division}`;
+  };
+
+  const hasFilters = !!(filters.search || filters.class_division_id);
+  const detailQuery = filters.class_division_id ? `?class_division_id=${filters.class_division_id}` : '';
+  const rowGrid = 'grid items-center gap-x-3 px-4 sm:grid-cols-[3rem_minmax(0,1fr)_minmax(0,12rem)_auto] grid-cols-[minmax(0,1fr)_auto]';
+
+  const clearFilters = () => {
+    setFilters((f) => ({ ...f, search: '', class_division_id: '', page: 1 }));
+    setSelectedAcademicYearId(undefined);
+    router.push('/students', { scroll: false });
+  };
 
   return (
     <ProtectedRoute>
-      <div className="space-y-6">
-        {canAccess && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <MetricCard
-                label={t('common.totalStudents', 'Total Students')}
-                value={studentTotalCount}
-                icon={<GraduationCap className="h-5 w-5" />}
-                loading={isStudentTotalLoading}
-              />
-              <MetricCard
-                label={t('common.totalStaff', 'Total Staff')}
-                value={totalStaff}
-                icon={<UserCheck className="h-5 w-5" />}
-                loading={staffStatsLoading}
-              />
-            </div>
-            {staffStatsError && !staffStatsLoading && (
-              <Alert variant="destructive">
-                <AlertDescription>{staffStatsError}</AlertDescription>
-              </Alert>
+      <div className="mx-auto w-full max-w-6xl space-y-4">
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[12rem] flex-1 sm:max-w-xs">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={t('students.searchPlaceholder', 'Search students...')}
+              className="pl-8"
+              value={filters.search}
+              onChange={handleSearchChange}
+              aria-label={t('students.searchPlaceholder', 'Search students...')}
+            />
+          </div>
+          <select
+            className="h-9 max-w-[14rem] rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30"
+            value={filters.class_division_id}
+            onChange={(e) => handleFilterChange('class_division_id', e.target.value)}
+            aria-label={t('students.allClasses', 'All Classes/Divisions')}
+          >
+            <option value="">{t('students.allClasses', 'All Classes/Divisions')}</option>
+            {classDivisionsList.map((div) => (
+              <option key={div.id} value={div.id}>
+                {div.class_level?.name} - {t('timetable.section')} {div.division}
+              </option>
+            ))}
+          </select>
+          {hasFilters && (
+            <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              <X className="size-3.5" />
+              {t('students.clearFilters', 'Clear filters')}
+            </button>
+          )}
+
+          <div className="ml-auto flex items-center gap-3">
+            {isStudentTotalLoading ? (
+              <Skeleton className="h-4 w-20" />
+            ) : (
+              studentTotalCount !== null && (
+                <span className={cn(type.caption, 'tabular-nums')}>
+                  {studentTotalCount.toLocaleString()} {t('students.countLabel', 'students')}
+                </span>
+              )
             )}
+            <Button asChild size="sm">
+              <Link href="/students/create">
+                <Plus />
+                {t('students.addStudent')}
+              </Link>
+            </Button>
           </div>
-        )}
-
-        {/* Action Bar */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="relative w-64">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder={t('students.searchPlaceholder', 'Search students...')} 
-                className="pl-8"
-                value={filters.search}
-                onChange={handleSearchChange}
-              />
-            </div>
-            <select 
-              className="border rounded-md px-3 py-2 text-sm"
-              value={filters.class_division_id}
-              onChange={(e) => handleFilterChange('class_division_id', e.target.value)}
-            >
-              <option value="">{t('students.allClasses', 'All Classes/Divisions')}</option>
-              {classDivisionsList.map(div => (
-                <option key={div.id} value={div.id}>
-                  {div.class_level?.name} - {t('timetable.section')} {div.division}
-                </option>
-              ))}
-            </select>
-
-          </div>
-          <Button asChild>
-            <Link href="/students/create">
-              <Plus className="mr-2 h-4 w-4" />
-              {t('students.addStudent')}
-            </Link>
-          </Button>
         </div>
 
-        {error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-red-800">{error}</p>
-          </div>
-        )}
+        {error && <InlineError title={error} />}
 
-        {/* Students Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('students.listTitle')}</CardTitle>
-            <CardDescription>
-              {t('students.listSubtitle')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('students.cols.rollNo')}</TableHead>
-                    <TableHead>{t('students.cols.name')}</TableHead>
-                    <TableHead>{t('students.cols.class')}</TableHead>
-                    <TableHead className="text-right">{t('students.cols.actions')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    // Skeleton loading state while refetching due to filter change
-                    Array.from({ length: Math.min(8, filters.limit) }).map((_, idx) => (
-                      <TableRow key={`skeleton-${idx}`}>
-                        <TableCell className="py-4">
-                          <Skeleton className="h-4 w-16" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-4 w-48" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-4 w-40" />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Skeleton className="h-8 w-16" />
-                            <Skeleton className="h-8 w-16" />
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : students.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                        {filters.search || filters.class_division_id 
-                          ? t('students.emptyFiltered')
-                          : t('students.empty')
-                        }
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    students.map((student) => {
-                      const currentRecord = student.student_academic_records.find(record => record.status === 'ongoing');
-                      
-                      return (
-                        <TableRow key={student.id}>
-                          <TableCell className="font-medium">
-                            {currentRecord?.roll_number || t('students.na', 'N/A')}
-                          </TableCell>
-                          <TableCell>{student.full_name}</TableCell>
-                          <TableCell>
-                            {currentRecord?.class_division?.class_level?.name ? 
-                              `${currentRecord.class_division.class_level.name} - ${t('timetable.section')} ${currentRecord.class_division.division}` : 
-                              currentRecord?.class_division ? 
-                                `${t('timetable.section')} ${currentRecord.class_division.division}` :
-                                t('students.na', 'N/A')
-                            }
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="outline" size="sm" className="mr-2" asChild>
-                              <Link href={`/students/${student.id}${filters.class_division_id ? `?class_division_id=${filters.class_division_id}` : ''}`}>
-                                {t('actions.view', 'View')}
-                              </Link>
-                            </Button>
-                            <Button variant="outline" size="sm" asChild>
-                              <Link href={`/students/${student.id}/edit${filters.class_division_id ? `?class_division_id=${filters.class_division_id}` : ''}`}>
-                                {t('actions.edit', 'Edit')}
-                              </Link>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-
-            {/* Pagination */}
-            {pagination && pagination.total_pages > 1 && (
-              <div className="flex items-center justify-between mt-4">
-                <div className="text-sm text-gray-700">
-                  {t('pagination.showing', 'Showing')} {((filters.page - 1) * filters.limit) + 1} {t('pagination.to', 'to')} {Math.min(filters.page * filters.limit, pagination.total)} {t('pagination.of', 'of')} {pagination.total} {t('pagination.results', 'results')}
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(filters.page - 1)}
-                    disabled={filters.page <= 1}
-                  >
-                    {t('pagination.previous', 'Previous')}
-                  </Button>
-                  <span className="flex items-center px-3 py-2 text-sm">
-                    {t('pagination.page', 'Page')} {filters.page} {t('pagination.of', 'of')} {pagination.total_pages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(filters.page + 1)}
-                    disabled={filters.page >= (pagination?.total_pages || 1)}
-                  >
-                    {t('pagination.next', 'Next')}
-                  </Button>
-                </div>
-              </div>
+        {/* Student list */}
+        <section className={cn(surface.panel, 'overflow-hidden')}>
+          <div
+            className={cn(
+              rowGrid,
+              'hidden border-b bg-muted/40 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:grid'
             )}
-          </CardContent>
-        </Card>
+          >
+            <span>{t('students.cols.rollNo')}</span>
+            <span>{t('students.cols.name')}</span>
+            <span>{t('students.cols.class')}</span>
+            <span className="text-right">{t('students.cols.actions')}</span>
+          </div>
+
+          {loading ? (
+            <ul className="divide-y">
+              {Array.from({ length: 8 }).map((_, idx) => (
+                <li key={idx} className={cn(rowGrid, 'py-3')}>
+                  <Skeleton className="hidden h-4 w-8 sm:block" />
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="size-8 rounded-full" />
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-3.5 w-40" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </div>
+                  <Skeleton className="hidden h-5 w-28 rounded-full sm:block" />
+                  <Skeleton className="h-8 w-16" />
+                </li>
+              ))}
+            </ul>
+          ) : students.length === 0 ? (
+            <EmptyState
+              icon={<Users />}
+              title={hasFilters ? t('students.emptyFiltered') : t('students.empty')}
+              help={
+                hasFilters ? (
+                  <button type="button" onClick={clearFilters} className="font-medium text-primary hover:underline">
+                    {t('students.clearFilters', 'Clear filters')}
+                  </button>
+                ) : undefined
+              }
+            />
+          ) : (
+            <ul className="divide-y">
+              {students.map((student) => {
+                const record = student.student_academic_records.find((r) => r.status === 'ongoing');
+                const classLabel = classLabelOf(record);
+                return (
+                  <li key={student.id} className={cn(rowGrid, 'py-2.5', surface.rowHover)}>
+                    <span className="hidden text-sm font-medium tabular-nums text-muted-foreground sm:block">
+                      {record?.roll_number || t('students.na', 'N/A')}
+                    </span>
+
+                    <div className="flex min-w-0 items-center gap-3">
+                      <IconChip className="size-8 rounded-full text-xs font-semibold">
+                        {initialsOf(student.full_name)}
+                      </IconChip>
+                      <div className="min-w-0">
+                        <Link
+                          href={`/students/${student.id}${detailQuery}`}
+                          className={cn(type.rowTitle, 'block truncate hover:text-primary hover:underline')}
+                        >
+                          {student.full_name}
+                        </Link>
+                        <p className={cn(type.caption, 'truncate')}>
+                          {student.admission_number}
+                          <span className="sm:hidden">
+                            {record?.roll_number ? ` · ${t('students.cols.rollNo')} ${record.roll_number}` : ''}
+                            {classLabel ? ` · ${classLabel}` : ''}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="hidden min-w-0 sm:block">
+                      {classLabel ? (
+                        <Pill tone="primary" className="max-w-full truncate">
+                          {classLabel}
+                        </Pill>
+                      ) : (
+                        <span className={type.caption}>{t('students.na', 'N/A')}</span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/students/${student.id}${detailQuery}`}>{t('actions.view', 'View')}</Link>
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {/* Pagination */}
+          {pagination && pagination.total_pages > 1 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-2.5">
+              <p className={cn(type.caption, 'tabular-nums')}>
+                {t('pagination.showing', 'Showing')} {(filters.page - 1) * filters.limit + 1} {t('pagination.to', 'to')}{' '}
+                {Math.min(filters.page * filters.limit, pagination.total)} {t('pagination.of', 'of')} {pagination.total}{' '}
+                {t('pagination.results', 'results')}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => handlePageChange(filters.page - 1)} disabled={filters.page <= 1}>
+                  {t('pagination.previous', 'Previous')}
+                </Button>
+                <span className={cn(type.caption, 'tabular-nums')}>
+                  {filters.page} / {pagination.total_pages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(filters.page + 1)}
+                  disabled={filters.page >= (pagination?.total_pages || 1)}
+                >
+                  {t('pagination.next', 'Next')}
+                </Button>
+              </div>
+            </div>
+          )}
+        </section>
       </div>
     </ProtectedRoute>
   );

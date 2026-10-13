@@ -3,14 +3,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Calendar, Clock, MapPin, Users, BookOpen, Clipboard } from 'lucide-react';
-import Link from 'next/link';
+import { Calendar, Users, BookOpen, Clipboard } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { calendarServices } from '@/lib/api';
 import { CalendarEvent } from '@/lib/api/calendar';
 import { useI18n } from '@/lib/i18n/context';
+import { Panel, RowList, ListRow, IconChip, Pill, EmptyState, InlineError, PanelSkeleton } from '@/components/ui/page-kit';
+import type { Tone } from '@/lib/design/tokens';
 
 export function UpcomingEvents() {
   const { user, token } = useAuth();
@@ -154,149 +153,102 @@ export function UpcomingEvents() {
     });
   };
 
+  const trimSeconds = (time?: string | null) =>
+    time && /^\d{2}:\d{2}:\d{2}$/.test(time) ? time.slice(0, 5) : time;
+
   const getEventIcon = (category: string) => {
     switch (category.toLowerCase()) {
       case 'academic':
-        return <BookOpen className="h-4 w-4" />;
+        return <BookOpen />;
       case 'meeting':
-        return <Users className="h-4 w-4" />;
+        return <Users />;
       case 'homework':
-        return <Clipboard className="h-4 w-4" />;
+        return <Clipboard />;
       default:
-        return <Calendar className="h-4 w-4" />;
+        return <Calendar />;
     }
   };
 
-  const getEventColor = (category: string) => {
+  const getEventTone = (category: string): Tone => {
     switch (category.toLowerCase()) {
       case 'academic':
-        return 'text-blue-600 bg-blue-50 dark:bg-blue-900/20';
+        return 'primary';
       case 'meeting':
-        return 'text-purple-600 bg-purple-50 dark:bg-purple-900/20';
+        return 'violet';
       case 'homework':
-        return 'text-orange-600 bg-orange-50 dark:bg-orange-900/20';
+        return 'warning';
       default:
-        return 'text-gray-600 bg-gray-50 dark:bg-gray-900/20';
+        return 'neutral';
     }
+  };
+
+  const panelProps = {
+    title: t('dashboard.events.title', 'Upcoming Events'),
+    icon: <Calendar />,
+    href: '/calendar',
+    hrefLabel: t('common.viewAll', 'View All'),
+    flush: true,
   };
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            {t('dashboard.events.title', 'Upcoming Events')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-4 text-muted-foreground">
-            {t('dashboard.events.loading', 'Loading events...')}
-          </div>
-        </CardContent>
-      </Card>
+      <Panel {...panelProps}>
+        <PanelSkeleton />
+      </Panel>
     );
   }
 
   if (error) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            {t('dashboard.events.title', 'Upcoming Events')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-red-500 mb-2">{t('dashboard.events.loadFailed', 'Failed to load events')}</p>
-            <p className="text-xs">{error}</p>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="mt-3"
-              onClick={() => window.location.reload()}
-            >
-              {t('actions.refresh', 'Refresh')}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <Panel {...panelProps}>
+        <InlineError
+          title={t('dashboard.events.loadFailed', 'Failed to load events')}
+          detail={error}
+          onRetry={() => window.location.reload()}
+          retryLabel={t('actions.refresh', 'Refresh')}
+        />
+      </Panel>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            {t('dashboard.events.title', 'Upcoming Events')}
-          </CardTitle>
-          <Button variant="ghost" size="sm" className="text-xs" asChild>
-            <Link href="/calendar">
-              {t('common.viewAll', 'View All')}
-            </Link>
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {events.length > 0 ? (
-          <div className="space-y-3">
-            {events.map((event) => (
-              <div key={event.id} className="p-3 rounded-lg border hover:bg-muted/30 transition-colors">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className={`p-1.5 rounded-full ${getEventColor(event.event_category)}`}>
-                      {getEventIcon(event.event_category)}
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-sm">{event.title}</h4>
-                    </div>
-                  </div>
-                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${getEventColor(event.event_category)}`}>
-                    {event.event_category}
-                  </div>
-                </div>
-                
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    <span>
-                      {formatDate(event.event_date)} {t('dashboard.events.at', 'at')} {formatTime(event.event_date)}
+    <Panel {...panelProps}>
+      {events.length > 0 ? (
+        <RowList>
+          {events.map((event) => {
+            const creator = event.creator?.full_name || event.creator_name;
+            return (
+              <ListRow
+                key={event.id}
+                icon={<IconChip tone={getEventTone(event.event_category)}>{getEventIcon(event.event_category)}</IconChip>}
+                title={event.title}
+                trailing={<Pill tone={getEventTone(event.event_category)}>{event.event_category}</Pill>}
+                meta={[
+                  <span key="d">
+                    {formatDate(event.event_date)} {t('dashboard.events.at', 'at')} {formatTime(event.event_date)}
+                  </span>,
+                  (event.start_time || event.end_time) && (
+                    <span key="t">
+                      {trimSeconds(event.start_time) || 'N/A'} - {trimSeconds(event.end_time) || 'N/A'}
                     </span>
-                  </div>
-                  
-                  {(event.start_time || event.end_time) && (
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      <span>
-                        {event.start_time || 'N/A'} - {event.end_time || 'N/A'}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {(event.creator?.full_name || event.creator_name) && (
-                    <div className="flex items-center gap-1">
-                      <Users className="h-3 w-3" />
-                      <span>
-                        {t('dashboard.events.createdBy', 'Created by')} {event.creator?.full_name || event.creator_name}
-                      </span>
-                  </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>{t('dashboard.events.emptyTitle', 'No upcoming events')}</p>
-            <p className="text-xs">{t('dashboard.events.emptyHelp', 'Events will appear here when scheduled')}</p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                  ),
+                  creator && (
+                    <span key="c">
+                      {t('dashboard.events.createdBy', 'Created by')} {creator}
+                    </span>
+                  ),
+                ]}
+              />
+            );
+          })}
+        </RowList>
+      ) : (
+        <EmptyState
+          icon={<Calendar />}
+          title={t('dashboard.events.emptyTitle', 'No upcoming events')}
+          help={t('dashboard.events.emptyHelp', 'Events will appear here when scheduled')}
+        />
+      )}
+    </Panel>
   );
 }

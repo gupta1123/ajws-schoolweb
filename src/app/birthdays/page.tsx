@@ -2,325 +2,378 @@
 
 'use client';
 
-import { useTheme } from '@/lib/theme/context';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Cake, Check, Copy, Gift, PartyPopper, Search, Sparkles, X } from 'lucide-react';
 import { ProtectedRoute } from '@/lib/auth/protected-route';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Cake, Calendar, Users, Gift, AlertTriangle, User, GraduationCap, Briefcase, X, Loader2 } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState, InlineError } from '@/components/ui/page-kit';
 import { useBirthdays, BirthdayData } from '@/hooks/use-birthdays';
 import { useI18n } from '@/lib/i18n/context';
+import { cn } from '@/lib/utils';
+import { surface, toneClass, type, type Tone } from '@/lib/design/tokens';
 
-// Modern, compact Birthday card component
-const BirthdayCard = ({ 
-  birthday
-}: { 
-  birthday: BirthdayData;
-}) => {
-  const isToday = birthday.daysUntil === 0;
-  const { colorScheme } = useTheme();
-  const { t } = useI18n();
-  
-  // Get theme color classes
-  const getColorClasses = () => {
-    switch (colorScheme) {
-      case 'blue':
-        return 'bg-blue-500 text-white';
-      case 'green':
-        return 'bg-green-500 text-white';
-      case 'purple':
-        return 'bg-purple-500 text-white';
-      case 'orange':
-        return 'bg-orange-500 text-white';
-      default:
-        return 'bg-pink-500 text-white';
-    }
-  };
-  
-  const getTypeIcon = () => {
-    switch (birthday.type) {
-      case 'student':
-        return <GraduationCap className="h-3.5 w-3.5" />;
-      case 'teacher':
-        return <User className="h-3.5 w-3.5" />;
-      case 'staff':
-        return <Briefcase className="h-3.5 w-3.5" />;
-      default:
-        return <User className="h-3.5 w-3.5" />;
-    }
-  };
+type RangeKey = 'today' | 'tomorrow' | 'next7' | 'month' | 'nextMonth';
 
-  const getTypeLabel = () => {
-    switch (birthday.type) {
-      case 'student':
-        return t('common.students');
-      case 'teacher':
-        return t('common.teacher');
-      case 'staff':
-        return t('common.staff');
-      default:
-        return t('birthdays.person', 'Person');
-    }
-  };
+interface Entry {
+  b: BirthdayData;
+  occurrence: Date; // next time the birthday falls (local midnight)
+  days: number; // whole days from today
+  age: number | null; // age they turn
+  grade: string;
+  seq: number;
+  division: string;
+}
 
-  // Extract grade and division from academic records or class string
-  const getGradeAndDivision = () => {
-    // First try to get from academicRecords
-    if (birthday.academicRecords && birthday.academicRecords.length > 0) {
-      const record = birthday.academicRecords[0];
-      if (record.class_division) {
-        const level = record.class_division.level;
-        const division = record.class_division.division;
-        return {
-          grade: level?.name || null,
-          division: division || null
-        };
-      }
-    }
-    
-    // Fallback to parsing from class string
-    if (birthday.class) {
-      // Expected format: "Grade X - Section Y" or "Grade X Section Y"
-      const gradeMatch = birthday.class.match(/Grade\s+(\w+)/i);
-      const divisionMatch = birthday.class.match(/Section\s+([A-Z])/i) || birthday.class.match(/([A-Z])$/);
-      
-      return {
-        grade: gradeMatch ? gradeMatch[1] : null,
-        division: divisionMatch ? divisionMatch[1] : null
-      };
-    }
-    
-    return { grade: null, division: null };
-  };
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
-  // Format date as "25 Aug" without year
-  const formatBirthdayDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      const day = date.getDate();
-      const month = date.toLocaleString('default', { month: 'short' });
-      return `${day} ${month}`;
-    } catch {
-      // If date parsing fails, return the original string
-      return dateString;
-    }
-  };
-
-  const { grade, division } = getGradeAndDivision();
-  const formattedDate = formatBirthdayDate(birthday.date);
-
-  return (
-    <Card className="rounded-lg border hover:shadow-md transition-all duration-200">
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          {/* Avatar */}
-          <div className="flex-shrink-0 relative">
-            <div className={`w-12 h-12 rounded-lg ${getColorClasses()} flex items-center justify-center font-bold text-base`}>
-              {birthday.avatar}
-            </div>
-            {isToday && (
-              <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center border-2 border-white dark:border-gray-800">
-                <Gift className="h-2.5 w-2.5 text-white" />
-              </div>
-            )}
-          </div>
-          
-          {/* Content */}
-          <div className="flex-grow min-w-0">
-            <div className="flex justify-between items-start">
-              <h3 className="font-semibold text-gray-900 dark:text-white truncate">{birthday.name}</h3>
-              <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{formattedDate}</span>
-            </div>
-            
-            {/* Badges */}
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {/* Type badge */}
-              <div className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                {getTypeIcon()}
-                <span>{getTypeLabel()}</span>
-              </div>
-              
-              {/* Grade and Division in one line */}
-              {(grade || division) && (
-                <div className="text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium">
-                  {grade && division ? `${grade} - ${t('birthdays.sectionShort', 'Sec')} ${division}` : grade ? grade : `${t('birthdays.sectionShort', 'Sec')} ${division}`}
-                </div>
-              )}
-              
-              {/* Department */}
-              {birthday.department && (
-                <div className="text-xs px-2 py-1 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium">
-                  {birthday.department}
-                </div>
-              )}
-            </div>
-            
-            {/* Days until */}
-            <div className="mt-3">
-              <div className={`text-sm font-medium ${isToday ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300'}`}>
-                {isToday ? (
-                  <span className="flex items-center gap-1">
-                    <Cake className="h-3.5 w-3.5" />
-                    <span className="font-bold">🎉 {t('birthdays.todayBang', 'Today!')} 🎉</span>
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1">
-                    <Calendar className="h-3.5 w-3.5" />
-                    {birthday.daysUntil} {birthday.daysUntil === 1 ? t('birthdays.day') : t('birthdays.days')} {t('birthdays.away')}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+/** Month/day/year from an ISO-like date string without timezone shifts. */
+const parseDob = (value: string) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value || '');
+  if (m) return { y: +m[1], m: +m[2] - 1, d: +m[3] };
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? null : { y: d.getFullYear(), m: d.getMonth(), d: d.getDate() };
 };
 
-// Stats card component
-const StatsCard = ({ 
-  title, 
-  value, 
-  icon: Icon, 
-  description 
-}: { 
-  title: string; 
-  value: number; 
-  icon: React.ComponentType<{ className?: string }>; 
-  description: string;
-}) => {
-  const { colorScheme } = useTheme();
-  
-  // Get theme color classes
-  const getColorClasses = () => {
-    switch (colorScheme) {
-      case 'blue':
-        return 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400';
-      case 'green':
-        return 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400';
-      case 'purple':
-        return 'bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400';
-      case 'orange':
-        return 'bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400';
-      default:
-        return 'bg-pink-100 dark:bg-pink-900/20 text-pink-600 dark:text-pink-400';
-    }
-  };
-
-  return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${getColorClasses()}`}>
-            <Icon className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">{value}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{description}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+const gradeOf = (b: BirthdayData) => {
+  const rec = b.academicRecords?.[0]?.class_division;
+  if (rec) return { grade: rec.level?.name || '', seq: rec.level?.sequence_number ?? 999, division: rec.division || '' };
+  const g = b.class?.match(/^(.*?)\s*-\s*Section\s+(\w+)/i);
+  return g ? { grade: g[1], seq: 999, division: g[2] } : { grade: b.class || '', seq: 999, division: '' };
 };
 
-// Filter Tag Component
-const FilterTag = ({ 
-  label, 
-  value, 
-  onRemove 
-}: { 
-  label: string; 
-  value: string; 
-  onRemove: () => void;
-}) => {
+const initialsOf = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join('');
+
+// Every person gets a stable, cheerful colour.
+const PALETTE: Tone[] = ['rose', 'violet', 'warning', 'info', 'success', 'primary'];
+const toneFor = (name: string): Tone => {
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return PALETTE[h % PALETTE.length];
+};
+
+// Literal class names so Tailwind generates them.
+const SOLID: Record<Tone, string> = {
+  primary: 'bg-tone-primary',
+  success: 'bg-tone-success',
+  warning: 'bg-tone-warning',
+  danger: 'bg-tone-danger',
+  info: 'bg-tone-info',
+  violet: 'bg-tone-violet',
+  rose: 'bg-tone-rose',
+  neutral: 'bg-muted-foreground',
+};
+
+const classLabel = (e: Entry, sec: string) =>
+  [e.grade, e.division && `${sec} ${e.division}`].filter(Boolean).join(' · ');
+
+function Avatar({ entry, size = 'md' }: { entry: Entry; size?: 'md' | 'lg' }) {
+  const tone = toneFor(entry.b.name);
   return (
-    <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-full px-3 py-1 text-sm">
-      <span className="mr-1.5 text-gray-700 dark:text-gray-300">
-        <span className="font-medium">{label}:</span> {value}
-      </span>
-      <button 
-        onClick={onRemove}
-        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
+    <span
+      className={cn(
+        'relative inline-flex shrink-0 items-center justify-center rounded-full font-semibold ring-2 ring-background',
+        toneClass[tone].chip,
+        size === 'lg' ? 'size-14 text-lg' : 'size-11 text-sm'
+      )}
+    >
+      {entry.b.avatar || initialsOf(entry.b.name)}
+      {entry.days === 0 && (
+        <span className="absolute -right-1 -top-1 inline-flex size-5 items-center justify-center rounded-full bg-tone-rose text-white ring-2 ring-background">
+          <PartyPopper className="size-3" />
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** Decorative confetti for the hero (positions are fixed so it never jumps). */
+const CONFETTI: { x: string; y: string; r: number; tone: Tone; shape: 'dot' | 'bar' | 'ring' }[] = [
+  { x: '4%', y: '18%', r: 20, tone: 'rose', shape: 'bar' },
+  { x: '10%', y: '70%', r: -30, tone: 'warning', shape: 'dot' },
+  { x: '19%', y: '12%', r: 0, tone: 'violet', shape: 'ring' },
+  { x: '31%', y: '82%', r: 40, tone: 'info', shape: 'bar' },
+  { x: '44%', y: '10%', r: -15, tone: 'success', shape: 'dot' },
+  { x: '57%', y: '86%', r: 25, tone: 'rose', shape: 'ring' },
+  { x: '66%', y: '14%', r: 50, tone: 'warning', shape: 'bar' },
+  { x: '78%', y: '76%', r: 0, tone: 'violet', shape: 'dot' },
+  { x: '88%', y: '20%', r: -40, tone: 'info', shape: 'bar' },
+  { x: '94%', y: '64%', r: 0, tone: 'rose', shape: 'dot' },
+  { x: '72%', y: '40%', r: 0, tone: 'success', shape: 'ring' },
+];
+
+function Confetti() {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      {CONFETTI.map((c, i) => (
+        <span
+          key={i}
+          className={cn(
+            'absolute opacity-70',
+            c.shape === 'dot' && 'size-2 rounded-full',
+            c.shape === 'bar' && 'h-1 w-4 rounded-full',
+            c.shape === 'ring' && 'size-3 rounded-full border-2 border-current',
+            c.shape === 'ring' ? toneClass[c.tone].text : SOLID[c.tone]
+          )}
+          style={{ left: c.x, top: c.y, transform: `rotate(${c.r}deg)` }}
+        />
+      ))}
     </div>
   );
-};
+}
+
+function WishButton({ name }: { name: string }) {
+  const { t } = useI18n();
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        t('birthdays.wishText', 'Happy Birthday {{name}}! 🎉 Wishing you a wonderful year ahead. – AJWS').replace(
+          '{{name}}',
+          name.split(/\s+/)[0]
+        )
+      );
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard unavailable */
+    }
+  };
+  return (
+    <Button type="button" size="sm" variant="outline" onClick={copy} className="h-7 gap-1 bg-background/70 px-2 text-xs">
+      {copied ? <Check /> : <Copy />}
+      {copied ? t('birthdays.wishCopied', 'Copied') : t('birthdays.sendWish', 'Wish')}
+    </Button>
+  );
+}
+
+function Hero({ entries, lang }: { entries: Entry[]; lang: string }) {
+  const { t } = useI18n();
+  if (entries.length === 0) return null;
+  const first = entries[0].days;
+  const featured = entries.filter((e) => e.days === first);
+  const isToday = first === 0;
+  const shown = featured.slice(0, 4);
+  const extra = featured.length - shown.length;
+  const when =
+    first === 1
+      ? t('birthdays.tomorrow', 'Tomorrow')
+      : t('birthdays.inDays', 'in {{n}} days').replace('{{n}}', String(first));
+
+  return (
+    <section className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-tone-rose-soft via-tone-warning-soft to-tone-violet-soft p-4 sm:p-5">
+      <Confetti />
+      <div className="relative flex flex-wrap items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-tone-rose">
+            {isToday ? <PartyPopper className="size-4" /> : <Sparkles className="size-4" />}
+            {isToday ? t('birthdays.heroToday', "Today's birthdays") : t('birthdays.heroNext', 'Up next')}
+          </p>
+          <h2 className="mt-1 text-xl font-bold leading-tight sm:text-2xl">
+            {isToday
+              ? t('birthdays.happyBirthday', 'Happy Birthday! 🎉')
+              : `${when} · ${featured[0].occurrence.toLocaleDateString(lang, { weekday: 'long', day: 'numeric', month: 'long' })}`}
+          </h2>
+          <p className={cn(type.caption, 'mt-0.5 text-foreground/70')}>
+            {featured.length === 1
+              ? t('birthdays.heroOne', '1 celebration')
+              : t('birthdays.heroMany', '{{n}} celebrations').replace('{{n}}', String(featured.length))}
+          </p>
+        </div>
+        <Cake className="hidden size-14 text-tone-rose/40 sm:block" aria-hidden />
+      </div>
+
+      <ul className="relative mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {shown.map((e) => (
+          <li key={e.b.id} className="flex items-center gap-3 rounded-lg border bg-background/80 p-2.5 backdrop-blur-sm">
+            <Avatar entry={e} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold leading-tight">{e.b.name}</p>
+              <p className={cn(type.caption, 'truncate')}>
+                {classLabel(e, t('birthdays.sectionShort', 'Sec')) || t('common.students', 'Students')}
+                {e.age !== null && ` · ${t('birthdays.turns', 'Turns {{n}}').replace('{{n}}', String(e.age))}`}
+              </p>
+            </div>
+            {isToday && <WishButton name={e.b.name} />}
+          </li>
+        ))}
+        {extra > 0 && (
+          <li className="flex items-center justify-center rounded-lg border border-dashed bg-background/50 p-2.5 text-sm font-medium text-muted-foreground">
+            +{extra} {t('birthdays.more', 'more')}
+          </li>
+        )}
+      </ul>
+    </section>
+  );
+}
+
+function BirthdayCard({ entry, lang }: { entry: Entry; lang: string }) {
+  const { t } = useI18n();
+  const tone = toneFor(entry.b.name);
+  const isToday = entry.days === 0;
+  const when =
+    entry.days === 0
+      ? t('birthdays.todayBang', 'Today!')
+      : entry.days === 1
+      ? t('birthdays.tomorrow', 'Tomorrow')
+      : t('birthdays.inDays', 'in {{n}} days').replace('{{n}}', String(entry.days));
+
+  return (
+    <li
+      className={cn(
+        'group relative flex items-center gap-3 overflow-hidden rounded-lg border bg-card p-3 transition-all hover:-translate-y-0.5 hover:shadow-md',
+        isToday && 'border-tone-rose/40 bg-tone-rose-soft/40'
+      )}
+    >
+      <span aria-hidden className={cn('absolute inset-y-0 left-0 w-1', SOLID[tone])} />
+      <Avatar entry={entry} />
+      <div className="min-w-0 flex-1">
+        <p className={cn(type.rowTitle, 'truncate')}>{entry.b.name}</p>
+        <p className={cn(type.caption, 'truncate')}>
+          {[classLabel(entry, t('birthdays.sectionShort', 'Sec')), entry.b.department].filter(Boolean).join(' · ') ||
+            t('common.students', 'Students')}
+        </p>
+        <p className="mt-1 text-[11px] font-medium text-muted-foreground">
+          {entry.occurrence.toLocaleDateString(lang, { day: 'numeric', month: 'short' })} · {when}
+        </p>
+      </div>
+      {entry.age !== null && (
+        <span
+          className={cn(
+            'inline-flex shrink-0 flex-col items-center rounded-lg px-2.5 py-1.5 leading-none',
+            toneClass[isToday ? 'rose' : tone].chip
+          )}
+          title={t('birthdays.turns', 'Turns {{n}}').replace('{{n}}', String(entry.age))}
+        >
+          <Cake className="mb-0.5 size-3.5" />
+          <span className="text-lg font-bold tabular-nums">{entry.age}</span>
+        </span>
+      )}
+    </li>
+  );
+}
 
 export default function BirthdaysPage() {
-  const [dateFilter, setDateFilter] = useState<'today' | 'tomorrow' | 'this-week' | 'this-month' | null>('today');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'student' | null>(null);
-  const { t } = useI18n();
-  
-  // Use the birthday hook
-  const {
-    loading,
-    error,
-    birthdayStats,
-    useFallback,
-    getAllBirthdays,
-    getBirthdaysByDateRange,
-    getBirthdaysByType,
-    getBirthdaysForTomorrow,
-    clearError
-  } = useBirthdays();
-  
-  // Filter birthdays based on selected filters
-  const filteredBirthdays = useMemo(() => {
-    let filtered: BirthdayData[] = getAllBirthdays();
-    
-    // Apply type filter (only students now, staff filter removed)
-    if (typeFilter && typeFilter !== 'all' && typeFilter === 'student') {
-      filtered = getBirthdaysByType(typeFilter);
-    }
-    
-    // Apply date filter
-    if (dateFilter) {
-      if (dateFilter === 'today') {
-        filtered = getBirthdaysByDateRange('today');
-      } else if (dateFilter === 'tomorrow') {
-        filtered = getBirthdaysForTomorrow();
-      } else if (dateFilter === 'this-week') {
-        filtered = getBirthdaysByDateRange('this-week');
-      } else if (dateFilter === 'this-month') {
-        filtered = getBirthdaysByDateRange('this-month');
+  const { t, lang } = useI18n();
+  const { loading, error, useFallback, getAllBirthdays, clearError } = useBirthdays();
+
+  const [range, setRange] = useState<RangeKey>('today');
+  const [search, setSearch] = useState('');
+  const [grade, setGrade] = useState('all');
+  const picked = useRef(false);
+
+  const all = getAllBirthdays();
+
+  // Next occurrence of every birthday, computed from month/day of the date of birth.
+  const entries = useMemo<Entry[]>(() => {
+    const today = startOfDay(new Date());
+    return all
+      .map((b) => {
+        const dob = parseDob(b.date);
+        if (!dob) return null;
+        let occ = new Date(today.getFullYear(), dob.m, dob.d);
+        if (occ < today) occ = new Date(today.getFullYear() + 1, dob.m, dob.d);
+        const age = occ.getFullYear() - dob.y;
+        const g = gradeOf(b);
+        return {
+          b,
+          occurrence: occ,
+          days: Math.round((occ.getTime() - today.getTime()) / 86400000),
+          age: age > 0 && age < 100 ? age : null,
+          ...g,
+        } as Entry;
+      })
+      .filter((e): e is Entry => !!e)
+      .sort((a, b) => a.days - b.days || a.b.name.localeCompare(b.b.name));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [all.length, loading]);
+
+  const inRange = (e: Entry, key: RangeKey) => {
+    const now = new Date();
+    switch (key) {
+      case 'today':
+        return e.days === 0;
+      case 'tomorrow':
+        return e.days === 1;
+      case 'next7':
+        return e.days <= 7;
+      case 'month':
+        return e.occurrence.getMonth() === now.getMonth() && e.occurrence.getFullYear() === now.getFullYear();
+      case 'nextMonth': {
+        const nm = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        return e.occurrence.getMonth() === nm.getMonth() && e.occurrence.getFullYear() === nm.getFullYear();
       }
     }
-    
-    return filtered;
-  }, [getAllBirthdays, getBirthdaysByDateRange, getBirthdaysByType, getBirthdaysForTomorrow, dateFilter, typeFilter]);
-
-
-  const clearFilters = () => {
-    setDateFilter(null);
-    setTypeFilter(null);
   };
 
-  const activeFilters = [
-    ...(dateFilter ? [{ label: 'Date', value: dateFilter }] : []),
-    ...(typeFilter && typeFilter !== 'all' ? [{ label: 'Type', value: typeFilter }] : [])
+  const tabs: { key: RangeKey; label: string }[] = [
+    { key: 'today', label: t('birthdays.today', 'Today') },
+    { key: 'tomorrow', label: t('birthdays.tomorrow', 'Tomorrow') },
+    { key: 'next7', label: t('birthdays.next7', 'Next 7 days') },
+    { key: 'month', label: t('birthdays.thisMonth', 'This Month') },
+    { key: 'nextMonth', label: t('birthdays.nextMonth', 'Next Month') },
   ];
+  const counts = useMemo(
+    () => Object.fromEntries(tabs.map((tab) => [tab.key, entries.filter((e) => inRange(e, tab.key)).length])) as Record<RangeKey, number>,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [entries]
+  );
 
-  // Remove fallback data warning since we don't want dummy data
+  // Open on the first tab that has someone, rather than an empty "Today".
+  useEffect(() => {
+    if (picked.current || loading || entries.length === 0) return;
+    picked.current = true;
+    const first = (['today', 'next7', 'month', 'nextMonth'] as RangeKey[]).find((k) => counts[k] > 0);
+    if (first) setRange(first);
+  }, [loading, entries, counts]);
+
+  const grades = useMemo(() => {
+    const map = new Map<string, number>();
+    entries.forEach((e) => e.grade && map.set(e.grade, Math.min(map.get(e.grade) ?? 999, e.seq)));
+    return [...map.entries()].sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0])).map(([g]) => g);
+  }, [entries]);
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return entries.filter(
+      (e) =>
+        inRange(e, range) &&
+        (grade === 'all' || e.grade === grade) &&
+        (!q || e.b.name.toLowerCase().includes(q))
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, range, grade, search]);
+
+  // Group cards by day
+  const groups = useMemo(() => {
+    const map = new Map<number, Entry[]>();
+    visible.forEach((e) => map.set(e.days, [...(map.get(e.days) ?? []), e]));
+    return [...map.entries()];
+  }, [visible]);
+
+  const dayLabel = (days: number, d: Date) => {
+    const date = d.toLocaleDateString(lang, { weekday: 'long', day: 'numeric', month: 'short' });
+    if (days === 0) return `${t('birthdays.today', 'Today')} · ${date}`;
+    if (days === 1) return `${t('birthdays.tomorrow', 'Tomorrow')} · ${date}`;
+    return date;
+  };
+
+  const nextUp = entries.find((e) => e.days > 0 && !inRange(e, range));
+  const filtered = search.trim() !== '' || grade !== 'all';
+  const showSkeleton = loading && entries.length === 0;
+
   if (useFallback) {
     return (
       <ProtectedRoute>
-        <div className="space-y-6">
-          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-600" />
-              <div>
-                <p className="text-yellow-800 font-medium">Data Unavailable</p>
-                <p className="text-yellow-700 text-sm">
-                  Birthday data is currently unavailable. Please try again later.
-                </p>
-              </div>
-            </div>
-          </div>
+        <div className="mx-auto w-full max-w-5xl">
+          <InlineError title={t('birthdays.loadFailed', 'Failed to load birthdays')} />
         </div>
       </ProtectedRoute>
     );
@@ -328,179 +381,134 @@ export default function BirthdaysPage() {
 
   return (
     <ProtectedRoute>
-      <div className="space-y-6">
-        {/* Error Display */}
+      <div className="mx-auto w-full max-w-5xl space-y-4">
         {error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-center justify-between">
-              <p className="text-red-800">{error}</p>
-              <Button variant="ghost" size="sm" onClick={clearError}>
-                ×
-              </Button>
-            </div>
-          </div>
+          <InlineError
+            title={t('birthdays.loadFailed', 'Failed to load birthdays')}
+            detail={error}
+            onRetry={clearError}
+            retryLabel={t('common.dismiss', 'Dismiss')}
+          />
         )}
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatsCard 
-            title={t('birthdays.today', 'Today')} 
-            value={birthdayStats.today} 
-            icon={Cake} 
-            description={t('birthdays.kpi.today', 'birthdays today')} 
-          />
-          <StatsCard 
-            title={t('birthdays.thisWeek', 'This Week')} 
-            value={birthdayStats.thisWeek} 
-            icon={Calendar} 
-            description={t('birthdays.kpi.thisWeek', 'upcoming birthdays')} 
-          />
-          <StatsCard 
-            title={t('birthdays.thisMonth', 'This Month')} 
-            value={birthdayStats.thisMonth} 
-            icon={Users} 
-            description={t('birthdays.kpi.thisMonth', 'total birthdays')} 
-          />
-          <StatsCard 
-            title={t('birthdays.nextMonth', 'Next Month')} 
-            value={birthdayStats.nextMonth} 
-            icon={Gift} 
-            description={t('birthdays.kpi.nextMonth', 'planned celebrations')} 
-          />
+        {showSkeleton ? <Skeleton className="h-40 w-full rounded-xl" /> : <Hero entries={entries} lang={lang} />}
+
+        {/* Range tabs with counts */}
+        <div role="tablist" className="flex flex-wrap gap-1 border-b">
+          {tabs.map((tab) => {
+            const active = range === tab.key;
+            return (
+              <button
+                key={tab.key}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setRange(tab.key)}
+                className={cn(
+                  '-mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors',
+                  active
+                    ? 'border-tone-rose text-foreground'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {tab.label}
+                <span
+                  className={cn(
+                    'rounded-full px-1.5 text-[11px] font-semibold tabular-nums leading-5',
+                    active ? 'bg-tone-rose-soft text-tone-rose' : 'bg-muted text-muted-foreground'
+                  )}
+                >
+                  {showSkeleton ? '–' : counts[tab.key]}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
-        <div className="grid gap-6">
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-xl">{t('birthdays.upcoming')}</CardTitle>
-              <CardDescription>
-                {t('birthdays.subtitle')}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* Filter Tags */}
-              {activeFilters.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2 mb-4">
-                  {activeFilters.map((filter, index) => (
-                    <FilterTag
-                      key={index}
-                      label={filter.label}
-                      value={filter.value}
-                      onRemove={() => {
-                        if (filter.label === 'Date') setDateFilter(null);
-                        if (filter.label === 'Type') setTypeFilter(null);
-                      }}
-                    />
-                  ))}
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={clearFilters}
-                      className="h-7 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                    >
-                      {t('birthdays.clearAll')}
-                    </Button>
-                </div>
-              )}
-              
-              {/* Enhanced filters with more space between sections */}
-              <div className="space-y-4 mb-6">
-                {/* Type Filter Buttons */}
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('birthdays.type')}:</span>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant={typeFilter === 'student' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setTypeFilter(typeFilter === 'student' ? null : 'student')}
-                      className="flex items-center gap-1"
-                    >
-                      <GraduationCap className="h-4 w-4" />
-                      {t('common.students')}
-                    </Button>
-                    {/* Staff filter removed as requested */}
-                  </div>
-                </div>
-                
-                {/* Date Filter Buttons */}
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('birthdays.date')}:</span>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant={dateFilter === 'today' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setDateFilter(dateFilter === 'today' ? null : 'today')}
-                    >
-                      {t('birthdays.today')}
-                    </Button>
-                    <Button
-                      variant={dateFilter === 'tomorrow' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setDateFilter(dateFilter === 'tomorrow' ? null : 'tomorrow')}
-                    >
-                      {t('birthdays.tomorrow')}
-                    </Button>
-                    <Button
-                      variant={dateFilter === 'this-week' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setDateFilter(dateFilter === 'this-week' ? null : 'this-week')}
-                    >
-                      {t('birthdays.thisWeek')}
-                    </Button>
-                    <Button
-                      variant={dateFilter === 'this-month' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setDateFilter(dateFilter === 'this-month' ? null : 'this-month')}
-                    >
-                      {t('birthdays.thisMonth')}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Loading State */}
-              {loading && (
-                <div className="text-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">{t('birthdays.loading')}</p>
-                </div>
-              )}
-              
-              {/* Birthday Cards Grid - More compact for 30-40 cards */}
-              {!loading && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredBirthdays.length > 0 ? (
-                      filteredBirthdays
-                        .sort((a, b) => a.daysUntil - b.daysUntil)
-                        .map((birthday) => (
-                          <BirthdayCard
-                            key={birthday.id}
-                            birthday={birthday}
-                          />
-                        ))
-                    ) : (
-                      <div className="col-span-full text-center py-12">
-                        <Cake className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">{t('birthdays.empty.title')}</h3>
-                        <p className="text-gray-500 dark:text-gray-400">
-                          {t('birthdays.empty.none')}
-                        </p>
-                        {activeFilters.length > 0 && (
-                          <Button 
-                            variant="outline" 
-                            className="mt-4" 
-                            onClick={clearFilters}
-                          >
-                            {t('birthdays.clearAllFilters')}
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[12rem] flex-1">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('birthdays.searchPlaceholder', 'Search by name...')}
+              className="pl-8 pr-8"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                aria-label={t('birthdays.clearAll', 'Clear all')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-4" />
+              </button>
+            )}
+          </div>
+          <select
+            value={grade}
+            onChange={(e) => setGrade(e.target.value)}
+            aria-label={t('birthdays.allClasses', 'All classes')}
+            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <option value="all">{t('birthdays.allClasses', 'All classes')}</option>
+            {grades.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
         </div>
+
+        {/* Cards grouped by day */}
+        {showSkeleton ? (
+          <div className="grid gap-2 md:grid-cols-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-[4.5rem] w-full rounded-lg" />
+            ))}
+          </div>
+        ) : groups.length === 0 ? (
+          <div className={surface.panel}>
+            <EmptyState
+              icon={<Gift />}
+              title={
+                filtered
+                  ? t('birthdays.empty.title', 'No birthdays found')
+                  : t('birthdays.empty.range', 'No birthdays in this period')
+              }
+              help={
+                filtered
+                  ? t('birthdays.empty.none', 'There are no birthdays matching your selected filters.')
+                  : nextUp
+                  ? t('birthdays.nextUp', 'Next: {{name}} · {{date}}')
+                      .replace('{{name}}', nextUp.b.name)
+                      .replace('{{date}}', nextUp.occurrence.toLocaleDateString(lang, { day: 'numeric', month: 'short' }))
+                  : undefined
+              }
+            />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {groups.map(([days, list]) => (
+              <section key={days}>
+                <header className="mb-2 flex items-center gap-2">
+                  <h2 className="inline-flex items-center gap-1.5 text-sm font-semibold">
+                    {days === 0 && <PartyPopper className="size-4 text-tone-rose" />}
+                    {dayLabel(days, list[0].occurrence)}
+                  </h2>
+                  <span className="rounded-full bg-muted px-1.5 text-[11px] font-semibold tabular-nums leading-5 text-muted-foreground">
+                    {list.length}
+                  </span>
+                </header>
+                <ul className="grid gap-2 md:grid-cols-2">
+                  {list.map((entry) => (
+                    <BirthdayCard key={entry.b.id} entry={entry} lang={lang} />
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        )}
       </div>
     </ProtectedRoute>
   );
