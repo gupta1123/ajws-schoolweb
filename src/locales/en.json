@@ -180,6 +180,9 @@
     "signingIn": "Signing in...",
     "signIn": "Sign In",
     "forgotNote": "Forgot your password? Contact your administrator.",
+    "capsLockOn": "Caps Lock is on",
+    "welcomeBack": "Welcome back",
+    "toggleTheme": "Toggle theme",
     "loginFailed": "Login failed"
   },
   "topbar": {

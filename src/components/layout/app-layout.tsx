@@ -46,14 +46,18 @@ export function AppLayout({ children }: AppLayoutProps) {
     pathname === '/profile' ||
     pathname === '/change-password';
 
+  // Auth pages own their full-screen layout; never wrap them in the app shell,
+  // even when a stored session exists (otherwise /login renders under the
+  // sidebar/topbar offsets).
+  const isAuthRoute = pathname === '/login';
+
   useEffect(() => {
-    if (user?.role === 'attendance_staff' && !isAttendanceStaffAllowedPath) {
+    if (!isAuthRoute && user?.role === 'attendance_staff' && !isAttendanceStaffAllowedPath) {
       router.replace('/attendance');
     }
-  }, [isAttendanceStaffAllowedPath, router, user?.role]);
+  }, [isAttendanceStaffAllowedPath, isAuthRoute, router, user?.role]);
 
-  // Don't show layout for auth pages
-  if (!user) {
+  if (!user || isAuthRoute) {
     return <>{children}</>;
   }
 

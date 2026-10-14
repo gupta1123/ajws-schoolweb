@@ -788,6 +788,9 @@
     "signingIn": "साइन इन हो रहा है...",
     "signIn": "साइन इन",
     "forgotNote": "पासवर्ड भूल गए? अपने प्रशासक से संपर्क करें।",
+    "capsLockOn": "Caps Lock चालू है",
+    "welcomeBack": "वापसी पर स्वागत है",
+    "toggleTheme": "थीम बदलें",
     "loginFailed": "लॉगिन विफल"
   },
   "topbar": {
