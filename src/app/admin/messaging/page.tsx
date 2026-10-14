@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/lib/auth/context';
 import { ThreadList, MessagePanel, PrincipalNewChatModal } from '@/components/messaging';
 import { Button } from '@/components/ui/button';
@@ -10,10 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Plus, MessageCircle, Search } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/context';
 import { useRouter } from 'next/navigation';
-import { ChatThread as MessagingChatThread } from '@/lib/api/messaging';
-import { principalChatsServices } from '@/lib/api';
-import type { ChatThread as PrincipalChatThread } from '@/lib/api/principal-chats';
-import { useWebSocketChat } from '@/hooks/use-websocket-chat';
+import { messagingAPI, ChatThread as MessagingChatThread } from '@/lib/api/messaging';
 
 type TabType = 'dm' | 'approvals';
 
@@ -27,41 +24,8 @@ export default function PrincipalMessagingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('dm');
   const [query, setQuery] = useState('');
-  
-  // WebSocket connection status
-  const { isConnected, connectionStatus } = useWebSocketChat();
-
-  // Map principal chats API threads to messaging ChatThread shape used by UI
-  const mapPrincipalThreadToMessagingThread = (thread: PrincipalChatThread): MessagingChatThread => {
-    const last = thread.last_message;
-    const hasLastSender = !!(last && last.sender && last.sender.id);
-
-    return {
-      id: thread.thread_id,
-      title: thread.title,
-      thread_type: thread.thread_type,
-      participants: (thread.participants?.all ?? []).map((p) => ({
-        user_id: p.user_id,
-        user: {
-          id: p.user.id,
-          full_name: p.user.full_name,
-          role: p.user.role,
-        },
-      })),
-      last_message: hasLastSender
-        ? [
-            {
-              id: last!.id,
-              content: last!.content,
-              created_at: last!.created_at,
-              sender_id: last!.sender!.id,
-            },
-          ]
-        : [],
-      created_at: thread.created_at,
-      updated_at: thread.updated_at,
-    };
-  };
+  const hasLoadedThreadsRef = useRef(false);
+  const fetchInFlightRef = useRef(false);
 
   const fetchThreads = useCallback(async () => {
     if (!token) {
@@ -69,33 +33,33 @@ export default function PrincipalMessagingPage() {
       return;
     }
 
+    // Prevent mount effects, manual refreshes, and the interval from starting
+    // overlapping requests for the same conversation list.
+    if (fetchInFlightRef.current) return;
+    fetchInFlightRef.current = true;
+    const isInitialLoad = !hasLoadedThreadsRef.current;
+
     try {
-      setIsLoading(true);
-      // Use principal chats endpoint, filtered to direct messages including the principal
-      const response = await principalChatsServices.getPrincipalChats(
-        {
-          chat_type: 'direct',
-          includes_me: 'yes',
-          page: 1,
-          limit: 50,
-        },
-        token
+      if (isInitialLoad) setIsLoading(true);
+
+      // This endpoint is already scoped to the authenticated user and returns
+      // a lightweight, paginated list (20 by default).
+      const response = await messagingAPI.fetchThreads();
+      const directThreads = response.filter((thread) => thread.thread_type === 'direct');
+      setThreads(directThreads);
+      setSelectedThread((current) =>
+        current
+          ? directThreads.find((thread) => thread.id === current.id) ?? directThreads[0] ?? null
+          : directThreads[0] ?? null
       );
-
-      const principalThreads = response.data.threads ?? [];
-      const mappedThreads = principalThreads.map(mapPrincipalThreadToMessagingThread);
-      setThreads(mappedThreads);
-
-      // Auto-select first thread only when nothing is selected yet
-      if (!selectedThread && mappedThreads.length > 0) {
-        setSelectedThread(mappedThreads[0]);
-      }
+      hasLoadedThreadsRef.current = true;
     } catch (error) {
       console.error('Error fetching principal DM threads:', error);
     } finally {
-      setIsLoading(false);
+      fetchInFlightRef.current = false;
+      if (isInitialLoad) setIsLoading(false);
     }
-  }, [token, selectedThread]);
+  }, [token]);
 
   const filteredThreads = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -225,8 +189,6 @@ export default function PrincipalMessagingPage() {
               isLoading={isLoading}
               onRefresh={fetchThreads}
               currentUserId={user?.id || ''}
-              isConnected={isConnected}
-              connectionStatus={connectionStatus}
             />
           </div>
         </div>
