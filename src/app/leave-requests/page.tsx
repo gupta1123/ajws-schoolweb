@@ -245,7 +245,7 @@ function LeaveRequestsContent() {
   }
 
   // Teachers use the self-service API and can manage only their own pending
-  // requests. Admin/principal approval behavior below remains unchanged.
+  // requests. Student leave approval behavior below remains unchanged.
   if (user.role === 'teacher') {
     return (
       <ProtectedRoute>
@@ -254,7 +254,7 @@ function LeaveRequestsContent() {
     );
   }
 
-  if (requestAudience === 'teachers') {
+  if (user.role === 'principal' && requestAudience === 'teachers') {
     return (
       <ProtectedRoute>
         <PrincipalTeacherLeaveRequests onShowStudentLeaves={() => setRequestAudience('students')} />
@@ -339,14 +339,16 @@ function LeaveRequestsContent() {
             <GraduationCap className="size-4" />
             {t('leave.studentLeaves', 'Student Leaves')}
           </button>
-          <button
-            type="button"
-            onClick={() => setRequestAudience('teachers')}
-            className="inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <Users className="size-4" />
-            {t('leave.teacherLeaves', 'Teacher Leaves')}
-          </button>
+          {user.role === 'principal' && (
+            <button
+              type="button"
+              onClick={() => setRequestAudience('teachers')}
+              className="inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Users className="size-4" />
+              {t('leave.teacherLeaves', 'Teacher Leaves')}
+            </button>
+          )}
         </div>
 
         {/* Status tabs with counts */}

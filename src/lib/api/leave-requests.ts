@@ -122,7 +122,7 @@ export const leaveRequestServices = {
     }> | ApiErrorResponse | Blob;
   },
 
-  // Principal/admin view of teacher leave requests.
+  // Principal-only view of teacher leave requests.
   listTeacherLeaves: async (
     params: ListTeacherLeaveRequestsParams = {},
     token: string
@@ -143,6 +143,18 @@ export const leaveRequestServices = {
       filters?: Record<string, unknown>;
       pagination?: LeaveRequestPagination;
     }>(`/api/leave-requests/teachers${queryString}`, token);
+  },
+
+  reviewTeacherLeave: async (
+    id: string,
+    status: 'approved' | 'rejected',
+    token: string
+  ): Promise<ApiResponse<{ leave_request: TeacherLeaveRequest }> | ApiErrorResponse> => {
+    return apiClient.put<{ leave_request: TeacherLeaveRequest }, { status: 'approved' | 'rejected' }>(
+      `/api/leave-requests/teachers/${id}/status`,
+      { status },
+      token
+    );
   },
 
   updateTeacherLeave: async (

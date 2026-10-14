@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays, GraduationCap, Inbox, Search, Users, X } from 'lucide-react';
+import { CalendarDays, Check, GraduationCap, Inbox, Loader2, Search, Users, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { useI18n } from '@/lib/i18n/context';
 import { leaveRequestServices } from '@/lib/api/leave-requests';
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { EmptyState, IconChip, InlineError, Pill, PanelSkeleton } from '@/components/ui/page-kit';
 import { surface, type, type Tone } from '@/lib/design/tokens';
 import { cn, formatDate } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 type StatusFilter = 'all' | TeacherLeaveRequest['status'];
 
@@ -38,6 +39,7 @@ export function PrincipalTeacherLeaveRequests({
 }) {
   const { token } = useAuth();
   const { t } = useI18n();
+  const { toast } = useToast();
   const [requests, setRequests] = useState<TeacherLeaveRequest[]>([]);
   const [pagination, setPagination] = useState<LeaveRequestPagination | null>(null);
   const [status, setStatus] = useState<StatusFilter>('pending');
@@ -47,6 +49,7 @@ export function PrincipalTeacherLeaveRequests({
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reviewingIds, setReviewingIds] = useState<Set<string>>(new Set());
 
   const fetchRequests = useCallback(async () => {
     if (!token) return;
@@ -94,6 +97,45 @@ export function PrincipalTeacherLeaveRequests({
   useEffect(() => {
     fetchRequests();
   }, [fetchRequests]);
+
+  const reviewRequest = async (request: TeacherLeaveRequest, nextStatus: 'approved' | 'rejected') => {
+    if (!token || request.status !== 'pending') return;
+    setReviewingIds((current) => new Set(current).add(request.id));
+    setError(null);
+
+    try {
+      const response = await leaveRequestServices.reviewTeacherLeave(request.id, nextStatus, token);
+      if (!('data' in response)) {
+        setError(response.message || t('leave.teacher.reviewError', 'Failed to review teacher leave request.'));
+        return;
+      }
+
+      setRequests((current) =>
+        status === 'pending'
+          ? current.filter((item) => item.id !== request.id)
+          : current.map((item) => (item.id === request.id ? response.data.leave_request : item))
+      );
+      toast({
+        title: t('common.success', 'Success'),
+        description:
+          nextStatus === 'approved'
+            ? t('leave.teacher.approved', 'Teacher leave request approved.')
+            : t('leave.teacher.rejected', 'Teacher leave request rejected.'),
+      });
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : t('leave.teacher.reviewError', 'Failed to review teacher leave request.')
+      );
+    } finally {
+      setReviewingIds((current) => {
+        const next = new Set(current);
+        next.delete(request.id);
+        return next;
+      });
+    }
+  };
 
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -234,12 +276,13 @@ export function PrincipalTeacherLeaveRequests({
               <span>{t('common.teacher', 'Teacher')}</span>
               <span>{t('leave.columns.dates', 'Dates')}</span>
               <span>{t('leave.columns.reason', 'Reason')}</span>
-              <span>{t('common.status', 'Status')}</span>
+              <span className="text-right">{t('leave.columns.actions', 'Actions')}</span>
             </div>
             <ul className="divide-y">
               {filteredRequests.map((request) => {
                 const teacherName = request.teacher?.full_name || t('leave.unknownTeacher', 'Unknown teacher');
                 const days = dayCount(request.start_date, request.end_date);
+                const reviewing = reviewingIds.has(request.id);
                 return (
                   <li
                     key={request.id}
@@ -274,9 +317,36 @@ export function PrincipalTeacherLeaveRequests({
                         {t('leave.requestedOn', 'Requested')} {formatDate(request.created_at)}
                       </p>
                     </div>
-                    <Pill tone={statusTone[request.status]}>
-                      {t(`leave.status.${request.status}`, request.status)}
-                    </Pill>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {request.status === 'pending' ? (
+                        <>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={reviewing}
+                            onClick={() => reviewRequest(request, 'rejected')}
+                            className="text-tone-danger hover:text-tone-danger"
+                          >
+                            <X />
+                            {t('leave.actions.reject', 'Reject')}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={reviewing}
+                            onClick={() => reviewRequest(request, 'approved')}
+                          >
+                            {reviewing ? <Loader2 className="animate-spin" /> : <Check />}
+                            {t('leave.actions.approve', 'Approve')}
+                          </Button>
+                        </>
+                      ) : (
+                        <Pill tone={statusTone[request.status]}>
+                          {t(`leave.status.${request.status}`, request.status)}
+                        </Pill>
+                      )}
+                    </div>
                   </li>
                 );
               })}
