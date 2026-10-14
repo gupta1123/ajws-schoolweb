@@ -122,6 +122,29 @@ export const leaveRequestServices = {
     }> | ApiErrorResponse | Blob;
   },
 
+  // Principal/admin view of teacher leave requests.
+  listTeacherLeaves: async (
+    params: ListTeacherLeaveRequestsParams = {},
+    token: string
+  ): Promise<ApiResponseWithCache<{
+    leave_requests: TeacherLeaveRequest[];
+    filters?: Record<string, unknown>;
+    pagination?: LeaveRequestPagination;
+  }> | ApiErrorResponse | Blob> => {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, String(value));
+      }
+    });
+    const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    return apiClient.get<{
+      leave_requests: TeacherLeaveRequest[];
+      filters?: Record<string, unknown>;
+      pagination?: LeaveRequestPagination;
+    }>(`/api/leave-requests/teachers${queryString}`, token);
+  },
+
   updateTeacherLeave: async (
     id: string,
     data: TeacherLeaveRequestPayload,

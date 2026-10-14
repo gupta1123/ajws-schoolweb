@@ -13,13 +13,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { EmptyState, Field, IconChip, InlineError, Pill } from '@/components/ui/page-kit';
 import { surface, type, type Tone } from '@/lib/design/tokens';
-import { Search, Check, X, Loader2, Inbox, Phone, Mail, ChevronUp, ChevronDown } from 'lucide-react';
+import { Search, Check, X, Loader2, Inbox, Phone, Mail, ChevronUp, ChevronDown, GraduationCap, Users } from 'lucide-react';
 import { useState, useEffect, useMemo, useRef, useLayoutEffect, Suspense } from 'react';
 import { useI18n } from '@/lib/i18n/context';
 import { useLeaveRequests } from '@/hooks/use-leave-requests';
 import { useSearchParams } from 'next/navigation';
 import { cn, formatDate } from '@/lib/utils';
 import { TeacherLeaveRequests } from '@/components/leave-requests/teacher-leave-requests';
+import { PrincipalTeacherLeaveRequests } from '@/components/leave-requests/principal-teacher-leave-requests';
 import type { LeaveRequest } from '@/types/leave-requests';
 
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected';
@@ -120,6 +121,7 @@ function LeaveRequestsContent() {
   const [rejectReason, setRejectReason] = useState('');
   const [requestToReject, setRequestToReject] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [requestAudience, setRequestAudience] = useState<'students' | 'teachers'>('students');
 
   // Get student ID from URL params if filtering by student
   const studentId = searchParams.get('studentId');
@@ -252,6 +254,14 @@ function LeaveRequestsContent() {
     );
   }
 
+  if (requestAudience === 'teachers') {
+    return (
+      <ProtectedRoute>
+        <PrincipalTeacherLeaveRequests onShowStudentLeaves={() => setRequestAudience('students')} />
+      </ProtectedRoute>
+    );
+  }
+
   const handleApproveRequest = async (requestId: string) => {
     try {
       markProcessing(requestId, true);
@@ -320,6 +330,25 @@ function LeaveRequestsContent() {
   return (
     <ProtectedRoute>
       <div className="mx-auto w-full max-w-6xl space-y-4">
+        <div className="inline-flex rounded-lg border bg-muted/30 p-1" aria-label={t('leave.audience', 'Leave request type')}>
+          <button
+            type="button"
+            aria-current="page"
+            className="inline-flex items-center gap-2 rounded-md bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-sm"
+          >
+            <GraduationCap className="size-4" />
+            {t('leave.studentLeaves', 'Student Leaves')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setRequestAudience('teachers')}
+            className="inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Users className="size-4" />
+            {t('leave.teacherLeaves', 'Teacher Leaves')}
+          </button>
+        </div>
+
         {/* Status tabs with counts */}
         <div role="tablist" className="flex flex-wrap gap-1 border-b">
           {tabs.map((tab) => {
